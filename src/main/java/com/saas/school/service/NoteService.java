@@ -19,6 +19,8 @@ public class NoteService {
     private final ClasseRepository classeRepository;
     private final AnneeScolaireRepository anneeRepository;
     private final InscriptionRepository inscriptionRepository;
+    private final EcoleRepository ecoleRepository;
+    private final AbonnementService abonnementService;
 
     public List<NoteReponseDTO> getNotes(Long classeId, Long anneeScolaireId, Long eleveId, String periode) {
 
@@ -129,6 +131,11 @@ public class NoteService {
         note.setNClass(dto.getNClass());
         note.setNExem(dto.getNExem());
         note.setCoeff(dto.getCoeff());
+        Ecole ecole = ecoleRepository.findById(note.getClasse().getEcole().getId())
+                .orElseThrow(() -> new RuntimeException("École introuvable"));
+        if (!abonnementService.isActif(ecole)) {
+            throw new RuntimeException("🚫 Abonnement expiré");
+        }
 
         note = noteRepository.save(note);
 

@@ -17,6 +17,7 @@ public class ClasseService {
     private final SerieRepository serieRepository;
     private final GroupeRepository groupeRepository;
     private final EcoleRepository ecoleRepository;
+    private final AbonnementService abonnementService;
 
     public Classe creerClasse(ClasseRequest request) {
 
@@ -39,6 +40,9 @@ public class ClasseService {
         classe.setSerie(serie);
         classe.setGroupe(groupe);
         classe.setEcole(ecole);
+        if (!abonnementService.isActif(ecole)) {
+            throw new RuntimeException("🚫 Abonnement expiré");
+        }
 
         return classeRepository.save(classe);
     }

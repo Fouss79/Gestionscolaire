@@ -1,8 +1,6 @@
 package com.saas.school.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -29,9 +27,9 @@ public class Ecole {
     private String logo;
 
     // gestion SaaS
+    private PlanAbonnement plan;
+    private LocalDate dateFin;
     private boolean active;
-    private String abonnement; // FREE, BASIC, PREMIUM
-    private LocalDate dateExpiration;
 
     // audit
     private LocalDateTime createdAt;

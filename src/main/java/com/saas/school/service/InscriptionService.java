@@ -25,13 +25,20 @@ public class InscriptionService {
     private final ClasseRepository classeRepository;
     private final InscriptionRepository inscriptionRepository;
     private final AnneeScolaireRepository anneeScolaireRepository;
+    private final AbonnementService abonnementService;
 
 
     public Inscription inscrireUnEleve(InscriptionDTO request) {
 
+        // 🔥 0. vérifier abonnement AVANT tout
+        Ecole ecole = ecoleRepository.findById(request.getEcoleId())
+                .orElseThrow(() -> new RuntimeException("École introuvable"));
 
 
-        // 🔥 1. créer élève avec école du user
+
+
+
+        // 🔥 1. créer élève
         EleveRequest eleveReq = new EleveRequest();
         eleveReq.setNom(request.getNom());
         eleveReq.setPrenom(request.getPrenom());
@@ -42,28 +49,33 @@ public class InscriptionService {
 
         Eleve eleve = eleveService.creerEleve(eleveReq);
 
-        // 🔥 2. récupérer classe
+        // 🔥 2. classe
         Classe classe = classeRepository.findById(request.getClasseId())
                 .orElseThrow(() -> new RuntimeException("Classe introuvable"));
 
-        // 🔥 3. récupérer année active
-        Long ecoleId = request.getEcoleId();
-
+        // 🔥 3. année active
         AnneeScolaire anneeActive = anneeScolaireRepository
-                .findByEcoleIdAndActiveTrue(ecoleId)
+                .findByEcoleIdAndActiveTrue(request.getEcoleId())
                 .orElseThrow(() -> new RuntimeException("Aucune année active"));
 
-        // 🔥 4. créer inscription
+        // 🔥 4. inscription
         Inscription inscription = new Inscription();
         inscription.setEleve(eleve);
         inscription.setClasse(classe);
-        inscription.setAnneeScolaire(anneeActive); // ✅ correct
-        inscription.setEcole(classe.getEcole());
+        inscription.setAnneeScolaire(anneeActive);
+        inscription.setEcole(ecole);
         inscription.setCreatedAt(LocalDateTime.now());
         inscription.setActive(true);
+        // 🔥 AVANT toute action
+
+
+        if (!abonnementService.isActif(ecole)) {
+            throw new RuntimeException("Abonnement expiré");
+        }
 
         return inscriptionRepository.save(inscription);
     }
+
     public List<InscriptionResponseDTO> getInscriptionsByEcoleAndAnneeActive(Long ecoleId) {
 
         // 🔥 1. récupérer année active
@@ -180,5 +192,6 @@ public class InscriptionService {
 
         }).toList();
     }
+
 
 }

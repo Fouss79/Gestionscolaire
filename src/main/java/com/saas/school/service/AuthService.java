@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -47,27 +48,40 @@ public class AuthService {
     }
 
 
-            public Map<String, Object> login(LoginRequest request) {
+    public Map<String, Object> login(LoginRequest request) {
 
-            // 1. Vérifier email
-            Utilisateur user = utilisateurRepository.findByEmail(request.getEmail())
-                    .orElseThrow(() -> new RuntimeException("Email incorrect"));
+        // 1. Vérifier email
+        Utilisateur user = utilisateurRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Email incorrect"));
 
-            // 2. Vérifier mot de passe
-            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-                throw new RuntimeException("Mot de passe incorrect");
-            }
-
-            // 3. Retourner user + école
-                return Map.of(
-                        "id", user.getId(),
-                        "email", user.getEmail(),
-                        "role", user.getRole(), // 🔥 AJOUT ICI
-                        "ecole", Map.of(
-                                "id", user.getEcole().getId(),
-                                "nom", user.getEcole().getNom()
-                        )
-                );
+        // 2. Vérifier mot de passe
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new RuntimeException("Mot de passe incorrect");
         }
-    }
+
+        Ecole ecole = user.getEcole();
+
+        // 🔥 3. Vérifier si école désactivée
+        if (!ecole.isActive()) {
+            throw new RuntimeException("École désactivée. Contactez le support.");
+        }
+
+        // 🔥 4. Vérifier expiration abonnement
+        if (ecole.getDateFin() != null && ecole.getDateFin().isBefore(LocalDate.now())) {
+            throw new RuntimeException("Abonnement expiré. Renouvelez votre abonnement.");
+        }
+
+        // 5. Retour
+        return Map.of(
+                "id", user.getId(),
+                "email", user.getEmail(),
+                "role", user.getRole(),
+                "ecole", Map.of(
+                        "id", ecole.getId(),
+                        "nom", ecole.getNom(),
+                        "plan", ecole.getPlan(),
+                        "dateFin", ecole.getDateFin()
+                )
+        );
+    } }
 

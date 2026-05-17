@@ -109,6 +109,17 @@ public class EmploiDuTempsService {
         return edtRepo.save(edt);
     }
 
+
+    public List<EmploiDuTemps> getByJourEtClasse(String jour, Long classeId) {
+        return edtRepo.findByJourAndClasseId(jour, classeId);
+    }
+    public List<EmploiDuTemps> filtrer(Long classeId, Long matiereId, String jour) {
+        return edtRepo.findByClasseIdAndMatiereIdAndJour(classeId, matiereId, jour);
+    }
+    public List<EmploiDuTemps> filtre(Long classeId, Long anneeId, String jour) {
+        return edtRepo.filtre(classeId, anneeId, jour);
+    }
+
     @Transactional
     public void generer(Long anneeId) {
 

@@ -1,0 +1,93 @@
+package com.saas.school.controller;
+
+import com.saas.school.entity.Paiement;
+import com.saas.school.entity.PlanAbonnement;
+import com.saas.school.repository.PaiementRepository;
+import com.saas.school.service.AbonnementService;
+import com.saas.school.service.PaiementService;
+import org.springframework.web.servlet.view.RedirectView;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/paiements")
+@RequiredArgsConstructor
+public class PaiementController {
+
+    private final AbonnementService abonnementService;
+    private final PaiementService paiementService;
+    private final PaiementRepository paiementRepository;
+    @PostMapping("/init")
+    public Map<String, Object> init(
+            @RequestParam Long ecoleId,
+            @RequestParam PlanAbonnement plan,
+            @RequestParam int duree
+    ) {
+
+        Paiement paiement = paiementService.creerPaiement(ecoleId, plan, duree);
+
+        // 🔥 ici tu remplaces par PayDunya API
+        String paymentUrl = "http://localhost:8080/api/paiements/fake-payment?id=" + paiement.getId();
+
+        return Map.of(
+                "url", paymentUrl,
+                "paiementId", paiement.getId()
+        );
+    }
+
+
+    @GetMapping("/fake-payment")
+    public RedirectView fakePayment(@RequestParam Long id) {
+
+        Paiement p = paiementRepository.findById(id).orElseThrow();
+
+        // simuler callback
+        abonnementService.assignerPlan(
+                p.getEcoleId(),
+                p.getPlan(),
+                p.getDuree()
+        );
+
+        p.setStatus("SUCCESS");
+        paiementRepository.save(p);
+
+        return new RedirectView("http://localhost:3000/dashboard/admin/monabonnement");
+    }
+    @PostMapping("/callback")
+    public String callback(@RequestBody Map<String, Object> data) {
+
+        try {
+
+            String status = data.get("status").toString();
+            Long paiementId = Long.valueOf(data.get("paiementId").toString());
+
+            if (!status.equals("success")) {
+                return "Paiement échoué";
+            }
+
+            Paiement p = paiementRepository.findById(paiementId).orElseThrow();
+
+            // 🔥 sécuriser (éviter fraude)
+            if (!p.getStatus().equals("PENDING")) {
+                return "Déjà traité";
+            }
+
+            // 🔥 activer abonnement
+            abonnementService.assignerPlan(
+                    p.getEcoleId(),
+                    p.getPlan(),
+                    p.getDuree()
+            );
+
+            p.setStatus("SUCCESS");
+            paiementRepository.save(p);
+
+            return "OK";
+
+        } catch (Exception e) {
+            return "ERROR";
+        }
+    }
+}

@@ -20,6 +20,7 @@ public class BulletinService {
 
         System.out.println("🚀 START PDF GENERATION");
 
+
         try {
             if (notes == null || notes.isEmpty()) {
                 throw new RuntimeException("❌ Aucune note trouvée");

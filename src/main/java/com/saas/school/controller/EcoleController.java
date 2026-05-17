@@ -5,6 +5,8 @@ import com.saas.school.service.EcoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/ecoles")
 @RequiredArgsConstructor
@@ -21,4 +23,18 @@ public class EcoleController {
     public Ecole getById(@PathVariable Long id) {
         return ecoleService.getById(id);
     }
+
+
+    @PutMapping("/toggle/{id}")
+    public Ecole toggle(@PathVariable Long id) {
+        return ecoleService.toggleActive(id);
+    }
+
+    @GetMapping
+    public List<Ecole> getAll() {
+        return ecoleService.getAllEcoles();
+    }
+
 }
+
+
