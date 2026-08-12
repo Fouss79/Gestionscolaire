@@ -35,6 +35,11 @@ public class EcoleController {
         return ecoleService.getAllEcoles();
     }
 
+    @GetMapping("/ecole/{ecoleId}/tarifs-configures")
+    public boolean tarifsConfigures(@PathVariable Long ecoleId) {
+        return ecoleService.tousLesTarifsSontConfigures(ecoleId);
+    }
+
 }
 
 

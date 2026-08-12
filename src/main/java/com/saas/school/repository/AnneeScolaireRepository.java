@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,10 +17,17 @@ public interface AnneeScolaireRepository extends JpaRepository<AnneeScolaire, Lo
 
     // récupérer par école
     List<AnneeScolaire> findByEcoleId(Long ecoleId);
+    Optional<AnneeScolaire>
+    findTopByEcoleIdAndDateFinBeforeOrderByDateFinDesc(
+            Long ecoleId,
+            LocalDate date
+    );
+
 
     // année active
     Optional<AnneeScolaire> findByEcoleIdAndActiveTrue(Long ecoleId);
     @Modifying
     @Query("UPDATE AnneeScolaire a SET a.active = false WHERE a.ecole.id = :ecoleId")
     void desactiverToutes(@Param("ecoleId") Long ecoleId);
-}
+
+   }

@@ -1,10 +1,9 @@
 package com.saas.school.controller;
 
-import com.saas.school.dto.NoteReponseDTO;
-import com.saas.school.dto.NoteRequestDTO;
-import com.saas.school.entity.Note;
+import com.saas.school.dto.*;
 import com.saas.school.service.NoteService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,20 +16,51 @@ public class NoteController {
 
     private final NoteService noteService;
 
-    @GetMapping
-    public List<NoteReponseDTO> getNotes(
-            @RequestParam Long classeId,
-            @RequestParam Long anneeScolaireId,
-            @RequestParam(required = false) Long eleveId,
-            @RequestParam(required = false) String periode
-    ) {
-        return noteService.getNotes(classeId, anneeScolaireId, eleveId, periode);
+    @PostMapping
+    public ResponseEntity<?> creerOuMettreAJour(@RequestBody NoteRequest request) {
+        try {
+            // ⚠️ passe par le mapping DTO, pas l'entité brute
+            var note = noteService.creerOuMettreAJour(request);
+            return ResponseEntity.ok(noteService.toDto(note));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
-    @PostMapping
-    public NoteReponseDTO ajouter(@RequestBody NoteRequestDTO note) {
+    @PostMapping("/en-masse")
+    public ResponseEntity<?> enregistrerEnMasse(@RequestBody NotesEnMasseRequest request) {
+        try {
+            // ⚠️ mappe chaque Note en NoteResponseDTO avant de renvoyer
+            List<NoteResponseDTO> resultats = noteService.enregistrerEnMasse(request)
+                    .stream()
+                    .map(noteService::toDto)
+                    .toList();
+            return ResponseEntity.ok(resultats);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 
-        System.out.println("DTO RECU 👉 " + note);
-        return noteService.ajouter(note);
+    @GetMapping("/classe")
+    public List<NoteResponseDTO> getByClasseMatierePeriode(
+            @RequestParam Long classeId,
+            @RequestParam Long coefficientMatiereId,
+            @RequestParam String periode,
+            @RequestParam(required = false) Long sousGroupeId
+    ) {
+        return noteService.getByClasseMatierePeriode(classeId, coefficientMatiereId, periode, sousGroupeId);
+    }
+
+    @GetMapping
+    public List<NoteResponseDTO> getByInscriptionEtPeriode(
+            @RequestParam Long inscriptionId,
+            @RequestParam String periode
+    ) {
+        return noteService.getByInscriptionEtPeriode(inscriptionId, periode);
+    }
+
+    @DeleteMapping("/{id}")
+    public void supprimer(@PathVariable Long id) {
+        noteService.supprimer(id);
     }
 }

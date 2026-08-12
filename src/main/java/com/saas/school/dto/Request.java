@@ -6,4 +6,5 @@ import lombok.Data;
 public class Request {
     private String nom;
     private Long ecoleId;
+    private Long cycleId; // optionnel, utilisé uniquement par Niveau
 }

@@ -9,4 +9,5 @@ public class ClasseRequest {
     private Long serieId;
     private Long groupeId;
     private Long ecoleId;
+    private Long salleId; // optionnel
 }

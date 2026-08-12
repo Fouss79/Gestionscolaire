@@ -53,4 +53,13 @@ public class GroupeService {
     public void delete(Long id) {
         groupeRepository.deleteById(id);
     }
+    public Groupe modifier(Long id, String nom) {
+        Groupe groupe = groupeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Groupe introuvable"));
+        groupe.setNom(nom);
+        return groupeRepository.save(groupe);
+    }
+
+
+
 }

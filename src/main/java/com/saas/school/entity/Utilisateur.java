@@ -17,10 +17,11 @@ public class Utilisateur {
 
     private String password;
 
-    @Enumerated(EnumType.STRING)
+    @ManyToOne
+    @JoinColumn(name = "role_id")
     private Role role;
-
     @ManyToOne
     @JoinColumn(name = "ecole_id")
     private Ecole ecole;
+    private String motDePasseTemporaire;
 }

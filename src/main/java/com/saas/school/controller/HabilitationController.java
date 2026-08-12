@@ -24,12 +24,11 @@ public class HabilitationController {
     }
 
     // 🔥 ENSEIGNANTS PAR MATIERE + ANNEE
-    @GetMapping("/matiere/{matiereId}/annee/{anneeId}")
+    @GetMapping("/matiere/{matiereId}")
     public List<Enseignant> getEnseignantsByMatiere(
-            @PathVariable Long matiereId,
-            @PathVariable Long anneeId
+            @PathVariable Long matiereId
     ) {
-        return service.getEnseignantsByMatiere(matiereId, anneeId);
+        return service.getEnseignantsByMatiere(matiereId);
     }
 
     // 🔥 ALL HABILITATIONS
@@ -40,11 +39,5 @@ public class HabilitationController {
     public List<Habilitation> getByEcole(@PathVariable Long ecoleId) {
         return service.getByEcole(ecoleId);
     }
-    @GetMapping("/ecole/{ecoleId}/annee/{anneeId}")
-    public List<Habilitation> getByEcoleAndAnnee(
-            @PathVariable Long ecoleId,
-            @PathVariable Long anneeId) {
 
-        return service.getByEcoleAndAnnee(ecoleId, anneeId);
-    }
 }

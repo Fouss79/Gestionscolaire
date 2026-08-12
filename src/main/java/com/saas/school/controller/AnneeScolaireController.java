@@ -21,7 +21,7 @@ public class AnneeScolaireController {
     public ResponseEntity<AnneeScolaire> create(
             @RequestBody AnneeRequestDTO dto
     ) {
-        return ResponseEntity.ok(service.creer(dto.getNom(), dto.getEcoleId()));
+        return ResponseEntity.ok(service.creer(dto.getNom(),dto.getDebut(),dto.getFin(), dto.getEcoleId()));
     }
 
     // 📥 toutes les années

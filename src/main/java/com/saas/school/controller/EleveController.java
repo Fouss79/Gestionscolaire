@@ -1,7 +1,9 @@
 package com.saas.school.controller;
 
 import com.saas.school.dto.EleveRequest;
+import com.saas.school.dto.EleveResponseDTO;
 import com.saas.school.entity.Eleve;
+import com.saas.school.entity.HasPermission;
 import com.saas.school.service.EleveService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,12 +25,10 @@ public class EleveController {
     }
 
     // 📥 élèves d'une classe
-    @GetMapping("/classe/{classeId}")
-    public ResponseEntity<List<Eleve>> getByClasse(@PathVariable Long classeId) {
-        return ResponseEntity.ok(eleveService.getByClasse(classeId));
-    }
+
 
     // 📥 élèves d'une école
+    @HasPermission("GESTION_ELEVES")
     @GetMapping("/ecole/{ecoleId}")
     public ResponseEntity<List<Eleve>> getByEcole(@PathVariable Long ecoleId) {
         return ResponseEntity.ok(eleveService.getByEcole(ecoleId));
@@ -38,5 +38,10 @@ public class EleveController {
     @GetMapping("/{id}")
     public ResponseEntity<Eleve> getById(@PathVariable Long id) {
         return ResponseEntity.ok(eleveService.getById(id));
+    }
+
+    @GetMapping("/classe/{classeId}")
+    public ResponseEntity<List<EleveResponseDTO>> getByClasse(@PathVariable Long classeId) {
+        return ResponseEntity.ok(eleveService.getByClasse(classeId));
     }
 }

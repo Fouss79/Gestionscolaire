@@ -1,15 +1,10 @@
 package com.saas.school.controller;
 
-import com.saas.school.entity.Paiement;
-import com.saas.school.entity.PlanAbonnement;
+import com.saas.school.dto.PresenceResponseDTO;
 import com.saas.school.entity.Presence;
-import com.saas.school.repository.PaiementRepository;
-import com.saas.school.repository.PresenceRepository;
-import com.saas.school.service.AbonnementService;
-import com.saas.school.service.PaiementService;
 import com.saas.school.service.PresenceService;
-import org.springframework.web.servlet.view.RedirectView;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -17,56 +12,77 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/presence")
+@RequestMapping("/api/presences")
 @RequiredArgsConstructor
+@CrossOrigin("*")
 public class PresenceController {
 
     private final PresenceService presenceService;
-    private final PresenceRepository presenceRepository;
 
-    @PostMapping("/toggle")
-    public Presence togglePresence(@RequestParam Long eleveId,
-                                   @RequestParam Long edtId) {
-        return presenceService.togglePresence(eleveId, edtId);
-    }
+    @PutMapping("/toggle")
+    public ResponseEntity<?> toggle(
+            @RequestParam Long inscriptionId,
+            @RequestParam Long edtId,
+            @RequestParam(required = false) String date
+    ) {
+        try {
+            LocalDate d = date != null
+                    ? LocalDate.parse(date)
+                    : LocalDate.now();
 
-    @GetMapping("/cours/{edtId}/date")
-    public List<Presence> getPresencesByDate(
-            @PathVariable Long edtId,
-            @RequestParam String date) {
+            PresenceResponseDTO dto =
+                    presenceService.togglePresence(inscriptionId, edtId, d);
 
-        return presenceRepository.findByEmploiDuTempsIdAndDate(
-                edtId, LocalDate.parse(date)
-        );
+            return ResponseEntity.ok(dto);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @GetMapping("/cours/{edtId}")
-    public List<Presence> getPresences(@PathVariable Long edtId) {
-        return presenceService.getPresencesParCours(edtId);
-    }
-    @GetMapping("/stats/classe/{classeId}")
-    public List<Map<String, Object>>stats(@PathVariable Long classeId) {
-        return presenceService.getStatsParClasse(classeId);
-    }
-    // 🔥 NOUVEAU : tout présent
-    @PostMapping("/all-present")
-    public void markAllPresent(@RequestBody Map<String, Object> body) {
-        Long classeId = Long.valueOf(body.get("classeId").toString());
-        String jour = body.get("jour").toString();
-
-        presenceService.markAllPresent(classeId, jour);
-    } @PostMapping("/toggle-absence")
-    public void toggleAbsence(@RequestParam Long eleveId,
-                              @RequestParam Long edtId) {
-        presenceService.toggleAbsence(eleveId, edtId);
+    public List<PresenceResponseDTO> getPresencesParCours(
+            @PathVariable Long edtId,
+            @RequestParam String date
+    ) {
+        return presenceService.getPresencesParCoursDto(edtId, LocalDate.parse(date));
     }
 
-    // 🔥 NOUVEAU : tout absent
-    @PostMapping("/all-absent")
-    public void markAllAbsent(@RequestBody Map<String, Object> body) {
-        Long classeId = Long.valueOf(body.get("classeId").toString());
-        String jour = body.get("jour").toString();
+    @GetMapping("/classe/{classeId}/stats")
+    public List<Map<String, Object>> getStatsParClasse(
+            @PathVariable Long classeId,
+            @RequestParam String date
+    ) {
+        return presenceService.getStatsParClasse(classeId, LocalDate.parse(date));
+    }
 
-        presenceService.markAllAbsent(classeId, jour);
+    @GetMapping("/classe/{classeId}/eleves-inscriptions")
+    public List<Map<String, Object>> getElevesAvecInscription(@PathVariable Long classeId) {
+        return presenceService.getElevesAvecInscription(classeId);
+    }
+    @PutMapping("/classe/{classeId}/tout-present")
+    public void marquerTousPresent(
+            @PathVariable Long classeId,
+            @RequestParam String jour,
+            @RequestParam String date
+    ) {
+        presenceService.markAllPresent(classeId, jour, LocalDate.parse(date));
+    }
+
+    @PutMapping("/classe/{classeId}/tout-absent")
+    public void marquerTousAbsent(
+            @PathVariable Long classeId,
+            @RequestParam String jour,
+            @RequestParam String date
+    ) {
+        presenceService.markAllAbsent(classeId, jour, LocalDate.parse(date));
+    }
+
+    @GetMapping("/inscription/{inscriptionId}/absences")
+    public long compterAbsences(
+            @PathVariable Long inscriptionId,
+            @RequestParam Long periodeId
+    ) {
+        return presenceService.compterAbsences(inscriptionId, periodeId);
     }
 }

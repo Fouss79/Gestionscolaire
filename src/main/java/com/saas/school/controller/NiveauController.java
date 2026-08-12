@@ -23,6 +23,11 @@ public class NiveauController {
 
     @PostMapping
     public Niveau create(@RequestBody Request req) {
-        return niveauService.create(req.getNom(), req.getEcoleId());
+        return niveauService.create(req.getNom(), req.getEcoleId(), req.getCycleId());
+    }
+
+    @PutMapping("/{id}")
+    public Niveau modifier(@PathVariable Long id, @RequestBody Request req) {
+        return niveauService.modifier(id, req.getNom(), req.getCycleId());
     }
 }

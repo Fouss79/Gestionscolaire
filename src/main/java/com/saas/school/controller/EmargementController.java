@@ -2,7 +2,6 @@ package com.saas.school.controller;
 
 import com.saas.school.entity.Emargement;
 import com.saas.school.entity.EmploiDuTemps;
-import com.saas.school.repository.EmargementRepository;
 import com.saas.school.repository.EmploiDuTempsRepository;
 import com.saas.school.service.EmargementService;
 import lombok.RequiredArgsConstructor;
@@ -19,46 +18,39 @@ public class EmargementController {
 
     private final EmargementService service;
     private final EmploiDuTempsRepository emploiRepo;
-    private final EmargementRepository emargementRepo;
 
-    // ================= 🔹 EMPLOI DU TEMPS =================
+    // ================= EMPLOI =================
     @GetMapping("/emploi")
     public List<EmploiDuTemps> getEmploi(
-            @RequestParam String jour,
+            @RequestParam String date,
             @RequestParam Long anneeId
     ) {
-        return service.getEmploiParJour(jour, anneeId);
+        return service.getEmploiParDate(
+                LocalDate.parse(date),
+                anneeId
+        );
     }
 
-    // ================= 🔹 EMARGEMENTS PAR JOUR =================
+    // ================= EMARGEMENT LIST =================
     @GetMapping("/jour")
-    public List<Emargement> getByJour(
-            @RequestParam String jour,
+    public List<Emargement> getByDate(
             @RequestParam String date
     ) {
-        return service.getEmargementsParJour(
-                jour,
+        return service.getEmargementsParDate(
                 LocalDate.parse(date)
         );
     }
 
-    // ================= 🔹 EMARGER =================
+    // ================= EMARGER =================
     @PostMapping("/emarger/{edtId}")
     public Emargement emarger(
             @PathVariable Long edtId,
             @RequestParam String date
     ) {
+
         EmploiDuTemps edt = emploiRepo.findById(edtId)
                 .orElseThrow(() -> new RuntimeException("EDT introuvable"));
 
         return service.emarger(edt, LocalDate.parse(date));
-    }
-
-    // ================= 🔹 CHECK (OPTIONNEL MAIS PRO) =================
-
-    // ================= 🔹 SUPPRIMER (OPTIONNEL) =================
-    @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        emargementRepo.deleteById(id);
     }
 }

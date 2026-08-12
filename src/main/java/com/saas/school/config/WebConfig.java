@@ -13,13 +13,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
     private final SaasInterceptor saasInterceptor;
 
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**")
-                .allowedOrigins( "http://localhost:3000",
-                        "https://healing-honey-sends-conscious.trycloudflare.com")
-                .allowedMethods("GET", "POST", "PUT", "DELETE");
-    }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -28,16 +21,16 @@ public class WebConfig implements WebMvcConfigurer {
 
 
     }
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
+    //@Override
+    //public void addInterceptors(InterceptorRegistry registry) {
 
-        registry.addInterceptor(saasInterceptor)
-                .addPathPatterns("/api/**")
-                .excludePathPatterns(
-                        "/api/auth/**",   // login/register
-                        "/api/public/**"  // si tu as public
-                );
-    }
+      //  registry.addInterceptor(saasInterceptor)
+        //        .addPathPatterns("/api/**")
+            //    .excludePathPatterns(
+          //              "/api/auth/**",   // login/register
+            //            "/api/public/**"  // si tu as public
+              //  );
+          //}
 
 
 }

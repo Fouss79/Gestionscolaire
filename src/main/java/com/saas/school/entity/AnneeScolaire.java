@@ -3,6 +3,7 @@ package com.saas.school.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -13,13 +14,16 @@ public class AnneeScolaire {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String nom; // ex: 2025-2026
+    private String nom; // 2025-2026
 
     @ManyToOne
     @JoinColumn(name = "ecole_id")
     private Ecole ecole;
 
     private boolean active;
+
+    private LocalDate dateDebut;
+    private LocalDate dateFin;
 
     private LocalDateTime createdAt;
 }

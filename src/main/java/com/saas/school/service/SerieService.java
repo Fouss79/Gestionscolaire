@@ -53,4 +53,10 @@ public class SerieService {
     public void delete(Long id) {
         serieRepository.deleteById(id);
     }
+    public Serie modifier(Long id, String nom) {
+        Serie serie = serieRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Série introuvable"));
+        serie.setNom(nom);
+        return serieRepository.save(serie);
+    }
 }

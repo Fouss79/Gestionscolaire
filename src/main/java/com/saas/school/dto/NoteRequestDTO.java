@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 public class NoteRequestDTO {
 
-    private Long eleveId;
+    private Long inscriptionId;
     private Long matiereId;
     private Long classeId;
     private Long anneeScolaireId;

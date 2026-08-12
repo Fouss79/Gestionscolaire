@@ -2,8 +2,12 @@ package com.saas.school.service;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
+import com.saas.school.dto.BulletinDTO;
 import com.saas.school.entity.Eleve;
+import com.saas.school.entity.Inscription;
 import com.saas.school.entity.Note;
+import com.saas.school.repository.InscriptionRepository;
+import com.saas.school.repository.NoteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -11,11 +15,14 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class BulletinService {
+    private final NoteRepository noteRepository;
 
+   private  final InscriptionRepository inscriptionRepository;
     public byte[] generateBulletin(List<Note> notes, Eleve eleve, String periode) {
 
         System.out.println("🚀 START PDF GENERATION");
@@ -73,7 +80,7 @@ public class BulletinService {
 
                 double nClass = safe(n.getNClass());
                 double nExem = safe(n.getNExem());
-                double coeff = safe(n.getCoeff());
+                Integer coeff = n.getCoeff();
 
                 // 🔥 moyenne correcte
                 double moyenne = (nClass + (nExem * 2)) / 3;
@@ -164,5 +171,46 @@ public class BulletinService {
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
         return cell;
     }
+    public BulletinDTO getBulletin(Long inscriptionId, Long classeId, Long anneeId) {
+        Inscription inscription = inscriptionRepository.findById(inscriptionId).orElseThrow(() -> new RuntimeException("Inscription introuvable"));
+        List<Note> notes = noteRepository
+                .findByEleveIdAndClasseIdAndAnneeScolaireId(inscription.getEleve().getId(), classeId, anneeId);
 
+        double total = 0;
+        double coeffTotal = 0;
+
+        for (Note n : notes) {
+
+            double moyenne = (n.getNClass() + n.getNExem()*2) / 3;
+            double coeff = n.getCoeff() == null ? 1 : n.getCoeff();
+
+            total += moyenne * coeff;
+            coeffTotal += coeff;
+        }
+
+        double moyenneAnnuelle = coeffTotal == 0 ? 0 : total / coeffTotal;
+
+        BulletinDTO dto = new BulletinDTO();
+        dto.setEleveId(inscription.getEleve().getId());
+        dto.setMoyenneAnnuelle(moyenneAnnuelle);
+
+        // 🎯 mention automatique
+        dto.setMention(getMention(moyenneAnnuelle));
+
+        return dto;
+    }
+
+    private String getMention(double m) {
+        if (m < 10) return "Insuffisant";
+        if (m < 12) return "Passable";
+        if (m < 14) return "Assez Bien";
+        if (m < 16) return "Bien";
+        return "Très Bien";
+    }
+
+    public int calculRang(List<Double> moyennes, double eleveMoyenne) {
+        return (int) moyennes.stream()
+                .filter(m -> m > eleveMoyenne)
+                .count() + 1;
+    }
 }

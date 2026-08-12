@@ -46,5 +46,12 @@ public class GroupeController {
     public ResponseEntity<String> delete(@PathVariable Long id) {
         groupeService.delete(id);
         return ResponseEntity.ok("Groupe supprimé");
+
     }
+
+    @PutMapping("/{id}")
+    public Groupe modifier(@PathVariable Long id, @RequestBody Request req) {
+        return groupeService.modifier(id, req.getNom());
+    }
+
 }

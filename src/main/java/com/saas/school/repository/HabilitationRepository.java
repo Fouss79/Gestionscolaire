@@ -7,18 +7,14 @@ import java.util.Optional;
 import java.util.List;
 
 public interface HabilitationRepository extends JpaRepository<Habilitation, Long> {
-    List<Habilitation> findByEcoleIdAndAnneeScolaireId(Long ecoleId, Long anneeId);
-    boolean existsByEnseignantIdAndMatiereIdAndAnneeScolaireId(
+
+    boolean existsByEnseignantIdAndMatiereId(
             Long enseignantId,
-            Long matiereId,
-            Long anneeScolaireId
+            Long matiereId
     );
 
-    Optional<Habilitation> findFirstByMatiereIdAndAnneeScolaireId(
-            Long matiereId,
-            Long anneeId
-    );
-    List<Habilitation> findByMatiereIdAndAnneeScolaireId(Long matiereId, Long anneeId);
+
+    List<Habilitation> findByMatiereId(Long matiereId);
 
 
     List<Habilitation> findByEcoleId(Long ecoleId);

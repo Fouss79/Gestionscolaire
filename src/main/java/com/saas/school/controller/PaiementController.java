@@ -1,14 +1,19 @@
 package com.saas.school.controller;
 
+import com.saas.school.dto.PaiementRequestDTO;
+import com.saas.school.dto.PaiementResponseDTO;
 import com.saas.school.entity.Paiement;
+import com.saas.school.entity.PaiementScolarite;
 import com.saas.school.entity.PlanAbonnement;
 import com.saas.school.repository.PaiementRepository;
 import com.saas.school.service.AbonnementService;
 import com.saas.school.service.PaiementService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.servlet.view.RedirectView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -36,7 +41,14 @@ public class PaiementController {
                 "paiementId", paiement.getId()
         );
     }
+    @PostMapping
+    public ResponseEntity<PaiementResponseDTO> payer(
+            @RequestBody PaiementRequestDTO dto) {
 
+        return ResponseEntity.ok(
+                paiementService.enregistrerPaiement(dto)
+        );
+    }
 
     @GetMapping("/fake-payment")
     public RedirectView fakePayment(@RequestParam Long id) {
@@ -90,4 +102,14 @@ public class PaiementController {
             return "ERROR";
         }
     }
+
+    @GetMapping("/inscription/{inscriptionId}")
+    public List<PaiementResponseDTO> getByInscription(@PathVariable Long inscriptionId) {
+        return paiementService.getByInscription(inscriptionId);
+    }
+    @GetMapping("/ecole/{ecoleId}")
+    public List<PaiementResponseDTO> getByEcole(@PathVariable Long ecoleId) {
+        return paiementService.getByEcole(ecoleId);
+    }
+
 }

@@ -45,5 +45,11 @@ public class SerieController {
     public ResponseEntity<String> delete(@PathVariable Long id) {
         serieService.delete(id);
         return ResponseEntity.ok("serie supprimée");
+
     }
+    @PutMapping("/{id}")
+    public Serie modifier(@PathVariable Long id, @RequestBody Request req) {
+        return serieService.modifier(id, req.getNom());
+    }
+
 }

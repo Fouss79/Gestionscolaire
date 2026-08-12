@@ -9,3 +9,4 @@ public interface MatiereRepository extends JpaRepository<Matiere, Long> {
     List<Matiere> findByEcoleId(Long ecoleId);
     long countByEcoleId(Long ecoleId);
 }
+

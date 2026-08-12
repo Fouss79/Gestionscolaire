@@ -1,12 +1,13 @@
 package com.saas.school.controller;
 
+import com.saas.school.dto.ChangerRoleRequest;
+import com.saas.school.entity.Role;
 import com.saas.school.entity.Utilisateur;
+import com.saas.school.repository.RoleRepository;
 import com.saas.school.repository.UtilisateurRepository;
+import com.saas.school.service.UtilisateurService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -16,10 +17,30 @@ import java.util.List;
 public class UtilisateurController {
 
     private final UtilisateurRepository utilisateurRepository;
+    private final UtilisateurService utilisateurService;
+    private final RoleRepository roleRepository;
+
 
     @GetMapping
     public List<Utilisateur> getAll() {
         return utilisateurRepository.findAll();
+    }
+    @PutMapping("/changer-role")
+    public Utilisateur changerRole(@RequestBody ChangerRoleRequest request) {
+
+        return utilisateurService.changerRole(
+                request.getUtilisateurId(),
+                request.getRoleId()
+        );
+    }
+    @GetMapping("/ecole/{ecoleId}/utilisateurs")
+    public List<Utilisateur> getUtilisateurs(@PathVariable Long ecoleId) {
+
+        return utilisateurRepository.findByEcoleId(ecoleId);
+    }
+    @GetMapping("/roles")
+    public List<Role> getRoles() {
+        return roleRepository.findAll();
     }
 
     @GetMapping("/{id}")

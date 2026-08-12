@@ -9,20 +9,15 @@ import java.util.Optional;
 
 public interface PresenceRepository extends JpaRepository<Presence, Long> {
 
-    Optional<Presence> findByEleveIdAndEmploiDuTempsId(Long eleveId, Long edtId);
-
-
-    Optional<Presence> findByEleveIdAndEmploiDuTempsIdAndDate(
-            Long eleveId, Long edtId, LocalDate date
+    Optional<Presence> findByInscriptionIdAndEmploiDuTempsIdAndDate(
+            Long inscriptionId, Long edtId, LocalDate date
     );
 
-    void deleteByEmploiDuTempsClasseIdAndDate(Long classeId, LocalDate date);
-
-
     List<Presence> findByEmploiDuTempsIdAndDate(Long edtId, LocalDate date);
-    // 🔥 NOUVELLE MÉTHODE POUR STATS
-    List<Presence> findByEleveClasseId(Long classeId);
 
+    List<Presence> findByInscription_Classe_IdAndDate(Long classeId, LocalDate date);
 
-    List<Presence> findByEmploiDuTempsId(Long edtId);
+    long countByInscriptionIdAndPeriodeIdAndStatut(
+            Long inscriptionId, Long periodeId, Presence.StatutPresence statut
+    );
 }

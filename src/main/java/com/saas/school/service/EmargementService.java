@@ -7,6 +7,7 @@ import com.saas.school.repository.EmploiDuTempsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -17,49 +18,52 @@ public class EmargementService {
     private final EmargementRepository emargementRepo;
     private final EmploiDuTempsRepository emploiRepo;
 
-    // ================= 🔹 EMPLOI DU TEMPS =================
-    public List<EmploiDuTemps> getEmploiParJour(String jour, Long anneeId) {
+    // ================= EMPLOI PAR DATE =================
+    public List<EmploiDuTemps> getEmploiParDate(LocalDate date, Long anneeId) {
+
+        DayOfWeek day = date.getDayOfWeek();
+
+        String jour = switch (day) {
+            case MONDAY -> "LUNDI";
+            case TUESDAY -> "MARDI";
+            case WEDNESDAY -> "MERCREDI";
+            case THURSDAY -> "JEUDI";
+            case FRIDAY -> "VENDREDI";
+            case SATURDAY -> "SAMEDI";
+            case SUNDAY -> "DIMANCHE";
+        };
+
         return emploiRepo.findByJourAndAnneeScolaireId(jour, anneeId);
     }
 
-    // ================= 🔹 EMARGEMENTS PAR JOUR =================
-    public List<Emargement> getEmargementsParJour(String jour, LocalDate date) {
-        return emargementRepo.findByJourAndDateHeure(jour, date);
+    // ================= EMARGEMENTS PAR DATE =================
+    public List<Emargement> getEmargementsParDate(LocalDate date) {
+        return emargementRepo.findByDateHeure(date);
     }
 
-    // ================= 🔹 EMARGER =================
+    // ================= EMARGER =================
     public Emargement emarger(EmploiDuTemps edt, LocalDate date) {
 
-        // 🔥 Vérifier si déjà émargé
-        boolean exists = emargementRepo.existsByEnseignant_IdAndClasse_IdAndMatiere_IdAndDateHeure(
-                edt.getEnseignant().getId(),
-                edt.getClasse().getId(),
-                edt.getMatiere().getId(),
-                date
-        );
+        if (date == null) {
+            throw new RuntimeException("Date obligatoire");
+        }
+
+        boolean exists = emargementRepo
+                .existsByEmploiDuTemps_IdAndDateHeure(edt.getId(), date);
 
         if (exists) {
             throw new RuntimeException("Déjà émargé");
         }
 
-        // 🔥 Calcul durée
         int duree = edt.getHeureFin() - edt.getHeureDebut();
 
-        // 🔥 Création
-        Emargement emargement = new Emargement();
-        emargement.setJour(edt.getJour());
-        emargement.setDateHeure(date);
-        emargement.setPresent(true);
+        Emargement em = new Emargement();
+        em.setEmploiDuTemps(edt);
+        em.setDateHeure(date);
+        em.setJour(edt.getJour());
+        em.setPresent(true);
+        em.setDuree(duree);
 
-        // relations
-        emargement.setEnseignant(edt.getEnseignant());
-        emargement.setClasse(edt.getClasse());
-        emargement.setMatiere(edt.getMatiere());
-        emargement.setAnneeScolaire(edt.getAnneeScolaire());
-
-        // obligatoire
-        emargement.setDuree(duree);
-
-        return emargementRepo.save(emargement);
+        return emargementRepo.save(em);
     }
 }

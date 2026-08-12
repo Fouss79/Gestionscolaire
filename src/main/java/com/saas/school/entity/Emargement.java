@@ -38,4 +38,7 @@ public class Emargement {
     @ManyToOne
     @JoinColumn(name = "annee_id")
     private AnneeScolaire anneeScolaire;
+    @ManyToOne
+    private EmploiDuTemps emploiDuTemps;
+
 }

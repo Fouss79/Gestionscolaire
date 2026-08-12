@@ -1,8 +1,5 @@
 package com.saas.school.controller;
-import com.saas.school.dto.EleveResponseDTO;
-import com.saas.school.dto.InscriptionDTO;
-import com.saas.school.dto.InscriptionRequest;
-import com.saas.school.dto.InscriptionResponseDTO;
+import com.saas.school.dto.*;
 import com.saas.school.entity.Classe;
 import com.saas.school.entity.Eleve;
 import com.saas.school.entity.Inscription;
@@ -15,7 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/inscriptions")
@@ -34,23 +34,112 @@ public class InscriptionController {
     public ResponseEntity<Inscription> inscrire(@RequestBody InscriptionDTO request) {
         return ResponseEntity.ok(inscriptionService.inscrireUnEleve(request));
     }
+    @PutMapping("/{id}/valider")
+    public Inscription valider(@PathVariable Long id) {
+        return inscriptionService.validerInscription(id);
+    }
+
+    @PutMapping("/{id}/rejeter")
+    public Inscription rejeter(@PathVariable Long id) {
+        return inscriptionService.rejeterInscription(id);
+    }
+
+    @GetMapping("/ecole/{ecoleId}/reinscription")
+    public ResponseEntity<List<ReinscriptionReponseDTO>> getElevesPourReinscription(
+            @PathVariable Long ecoleId
+    ) {
+        List<ReinscriptionReponseDTO> data =
+                inscriptionService.getElevesPourReinscription(ecoleId);
+
+        if (data == null) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        return ResponseEntity.ok(
+                Optional.ofNullable(
+                        inscriptionService.getElevesPourReinscription(ecoleId)
+                ).orElse(List.of())
+        );
+    }
+
+    // Dans PresenceService ou un service dédié
+    public List<Map<String, Object>> getElevesAvecInscription(Long classeId) {
+        return inscriptionRepository.findByClasseIdAndAnneeScolaire_ActiveTrue(classeId)
+                .stream()
+                .map(i -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("inscriptionId", i.getId());
+                    m.put("eleveId", i.getEleve().getId());
+                    m.put("nom", i.getEleve().getNom());
+                    m.put("prenom", i.getEleve().getPrenom());
+                    return m;
+                })
+                .toList();
+    }
+
 
     @GetMapping
     public ResponseEntity<List<EleveResponseDTO>> getEleves() {
         return ResponseEntity.ok(inscriptionService.getAllEleves());
     }
-    @GetMapping("/classe/{classeId}/annee/{anneeId}")
-    public List<Inscription> getByClasseAndAnnee(
+    @GetMapping("/actif/classe/{classeId}/annee/{anneeId}")
+    public List<InscriptionResponseDTO> getByClasseEtAnnee(
             @PathVariable Long classeId,
             @PathVariable Long anneeId) {
 
-        return inscriptionRepository
-                .findByClasseIdAndAnneeScolaire_Id(classeId, anneeId);
+        System.out.println("=== ENDPOINT INSCRIPTION APPELE ===");
+
+        return inscriptionService.getByClasseEtAnnee(classeId, anneeId);
     }
+    @GetMapping("/classe/{classeId}/annee/{anneeId}")
+    public List<InscriptionResponseDTO> getByClasseAndAnnee(
+            @PathVariable Long classeId,
+            @PathVariable Long anneeId) {
+
+        return inscriptionService
+                .getByClasseAndAnnee(classeId, anneeId);
+    }
+
+
     @GetMapping("/ecole/{ecoleId}/active")
     public List<InscriptionResponseDTO> getByEcoleAndAnneeActive(@PathVariable Long ecoleId) {
         return inscriptionService.getInscriptionsByEcoleAndAnneeActive(ecoleId);
     }
+    @PostMapping("/{inscriptionId}/reinscrire/{classeId}")
+    public ResponseEntity<?> reinscrire(
+            @PathVariable Long inscriptionId,
+            @PathVariable Long classeId) {
 
+        inscriptionService.reinscrire(inscriptionId, classeId);
+
+        return ResponseEntity.ok("Réinscription effectuée");
+    }
+    @GetMapping("/classe/{classeId}/eleves-actifs")
+    public List<EleveDTO> getElevesActifs(
+            @PathVariable Long classeId
+    ) {
+        return inscriptionService.getElevesClasseActive(classeId);
+    }
+    @GetMapping("/{id}")
+    public ResponseEntity<InscriptionResponseDTO> getById(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                inscriptionService.getById(id)
+        );
+    }
+    @PutMapping("/{id}")
+    public ResponseEntity<InscriptionResponseDTO> modifier(
+            @PathVariable Long id,
+            @RequestBody InscriptionDTO request
+    ) {
+
+        Inscription inscription =
+                inscriptionService.modifierInscription(id, request);
+
+        return ResponseEntity.ok(
+                inscriptionService.getById(inscription.getId())
+        );
+    }
 
 }

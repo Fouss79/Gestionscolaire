@@ -10,4 +10,8 @@ public interface EleveRepository extends JpaRepository<Eleve, Long> {
     List<Eleve> findByClasseId(Long classeId);
 
     List<Eleve> findByEcoleId(Long ecoleId);
+
+    long countBySousGroupesId(Long id);
+
+    List<Eleve> findBySousGroupesId(Long sousGroupeId);
 }

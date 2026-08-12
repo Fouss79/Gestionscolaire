@@ -27,4 +27,6 @@ public interface MatiereClasseRepository extends JpaRepository<MatiereClasse, Lo
             Long ecoleId
     );
 
+
+
 }

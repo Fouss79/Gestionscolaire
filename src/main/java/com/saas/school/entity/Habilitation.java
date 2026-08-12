@@ -20,8 +20,5 @@ public class Habilitation {
     private Matiere matiere;
 
     @ManyToOne
-    private AnneeScolaire anneeScolaire;
-
-    @ManyToOne
     private Ecole ecole;
 }

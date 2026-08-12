@@ -1,11 +1,8 @@
 package com.saas.school.service;
 
-import com.saas.school.entity.Eleve;
-import com.saas.school.entity.EmploiDuTemps;
-import com.saas.school.entity.Presence;
-import com.saas.school.repository.EleveRepository;
-import com.saas.school.repository.EmploiDuTempsRepository;
-import com.saas.school.repository.PresenceRepository;
+import com.saas.school.dto.PresenceResponseDTO;
+import com.saas.school.entity.*;
+import com.saas.school.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,165 +14,192 @@ import java.util.*;
 public class PresenceService {
 
     private final PresenceRepository presenceRepository;
-    private final EleveRepository eleveRepository;
+    private final InscriptionRepository inscriptionRepository; // ⚠️ remplace EleveRepository
     private final EmploiDuTempsRepository emploiDuTempsRepository;
+    private final PeriodeRepository periodeRepository; // ⚠️ nouveau
 
-    public void toggleAbsence(Long eleveId, Long edtId) {
+    // 🔥 Résout la période (trimestre) depuis la date, pour une année scolaire donnée
+    private Periode resoudrePeriode(Long anneeScolaireId, LocalDate date) {
+        return periodeRepository.findByDate(anneeScolaireId, date).orElse(null);
+    }
+
+    public void toggleAbsence(Long inscriptionId, Long edtId) {
 
         LocalDate today = LocalDate.now();
 
         Optional<Presence> existing =
-                presenceRepository.findByEleveIdAndEmploiDuTempsIdAndDate(
-                        eleveId, edtId, today
-                );
+                presenceRepository.findByInscriptionIdAndEmploiDuTempsIdAndDate(inscriptionId, edtId, today);
 
         if (existing.isPresent()) {
-            // 🔥 présent → suppression
             presenceRepository.delete(existing.get());
         } else {
-            // 🔥 absent → création
-            Presence p = new Presence();
 
-            Eleve e = eleveRepository.findById(eleveId)
-                    .orElseThrow(() -> new RuntimeException("Élève introuvable"));
+            Inscription inscription = inscriptionRepository.findById(inscriptionId)
+                    .orElseThrow(() -> new RuntimeException("Inscription introuvable"));
 
             EmploiDuTemps edt = emploiDuTempsRepository.findById(edtId)
                     .orElseThrow(() -> new RuntimeException("EDT introuvable"));
 
-            p.setEleve(e);
+            Presence p = new Presence();
+            p.setInscription(inscription);
             p.setEmploiDuTemps(edt);
             p.setDate(today);
-            p.setStatut(StatutPresence.ABSENT);
+            p.setPeriode(resoudrePeriode(inscription.getAnneeScolaire().getId(), today));
+            p.setStatut(Presence.StatutPresence.ABSENT);
 
             presenceRepository.save(p);
         }
     }
-    public Presence togglePresence(Long eleveId, Long edtId) {
+    public PresenceResponseDTO togglePresence(Long inscriptionId, Long edtId, LocalDate date) {
 
-        Eleve eleve = eleveRepository.findById(eleveId)
-                .orElseThrow(() -> new RuntimeException("Élève introuvable"));
+        Inscription inscription = inscriptionRepository.findById(inscriptionId)
+                .orElseThrow(() -> new RuntimeException("Inscription introuvable"));
 
         EmploiDuTemps edt = emploiDuTempsRepository.findById(edtId)
                 .orElseThrow(() -> new RuntimeException("Emploi du temps introuvable"));
 
-        LocalDate today = LocalDate.now();
-
         Presence presence = presenceRepository
-                .findByEleveIdAndEmploiDuTempsIdAndDate(eleveId, edtId, today)
+                .findByInscriptionIdAndEmploiDuTempsIdAndDate(inscriptionId, edtId, date)
                 .orElseGet(() -> {
                     Presence p = new Presence();
-                    p.setEleve(eleve);
+                    p.setInscription(inscription);
                     p.setEmploiDuTemps(edt);
-                    p.setDate(today);
-
-                    // 🔥 PRÉSENT PAR DÉFAUT
-                    p.setStatut(StatutPresence.PRESENT);
-
+                    p.setDate(date);
+                    p.setPeriode(resoudrePeriode(inscription.getAnneeScolaire().getId(), date));
                     return p;
                 });
 
-        // 🔥 TOGGLE PRO
         presence.setStatut(
-                presence.getStatut() == StatutPresence.PRESENT
-                        ? StatutPresence.ABSENT
-                        : StatutPresence.PRESENT
+                presence.getStatut() == Presence.StatutPresence.PRESENT
+                        ? Presence.StatutPresence.ABSENT
+                        : Presence.StatutPresence.PRESENT
         );
-
-        return presenceRepository.save(presence);
+       System.out.println(presence);
+        Presence saved = presenceRepository.save(presence);
+        return mapToDto(saved);
     }
 
-    public List<Presence> getPresencesParCours(Long edtId) {
-        return presenceRepository.findByEmploiDuTempsIdAndDate(
-                edtId,
-                LocalDate.now()
-        );
+    public List<Presence> getPresencesParCours(Long edtId, LocalDate date) {
+        return presenceRepository.findByEmploiDuTempsIdAndDate(edtId, date);
     }
-    public List<Map<String, Object>> getStatsParClasse(Long classeId) {
 
-        List<Presence> presences = presenceRepository.findByEleveClasseId(classeId);
+    public List<Map<String, Object>> getStatsParClasse(Long classeId, LocalDate date) {
+
+        List<Presence> presences = presenceRepository.findByInscription_Classe_IdAndDate(classeId, date);
 
         Map<Long, Map<String, Object>> stats = new HashMap<>();
 
         for (Presence p : presences) {
 
-            Long eleveId = p.getEleve().getId();
+            Long inscriptionId = p.getInscription().getId();
+            Eleve eleve = p.getInscription().getEleve();
 
-            stats.putIfAbsent(eleveId, new HashMap<>());
+            stats.putIfAbsent(inscriptionId, new HashMap<>());
+            Map<String, Object> s = stats.get(inscriptionId);
 
-            Map<String, Object> s = stats.get(eleveId);
-
-            s.put("eleveId", eleveId);
-            s.put("nom", p.getEleve().getNom() + " " + p.getEleve().getPrenom());
+            s.put("inscriptionId", inscriptionId);
+            s.put("nom", eleve.getNom() + " " + eleve.getPrenom());
 
             int present = ((Number) s.getOrDefault("present", 0)).intValue();
             int absent = ((Number) s.getOrDefault("absent", 0)).intValue();
 
-            if (p.getStatut() == StatutPresence.PRESENT) {
-                present++;
-            } else {
-                absent++;
-            }
+            if (p.getStatut() == Presence.StatutPresence.PRESENT) present++;
+            else absent++;
 
             s.put("present", present);
             s.put("absent", absent);
         }
 
-        // 🔥 calcul taux
         for (Map<String, Object> s : stats.values()) {
-            int present = ((Number) s.getOrDefault("present", 0)).intValue();
-            int absent = ((Number) s.getOrDefault("absent", 0)).intValue();
-
+            int present = ((Number) s.get("present")).intValue();
+            int absent = ((Number) s.get("absent")).intValue();
             int total = present + absent;
-
             double taux = total == 0 ? 100 : (present * 100.0 / total);
-
             s.put("taux", Math.round(taux));
         }
 
         return new ArrayList<>(stats.values());
     }
-    public void markAllPresent(Long classeId, String jour) {
 
-        LocalDate today = LocalDate.now();
+    /**
+     * Rapport agrégé par période (trimestre) — utilise directement la Periode
+     * déjà stockée sur chaque Presence, plutôt que de recalculer les dates.
+     */
+    public long compterAbsences(Long inscriptionId, Long periodeId) {
+        return presenceRepository.countByInscriptionIdAndPeriodeIdAndStatut(
+                inscriptionId, periodeId, Presence.StatutPresence.ABSENT
+        );
+    }
+    public List<PresenceResponseDTO> getPresencesParCoursDto(Long edtId, LocalDate date) {
+        return getPresencesParCours(edtId, date).stream().map(this::mapToDto).toList();
+    }
 
-        List<EmploiDuTemps> cours = emploiDuTempsRepository
-                .findByClasseIdAndJour(classeId, jour);
+    private PresenceResponseDTO mapToDto(Presence p) {
 
+        PresenceResponseDTO dto = new PresenceResponseDTO();
+        dto.setId(p.getId());
+        dto.setInscriptionId(p.getInscription().getId());
+        dto.setEleveNom(p.getInscription().getEleve().getNom());
+        dto.setElevePrenom(p.getInscription().getEleve().getPrenom());
+
+        if (p.getEmploiDuTemps() != null) {
+            dto.setEdtId(p.getEmploiDuTemps().getId());
+            dto.setMatiereNom(p.getEmploiDuTemps().getMatiere().getNom());
+        }
+
+        dto.setDate(p.getDate());
+        dto.setStatut(p.getStatut().name());
+        dto.setMotif(p.getMotif());
+
+        return dto;
+    }
+
+
+    public void markAllPresent(Long classeId, String jour, LocalDate date) {
+        List<EmploiDuTemps> cours = emploiDuTempsRepository.findByClasseIdAndJour(classeId, jour);
         for (EmploiDuTemps c : cours) {
-            List<Presence> presences = presenceRepository
-                    .findByEmploiDuTempsIdAndDate(c.getId(), today);
-
-            // 🔥 suppression = tous présents
+            List<Presence> presences = presenceRepository.findByEmploiDuTempsIdAndDate(c.getId(), date);
             presenceRepository.deleteAll(presences);
         }
     }
-    public void markAllAbsent(Long classeId, String jour) {
 
-        LocalDate today = LocalDate.now();
+    public void markAllAbsent(Long classeId, String jour, LocalDate date) {
 
-        List<EmploiDuTemps> cours = emploiDuTempsRepository
-                .findByClasseIdAndJour(classeId, jour);
-
-        List<Eleve> eleves = eleveRepository.findByClasseId(classeId);
+        List<EmploiDuTemps> cours = emploiDuTempsRepository.findByClasseIdAndJour(classeId, jour);
+        List<Inscription> inscriptions = inscriptionRepository.findByClasseIdAndAnneeScolaire_ActiveTrue(classeId);
 
         for (EmploiDuTemps c : cours) {
-            for (Eleve e : eleves) {
+            for (Inscription inscription : inscriptions) {
 
                 Presence p = presenceRepository
-                        .findByEleveIdAndEmploiDuTempsIdAndDate(e.getId(), c.getId(), today)
+                        .findByInscriptionIdAndEmploiDuTempsIdAndDate(inscription.getId(), c.getId(), date)
                         .orElseGet(() -> {
                             Presence np = new Presence();
-                            np.setEleve(e);
+                            np.setInscription(inscription);
                             np.setEmploiDuTemps(c);
-                            np.setDate(today);
+                            np.setDate(date);
+                            np.setPeriode(resoudrePeriode(inscription.getAnneeScolaire().getId(), date));
                             return np;
                         });
 
-                p.setStatut(StatutPresence.ABSENT);
-
+                p.setStatut(Presence.StatutPresence.ABSENT);
                 presenceRepository.save(p);
             }
         }
     }
 
+    // Dans PresenceService ou un service dédié
+    public List<Map<String, Object>> getElevesAvecInscription(Long classeId) {
+        return inscriptionRepository.findByClasseIdAndAnneeScolaire_ActiveTrue(classeId)
+                .stream()
+                .map(i -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("inscriptionId", i.getId());
+                    m.put("eleveId", i.getEleve().getId());
+                    m.put("nom", i.getEleve().getNom());
+                    m.put("prenom", i.getEleve().getPrenom());
+                    return m;
+                })
+                .toList();
+    }
 }

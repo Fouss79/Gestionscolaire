@@ -9,6 +9,7 @@ public class MatiereclasseDTO {
     private Long anneeScolaireId;
     private int coefficient; // 🔥
     private int nombreHeures; // ex: Maths = 5h
+    private Long sousGroupeId;
 
 
 }

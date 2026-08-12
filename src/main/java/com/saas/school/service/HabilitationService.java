@@ -34,10 +34,9 @@ public class HabilitationService {
             throw new RuntimeException("Accès refusé (école)");
         }
 
-        boolean exists = repository.existsByEnseignantIdAndMatiereIdAndAnneeScolaireId(
+        boolean exists = repository.existsByEnseignantIdAndMatiereId(
                 dto.getEnseignantId(),
-                dto.getMatiereId(),
-                dto.getAnneeScolaireId()
+                dto.getMatiereId()
         );
 
         if (exists) {
@@ -47,38 +46,33 @@ public class HabilitationService {
         Habilitation h = new Habilitation();
         h.setEnseignant(enseignant);
         h.setMatiere(matiere);
-        h.setAnneeScolaire(annee);
         h.setEcole(enseignant.getEcole());
 
         return repository.save(h);
     }
 
     // ================= GET ENSEIGNANTS PAR MATIERE + ANNEE =================
-    public List<Enseignant> getEnseignantsByMatiere(Long matiereId, Long anneeId) {
+    public List<Enseignant> getEnseignantsByMatiere(Long matiereId) {
 
-        if (matiereId == null || anneeId == null) {
-            throw new RuntimeException("matiereId et anneeId sont obligatoires");
+        if (matiereId == null) {
+            throw new RuntimeException("matiereId est obligatoire");
         }
 
-        return repository.findByMatiereIdAndAnneeScolaireId(matiereId, anneeId)
+        return repository.findByMatiereId(matiereId)
                 .stream()
                 .map(Habilitation::getEnseignant)
+                .filter(Enseignant::getActif)
                 .toList();
     }
-
     // ================= GET PAR ECOLE =================
     public List<Habilitation> getByEcole(Long ecoleId) {
-        return repository.findByEcoleId(ecoleId);
-    }
 
+        return repository.findByEcoleId(ecoleId)
+                .stream()
+                .filter(h -> h.getEnseignant().getActif())
+                .toList();
+    }
     // ================= GET PAR ECOLE + ANNEE (🔥 IMPORTANT) =================
-    public List<Habilitation> getByEcoleAndAnnee(Long ecoleId, Long anneeId) {
 
-        if (ecoleId == null || anneeId == null) {
-            throw new RuntimeException("ecoleId et anneeId sont obligatoires");
-        }
-
-        return repository.findByEcoleIdAndAnneeScolaireId(ecoleId, anneeId);
-    }
 
 }

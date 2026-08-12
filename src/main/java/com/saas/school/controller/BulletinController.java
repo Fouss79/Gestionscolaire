@@ -2,8 +2,10 @@ package com.saas.school.controller;
 
 
 import com.saas.school.entity.Eleve;
+import com.saas.school.entity.Inscription;
 import com.saas.school.entity.Note;
 import com.saas.school.repository.EleveRepository;
+import com.saas.school.repository.InscriptionRepository;
 import com.saas.school.repository.NoteRepository;
 import com.saas.school.service.BulletinService;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +23,11 @@ public class BulletinController {
     private final BulletinService bulletinService;
     private final NoteRepository noteRepository;
     private final EleveRepository eleveRepository;
+    private final InscriptionRepository inscriptionRepository;
 
     @GetMapping(value = "/generate", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> generateBulletin(
-            @RequestParam Long eleveId,
+            @RequestParam Long inscriptionId,
             @RequestParam Long classeId,
             @RequestParam Long anneeId,
             @RequestParam String periode
@@ -33,16 +36,17 @@ public class BulletinController {
         try {
 
             // ================= VALIDATION =================
-            if (eleveId == null || classeId == null || anneeId == null) {
+            if (inscriptionId == null || classeId == null || anneeId == null) {
                 throw new RuntimeException("Paramètres invalides");
             }
+            Inscription inscription= inscriptionRepository.findById(inscriptionId).orElseThrow(() -> new RuntimeException("Inscription introuvable"));
 
             // ================= DATA =================
-            Eleve eleve = eleveRepository.findById(eleveId)
+            Eleve eleve = eleveRepository.findById(inscription.getEleve().getId())
                     .orElseThrow(() -> new RuntimeException("Élève introuvable"));
 
             List<Note> notes = noteRepository.findByClasseIdAndAnneeScolaireIdAndEleveIdAndPeriode(
-                    classeId, anneeId, eleveId, periode
+                    classeId, anneeId, eleve.getId(), periode
             );
 
             if (notes.isEmpty()) {

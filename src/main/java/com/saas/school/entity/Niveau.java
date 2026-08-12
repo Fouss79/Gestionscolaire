@@ -17,5 +17,7 @@ public class Niveau {
     @ManyToOne
     @JoinColumn(name = "ecole_id")
     private Ecole ecole;
-
+    @ManyToOne
+    @JoinColumn(name = "cycle_id")
+    private Cycle cycle; // optionnel, pour ne pas casser les niveaux existants sans cycle
 }

@@ -7,7 +7,10 @@ import com.saas.school.repository.EcoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -18,25 +21,53 @@ public class AnneeScolaireService {
     private final EcoleRepository ecoleRepository;
 
     // 🔥 créer année scolaire
-    public AnneeScolaire creer(String nom, Long ecoleId) {
+    public AnneeScolaire creer(
+            String nom,
+            LocalDate dateDebut,
+            LocalDate dateFin,
+            Long ecoleId
+    ) {
 
         Ecole ecole = ecoleRepository.findById(ecoleId)
                 .orElseThrow(() -> new RuntimeException("École introuvable"));
 
-        // vérifier doublon
         if (anneeRepository.existsByNomAndEcoleId(nom, ecoleId)) {
             throw new RuntimeException("Cette année existe déjà pour cette école");
         }
 
+        if (dateFin.isBefore(dateDebut)) {
+            throw new RuntimeException(
+                    "La date de fin doit être supérieure à la date de début"
+            );
+        }
+
         AnneeScolaire annee = new AnneeScolaire();
         annee.setNom(nom);
+        annee.setDateDebut(dateDebut);
+        annee.setDateFin(dateFin);
         annee.setEcole(ecole);
         annee.setActive(false);
         annee.setCreatedAt(LocalDateTime.now());
 
         return anneeRepository.save(annee);
     }
+    public class AnneeScolaireUtils {
 
+        public static List<YearMonth> getMois(AnneeScolaire annee) {
+
+            List<YearMonth> mois = new ArrayList<>();
+
+            YearMonth courant = YearMonth.from(annee.getDateDebut());
+            YearMonth fin = YearMonth.from(annee.getDateFin());
+
+            while (!courant.isAfter(fin)) {
+                mois.add(courant);
+                courant = courant.plusMonths(1);
+            }
+
+            return mois;
+        }
+    }
     // 📥 toutes les années d'une école
     public List<AnneeScolaire> getByEcole(Long ecoleId) {
         return anneeRepository.findByEcoleId(ecoleId);

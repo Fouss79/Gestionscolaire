@@ -7,7 +7,7 @@ import lombok.Data;
 public class NoteReponseDTO {
 
     private Long id;
-
+    private Long inscriptionId;
     private String eleveNom;
     private String matiereNom;
     private String classeNom;
