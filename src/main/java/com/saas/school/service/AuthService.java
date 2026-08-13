@@ -53,7 +53,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
 
-         Role role =creerRolesParDefaut(ecole);
+        Role role =creerRolesParDefaut(ecole);
 
 
 
@@ -212,5 +212,5 @@ public class AuthService {
 
         roleRepository.save(role);
     }
-     }
+}
 

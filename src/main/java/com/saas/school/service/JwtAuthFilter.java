@@ -31,13 +31,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws IOException, ServletException {
 
-        System.out.println(
-                "🔎 JWT FILTER -> " +
-                        request.getMethod() +
-                        " " +
-                        request.getRequestURI()
-        );
-
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -45,57 +38,35 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        try {
-            String token = authHeader.substring(7);
+        String token = authHeader.substring(7);
 
-            if (token.equals("null") || token.isEmpty()) {
-                filterChain.doFilter(request, response);
-                return;
+        if (!token.equals("null") && !token.isEmpty()) {
+            try {
+                String email = jwtService.extractEmail(token);
+                List<String> permissions = jwtService.extractPermissions(token);
+
+                Utilisateur user = utilisateurRepository.findByEmail(email).orElse(null);
+
+                if (user != null) {
+                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().getNom()));
+
+                    if (permissions != null && !permissions.isEmpty()) {
+                        permissions.forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
+                    }
+
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(user, null, authorities);
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
+            } catch (Exception e) {
+                // Erreur de parsing/validation du JWT uniquement — pas les erreurs métier en aval
+                System.out.println("❌ JWT ERROR: " + e.getMessage());
+                SecurityContextHolder.clearContext();
             }
-
-            String email = jwtService.extractEmail(token);
-            List<String> permissions = jwtService.extractPermissions(token);
-
-            Utilisateur user = utilisateurRepository.findByEmail(email).orElse(null);
-
-            if (user == null) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-
-// ROLE
-            authorities.add(
-                    new SimpleGrantedAuthority("ROLE_" + user.getRole().getNom())
-            );
-
-// PERMISSIONS (depuis JWT)
-            if (permissions != null && !permissions.isEmpty()) {
-                permissions.forEach(p ->
-                        authorities.add(new SimpleGrantedAuthority(p))
-                );
-            }
-
-            // 🔍 DEBUG (utile en dev)
-            String role = user.getRole().getNom();
-
-            System.out.println("🔐 ROLE = " + role);
-            System.out.println("🔐 AUTHORITIES = " + authorities);
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(
-                            user,
-                            null,
-                            authorities
-                    );
-
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
-        } catch (Exception e) {
-            System.out.println("❌ JWT ERROR: " + e.getMessage());
-            SecurityContextHolder.clearContext();
         }
 
+        // ✅ Un seul appel, en dehors de tout try-catch qui pourrait avaler des exceptions métier
         filterChain.doFilter(request, response);
     }
 }
