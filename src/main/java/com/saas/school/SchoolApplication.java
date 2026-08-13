@@ -35,7 +35,8 @@ private final EcoleRepository ecoleRepository;
 			UtilisateurRepository userRepository,
 			PasswordEncoder passwordEncoder,
 			RoleRepository roleRepository,
-			PermissionRepository permissionRepository
+			PermissionRepository permissionRepository,
+			AnneeScolaireService anneeScolaireService
 	) {
 		return args -> {
 
@@ -98,7 +99,14 @@ private final EcoleRepository ecoleRepository;
 
 				Ecole ecole = new Ecole();
 				ecole.setActive(true);
+
 				ecole = ecoleRepository.save(ecole);
+				LocalDate debut = LocalDate.parse("2025-10-01");
+				LocalDate fin = LocalDate.parse("2026-07-31");
+				AnneeScolaire as = anneeScolaireService.creer("2025-2026",debut,fin,ecole.getId());
+
+				anneeScolaireService.activer(as.getId());
+
 
 				admin.setEcole(ecole);
 
