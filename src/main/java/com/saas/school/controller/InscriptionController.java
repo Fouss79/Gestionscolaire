@@ -35,15 +35,16 @@ public class InscriptionController {
         return ResponseEntity.ok(inscriptionService.inscrireUnEleve(request));
     }
     @PutMapping("/{id}/valider")
-    public Inscription valider(@PathVariable Long id) {
-        return inscriptionService.validerInscription(id);
+    public ResponseEntity<InscriptionResponseDTO> valider(@PathVariable Long id) {
+        Inscription inscription = inscriptionService.validerInscription(id);
+        return ResponseEntity.ok(inscriptionService.getById(inscription.getId()));
     }
 
     @PutMapping("/{id}/rejeter")
-    public Inscription rejeter(@PathVariable Long id) {
-        return inscriptionService.rejeterInscription(id);
+    public ResponseEntity<InscriptionResponseDTO> rejeter(@PathVariable Long id) {
+        Inscription inscription = inscriptionService.rejeterInscription(id);
+        return ResponseEntity.ok(inscriptionService.getById(inscription.getId()));
     }
-
     @GetMapping("/ecole/{ecoleId}/reinscription")
     public ResponseEntity<List<ReinscriptionReponseDTO>> getElevesPourReinscription(
             @PathVariable Long ecoleId

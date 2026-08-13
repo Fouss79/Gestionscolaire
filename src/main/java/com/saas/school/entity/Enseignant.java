@@ -39,7 +39,7 @@ public class Enseignant {
 
     private String nationalite;
 
-    
+
     private String matricule;
 
     @Column(length = 255)
