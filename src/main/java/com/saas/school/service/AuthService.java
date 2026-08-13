@@ -174,14 +174,17 @@ public class AuthService {
     }
     private void creerTypesFraisParDefaut(Ecole ecole) {
 
-        List<String> types = List.of(
-                "INSCRIPTION",
-                "SCOLARITE",
-                "EXAMEN",
-                "UNIFORME"
+        Map<String, FrequenceFrais> typesAvecFrequence = Map.of(
+                "INSCRIPTION", FrequenceFrais.UNIQUE,
+                "SCOLARITE", FrequenceFrais.MENSUEL,
+                "EXAMEN", FrequenceFrais.TRIMESTRIEL,
+                "UNIFORME", FrequenceFrais.UNIQUE
         );
 
-        for (String code : types) {
+        for (Map.Entry<String, FrequenceFrais> entry : typesAvecFrequence.entrySet()) {
+
+            String code = entry.getKey();
+            FrequenceFrais frequence = entry.getValue();
 
             boolean existe = typeFraisRepository
                     .findByEcoleIdAndCode(ecole.getId(), code)
@@ -192,7 +195,7 @@ public class AuthService {
                 TypeFrais tf = new TypeFrais();
                 tf.setCode(code);
                 tf.setLibelle(code);
-
+                tf.setFrequence(frequence);
                 tf.setEcole(ecole);
 
                 typeFraisRepository.save(tf);

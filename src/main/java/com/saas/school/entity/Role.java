@@ -6,6 +6,13 @@ import lombok.Data;
 import java.util.List;
 
 @Entity
+@Table(
+        name = "role",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_role_nom_ecole",
+                columnNames = {"nom", "ecole_id"}
+        )
+)
 @Data
 public class Role {
 
@@ -13,12 +20,13 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false)
     private String nom; // ex: ADMIN, PROF, ELEVE
+
     @ManyToOne
     @JoinColumn(name = "ecole_id")
     private Ecole ecole;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "role_permission",
@@ -27,4 +35,3 @@ public class Role {
     )
     private List<Permission> permissions;
 }
-
