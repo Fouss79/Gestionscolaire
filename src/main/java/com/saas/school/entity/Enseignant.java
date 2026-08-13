@@ -12,11 +12,14 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "enseignant", uniqueConstraints = {
-        @UniqueConstraint(columnNames = "matricule")
-})
+@Table(
+        name = "enseignant",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_enseignant_matricule_ecole",
+                columnNames = {"matricule", "ecole_id"}
+        )
+)
 public class Enseignant {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -36,7 +39,7 @@ public class Enseignant {
 
     private String nationalite;
 
-    @Column(unique = true)
+    
     private String matricule;
 
     @Column(length = 255)

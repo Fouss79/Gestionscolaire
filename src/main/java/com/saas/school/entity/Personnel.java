@@ -12,7 +12,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "personnels")
+@Table(
+        name = "personnels",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_personnels_matricule_ecole",
+                columnNames = {"matricule", "ecole_id"}
+        )
+)
 public class Personnel {
 
     @Id
@@ -64,7 +70,6 @@ public class Personnel {
     // INFORMATIONS PROFESSIONNELLES
     // ==========================
 
-    @Column(unique = true)
     private String matricule;
 
 
