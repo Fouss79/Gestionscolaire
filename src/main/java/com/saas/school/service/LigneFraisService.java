@@ -234,24 +234,26 @@ public class LigneFraisService {
      * de leur création) pour un niveau/année/type de frais donné, une fois qu'un vrai
      * tarif vient d'être configuré par l'admin.
      */
+
     @org.springframework.transaction.annotation.Transactional
     public int recalculerLignesEstimatives(Long niveauId, Long anneeScolaireId, String codeTypeFrais, Double nouveauMontantAnnuel) {
 
-        List<LigneFrais> lignesEstimatives = ligneFraisRepository
-                .findByInscription_Classe_Niveau_IdAndInscription_AnneeScolaire_IdAndTypeFrais_CodeAndEstimatifTrue(
+        // 🔥 On recalcule TOUTES les lignes du niveau/année/type, estimatives ou non
+        List<LigneFrais> lignesAMettreAJour = ligneFraisRepository
+                .findByInscription_Classe_Niveau_IdAndInscription_AnneeScolaire_IdAndTypeFrais_Code(
                         niveauId, anneeScolaireId, codeTypeFrais
                 );
 
-        if (lignesEstimatives.isEmpty()) {
+        if (lignesAMettreAJour.isEmpty()) {
             return 0;
         }
 
-        boolean estMensuel = lignesEstimatives.stream().anyMatch(l -> l.getMois() != null);
+        boolean estMensuel = lignesAMettreAJour.stream().anyMatch(l -> l.getMois() != null);
         double nouveauMontantParLigne = nouveauMontantAnnuel;
 
         if (estMensuel) {
 
-            AnneeScolaire annee = lignesEstimatives.get(0)
+            AnneeScolaire annee = lignesAMettreAJour.get(0)
                     .getInscription()
                     .getAnneeScolaire();
 
@@ -262,16 +264,15 @@ public class LigneFraisService {
 
             nouveauMontantParLigne = nouveauMontantAnnuel / nbMois;
         }
-        for (LigneFrais ligne : lignesEstimatives) {
+
+        for (LigneFrais ligne : lignesAMettreAJour) {
 
             double montantDejaPaye = ligne.getMontantPaye() != null ? ligne.getMontantPaye() : 0.0;
-
-            // 🔥 On recalcule TOUJOURS le total réel, même si un paiement a déjà eu lieu
             double nouveauReste = Math.max(0.0, nouveauMontantParLigne - montantDejaPaye);
 
             ligne.setMontantTotal(nouveauMontantParLigne);
             ligne.setResteAPayer(nouveauReste);
-            ligne.setEstimatif(false);
+            ligne.setEstimatif(false); // le tarif est désormais réel/à jour
 
             if (nouveauReste <= 0) {
                 ligne.setStatutPaiement(StatutPaiement.PAYE);
@@ -284,6 +285,6 @@ public class LigneFraisService {
             ligneFraisRepository.save(ligne);
         }
 
-        return lignesEstimatives.size();
+        return lignesAMettreAJour.size();
     }
 }
