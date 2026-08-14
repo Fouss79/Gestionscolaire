@@ -34,16 +34,34 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+
+                // Active CORS avec la configuration ci-dessous
                 .cors(cors -> {})
+
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
                 )
+
                 .authorizeHttpRequests(auth -> auth
+
+                        // Authentification publique
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/register").permitAll()
+
+                        // Autoriser les requêtes OPTIONS utilisées par CORS
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.OPTIONS,
+                                "/**"
+                        ).permitAll()
+
                         .requestMatchers("/error").permitAll()
+
+                        // Tout le reste nécessite une authentification
                         .anyRequest().authenticated()
                 )
+
                 .addFilterBefore(
                         jwtAuthFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -51,6 +69,7 @@ public class SecurityConfig {
 
         return http.build();
     }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
@@ -58,6 +77,7 @@ public class SecurityConfig {
 
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
+                "https://malisugu.vercel.app",
                 "https://*.trycloudflare.com"
         ));
 
