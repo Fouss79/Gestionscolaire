@@ -150,32 +150,13 @@ public class LigneFraisService {
     }
 
     // =========================
-    // 📥 LECTURE
+    // 📥 LECTURE (entités brutes — usage interne)
     // =========================
 
     public List<LigneFrais> getByInscription(Long inscriptionId) {
         return ligneFraisRepository.findByInscriptionId(inscriptionId);
     }
 
-    public List<LigneFraisDTO> getByEcole(Long ecoleId) {
-
-        List<LigneFrais> lignes =
-                ligneFraisRepository
-                        .findByInscription_Ecole_IdAndInscription_AnneeScolaire_ActiveTrue(ecoleId);
-
-        lignes.forEach(l ->
-                System.out.println(
-                        "ID=" + l.getId()
-                                + " TYPE=" + l.getTypeFrais().getCode()
-                                + " MOIS=" + l.getMois()
-                                + " ANNEE=" + l.getAnnee()
-                )
-        );
-
-        return lignes.stream()
-                .map(this::mapToDto)
-                .toList();
-    }
     public LigneFrais getById(Long id) {
         return ligneFraisRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ligne de frais introuvable"));
@@ -184,6 +165,35 @@ public class LigneFraisService {
     public LigneFrais getByInscriptionAndType(Long inscriptionId, String codeTypeFrais) {
         return ligneFraisRepository.findByInscriptionIdAndTypeFrais_Code(inscriptionId, codeTypeFrais)
                 .orElseThrow(() -> new RuntimeException("Ligne de frais introuvable"));
+    }
+
+    // =========================
+    // 📥 LECTURE (DTO — exposé au contrôleur)
+    // =========================
+
+    public List<LigneFraisDTO> getByEcole(Long ecoleId) {
+
+        List<LigneFrais> lignes =
+                ligneFraisRepository
+                        .findByInscription_Ecole_IdAndInscription_AnneeScolaire_ActiveTrue(ecoleId);
+
+        return lignes.stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    public List<LigneFraisDTO> getByInscriptionDTO(Long inscriptionId) {
+        return getByInscription(inscriptionId).stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    public LigneFraisDTO getByIdDTO(Long id) {
+        return mapToDto(getById(id));
+    }
+
+    public LigneFraisDTO getByInscriptionAndTypeDTO(Long inscriptionId, String codeTypeFrais) {
+        return mapToDto(getByInscriptionAndType(inscriptionId, codeTypeFrais));
     }
 
     public void supprimer(Long id) {
@@ -218,6 +228,7 @@ public class LigneFraisService {
 
         return dto;
     }
+
     /**
      * Recalcule toutes les lignes de frais "estimatives" (tarif non défini au moment
      * de leur création) pour un niveau/année/type de frais donné, une fois qu'un vrai
@@ -275,5 +286,4 @@ public class LigneFraisService {
 
         return lignesEstimatives.size();
     }
-
 }
