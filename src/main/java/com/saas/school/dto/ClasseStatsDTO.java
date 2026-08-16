@@ -12,7 +12,10 @@ import java.util.List;
 public class ClasseStatsDTO {
     private Long id;
     private String nomComplet;
+    private Long classeId;
+    private Long niveauId;
     private String niveauNom;
+    private Long serieId;
     private String serieNom;
     private String groupeNom;
     private Integer nbElevesInscrits;

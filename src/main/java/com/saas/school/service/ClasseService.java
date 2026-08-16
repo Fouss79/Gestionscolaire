@@ -198,7 +198,9 @@ public class ClasseService {
                         ? classe.getNiveau().getCycle().getNom()
                         : null
         );
+        dto.setNiveauId(classe.getNiveau() != null ? classe.getNiveau().getId() : null);
         dto.setNiveauNom(classe.getNiveau() != null ? classe.getNiveau().getNom() : null);
+        dto.setSerieId(classe.getSerie() != null ? classe.getSerie().getId() : null);
         dto.setSerieNom(classe.getSerie() != null ? classe.getSerie().getNom() : null);
         dto.setGroupeNom(classe.getGroupe() != null ? classe.getGroupe().getNom() : null);
 

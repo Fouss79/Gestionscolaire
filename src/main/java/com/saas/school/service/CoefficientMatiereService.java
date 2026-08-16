@@ -239,6 +239,28 @@ public class CoefficientMatiereService {
 
 
         return candidats.getFirst().getCoefficient();
-}
+
+    }
+
+
+    public List<CoefficientMatiereResponseDTO> findProgrammesPourClasse(
+            Long ecoleId,
+            Long anneeScolaireId,
+            Long niveauId,
+            Long classeId
+    ) {
+
+        List<CoefficientMatiere> programmes =
+                coefficientRepository.findProgrammesPourClasse(
+                        ecoleId,
+                        anneeScolaireId,
+                        niveauId,
+                        classeId
+                );
+
+        return programmes.stream()
+                .map(this::mapToDto)
+                .toList();
+    }
 }
 

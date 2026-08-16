@@ -187,5 +187,22 @@ public class CoefficientMatiereController {
                 "Coefficient supprimé"
         );
     }
+    @GetMapping("/programme/classe")
+    public ResponseEntity<List<CoefficientMatiereResponseDTO>> getProgrammesPourClasse(
+            @RequestParam Long ecoleId,
+            @RequestParam Long anneeScolaireId,
+            @RequestParam Long niveauId,
+            @RequestParam Long classeId
+    ) {
 
+        List<CoefficientMatiereResponseDTO> programmes =
+                coefficientService.findProgrammesPourClasse(
+                        ecoleId,
+                        anneeScolaireId,
+                        niveauId,
+                        classeId
+                );
+
+        return ResponseEntity.ok(programmes);
+    }
 }

@@ -108,4 +108,29 @@ public interface CoefficientMatiereRepository extends JpaRepository<CoefficientM
             Long classeId,
             Long sousGroupeId
     );
+
+
+    @Query("""
+    SELECT DISTINCT c
+    FROM CoefficientMatiere c
+    LEFT JOIN FETCH c.matiere
+    LEFT JOIN FETCH c.niveau
+    LEFT JOIN FETCH c.serie
+    LEFT JOIN FETCH c.classe
+    LEFT JOIN FETCH c.sousGroupe
+    WHERE c.ecole.id = :ecoleId
+      AND c.anneeScolaire.id = :anneeScolaireId
+      AND c.niveau.id = :niveauId
+      AND (
+          c.classe.id = :classeId
+          OR c.sousGroupe.classe.id = :classeId
+      )
+    ORDER BY c.matiere.nom ASC
+""")
+    List<CoefficientMatiere> findProgrammesPourClasse(
+            @Param("ecoleId") Long ecoleId,
+            @Param("anneeScolaireId") Long anneeScolaireId,
+            @Param("niveauId") Long niveauId,
+            @Param("classeId") Long classeId
+    );
 }
