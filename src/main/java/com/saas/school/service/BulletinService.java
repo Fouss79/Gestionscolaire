@@ -3,9 +3,12 @@ package com.saas.school.service;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import com.saas.school.dto.BulletinDTO;
+import com.saas.school.entity.AffectationEnseignant;
+import com.saas.school.entity.CoefficientMatiere;
 import com.saas.school.entity.Eleve;
 import com.saas.school.entity.Inscription;
 import com.saas.school.entity.Note;
+import com.saas.school.repository.AffectationEnseignantRepository;
 import com.saas.school.repository.InscriptionRepository;
 import com.saas.school.repository.NoteRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,23 +17,128 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class BulletinService {
     private final NoteRepository noteRepository;
+    private final InscriptionRepository inscriptionRepository;
+    // FIX: injected so we can build the bulletin from what's actually
+    // affected to the class (AffectationEnseignant) instead of only from
+    // rows that already exist in Note.
+    private final AffectationEnseignantRepository affectationEnseignantRepository;
 
-   private  final InscriptionRepository inscriptionRepository;
+    /**
+     * FIX (nouveau) — construit la liste des notes à afficher sur le bulletin
+     * en partant des MATIÈRES AFFECTÉES à la classe (AffectationEnseignant),
+     * pas des notes déjà saisies. Toute matière affectée à la classe de
+     * l'élève (et compatible avec ses sous-groupes) apparaît sur le
+     * bulletin, avec une Note "vide" (non persistée) si rien n'a encore été
+     * saisi.
+     */
+    public List<Note> construireNotesPourBulletin(
+            Inscription inscription,
+            Long classeId,
+            Long anneeScolaireId,
+            String periode
+    ) {
+        Eleve eleve = inscription.getEleve();
+
+        List<AffectationEnseignant> affectations = affectationEnseignantRepository
+                .findByClasseIdAndCoefficientMatiere_AnneeScolaireId(classeId, anneeScolaireId);
+
+        // Une matière peut apparaître plusieurs fois (plusieurs enseignants,
+        // plusieurs sous-groupes) : on déduplique par CoefficientMatiere.id
+        // en gardant l'ordre d'apparition.
+        Map<Long, CoefficientMatiere> programmesParId = new LinkedHashMap<>();
+
+        for (AffectationEnseignant affectation : affectations) {
+            CoefficientMatiere programme = affectation.getCoefficientMatiere();
+
+            if (programme != null) {
+                programmesParId.putIfAbsent(programme.getId(), programme);
+            }
+        }
+
+        List<Note> resultat = new ArrayList<>();
+
+        for (CoefficientMatiere programme : programmesParId.values()) {
+
+            // Ignore les matières d'un sous-groupe auquel l'élève n'appartient pas
+            if (!estCompatibleAvecSousGroupe(eleve, programme)) {
+                continue;
+            }
+
+            Note note = trouverNoteExistante(inscription, programme, periode);
+
+            if (note == null) {
+                // Aucune note saisie pour cette matière : on l'affiche quand
+                // même sur le bulletin, avec des valeurs vides (traitées
+                // comme 0 par safe() dans generateBulletin).
+                note = new Note();
+                note.setInscription(inscription);
+                note.setEleve(eleve);
+                note.setClasse(inscription.getClasse());
+                note.setAnneeScolaire(inscription.getAnneeScolaire());
+                note.setCoefficientMatiere(programme);
+                note.setMatiere(programme.getMatiere());
+                note.setCoeff(programme.getCoefficient());
+                note.setSousGroupe(programme.getSousGroupe());
+                note.setPeriode(periode);
+            }
+
+            resultat.add(note);
+        }
+
+        return resultat;
+    }
+
+    private Note trouverNoteExistante(Inscription inscription, CoefficientMatiere programme, String periode) {
+        if (programme.getSousGroupe() != null) {
+            return noteRepository
+                    .findByInscriptionIdAndCoefficientMatiereIdAndPeriodeAndSousGroupeId(
+                            inscription.getId(),
+                            programme.getId(),
+                            periode,
+                            programme.getSousGroupe().getId()
+                    )
+                    .orElse(null);
+        }
+
+        return noteRepository
+                .findByInscriptionIdAndCoefficientMatiereIdAndPeriodeAndSousGroupeIsNull(
+                        inscription.getId(),
+                        programme.getId(),
+                        periode
+                )
+                .orElse(null);
+    }
+
+    private boolean estCompatibleAvecSousGroupe(Eleve eleve, CoefficientMatiere programme) {
+        if (programme.getSousGroupe() == null) {
+            return true;
+        }
+
+        if (eleve.getSousGroupes() == null || eleve.getSousGroupes().isEmpty()) {
+            return false;
+        }
+
+        Long sousGroupeId = programme.getSousGroupe().getId();
+        return eleve.getSousGroupes().stream()
+                .anyMatch(sg -> sg != null && sg.getId() != null && sg.getId().equals(sousGroupeId));
+    }
+
     public byte[] generateBulletin(List<Note> notes, Eleve eleve, String periode) {
 
         System.out.println("🚀 START PDF GENERATION");
 
-
         try {
             if (notes == null || notes.isEmpty()) {
-                throw new RuntimeException("❌ Aucune note trouvée");
+                throw new RuntimeException("❌ Aucune matière programmée pour cette classe");
             }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -58,10 +166,9 @@ public class BulletinService {
             doc.add(new Paragraph(" "));
 
             // ================= TABLE =================
-            PdfPTable table = new PdfPTable(6); // ✅ 6 colonnes corrigé
+            PdfPTable table = new PdfPTable(6);
             table.setWidthPercentage(100);
 
-            // 🔥 HEADERS
             addHeader(table, "Matière");
             addHeader(table, "Classe");
             addHeader(table, "Examen");
@@ -80,22 +187,16 @@ public class BulletinService {
 
                 double nClass = safe(n.getNClass());
                 double nExem = safe(n.getNExem());
-                Integer coeff = n.getCoeff();
+                Integer coeff = n.getCoeff() != null ? n.getCoeff() : 1;
 
-                // 🔥 moyenne correcte
                 double moyenne = (nClass + (nExem * 2)) / 3;
-
                 double points = moyenne * coeff;
 
                 totalPoints += points;
                 totalCoeff += coeff;
 
-                // 🔥 LOG DEBUG
-                System.out.println("➡️ " + matiere +
-                        " | M=" + moyenne +
-                        " | Coeff=" + coeff);
+                System.out.println("➡️ " + matiere + " | M=" + moyenne + " | Coeff=" + coeff);
 
-                // 🔥 ADD ROW
                 table.addCell(cell(matiere));
                 table.addCell(center(String.valueOf(nClass)));
                 table.addCell(center(String.valueOf(nExem)));
@@ -130,7 +231,6 @@ public class BulletinService {
 
             System.out.println("📦 PDF SIZE = " + pdfBytes.length);
 
-            // 🔥 DEBUG FILE
             String path = System.getProperty("user.home") + "/bulletin_debug.pdf";
             Files.write(Paths.get(path), pdfBytes);
 
@@ -143,6 +243,7 @@ public class BulletinService {
             throw new RuntimeException("Erreur PDF: " + e.getMessage());
         }
     }
+
     private double safe(Double v) {
         return v == null ? 0.0 : v;
     }
@@ -171,8 +272,18 @@ public class BulletinService {
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
         return cell;
     }
+
     public BulletinDTO getBulletin(Long inscriptionId, Long classeId, Long anneeId) {
-        Inscription inscription = inscriptionRepository.findById(inscriptionId).orElseThrow(() -> new RuntimeException("Inscription introuvable"));
+        Inscription inscription = inscriptionRepository.findById(inscriptionId)
+                .orElseThrow(() -> new RuntimeException("Inscription introuvable"));
+
+        // NOTE: cette méthode calcule une moyenne annuelle à partir des notes
+        // déjà saisies sur TOUTES les périodes (pas de filtre période ici),
+        // donc elle ne peut pas réutiliser construireNotesPourBulletin (qui a
+        // besoin d'une période précise). Elle garde volontairement son
+        // comportement d'origine — si elle doit un jour aussi tenir compte
+        // des matières sans note saisie, il faudra l'adapter séparément en
+        // itérant sur les périodes de l'année.
         List<Note> notes = noteRepository
                 .findByEleveIdAndClasseIdAndAnneeScolaireId(inscription.getEleve().getId(), classeId, anneeId);
 
@@ -181,7 +292,7 @@ public class BulletinService {
 
         for (Note n : notes) {
 
-            double moyenne = (n.getNClass() + n.getNExem()*2) / 3;
+            double moyenne = (safe(n.getNClass()) + safe(n.getNExem()) * 2) / 3;
             double coeff = n.getCoeff() == null ? 1 : n.getCoeff();
 
             total += moyenne * coeff;
@@ -193,8 +304,6 @@ public class BulletinService {
         BulletinDTO dto = new BulletinDTO();
         dto.setEleveId(inscription.getEleve().getId());
         dto.setMoyenneAnnuelle(moyenneAnnuelle);
-
-        // 🎯 mention automatique
         dto.setMention(getMention(moyenneAnnuelle));
 
         return dto;

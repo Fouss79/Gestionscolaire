@@ -39,18 +39,26 @@ public class BulletinController {
             if (inscriptionId == null || classeId == null || anneeId == null) {
                 throw new RuntimeException("Paramètres invalides");
             }
-            Inscription inscription= inscriptionRepository.findById(inscriptionId).orElseThrow(() -> new RuntimeException("Inscription introuvable"));
+            Inscription inscription = inscriptionRepository.findById(inscriptionId)
+                    .orElseThrow(() -> new RuntimeException("Inscription introuvable"));
 
             // ================= DATA =================
             Eleve eleve = eleveRepository.findById(inscription.getEleve().getId())
                     .orElseThrow(() -> new RuntimeException("Élève introuvable"));
 
-            List<Note> notes = noteRepository.findByClasseIdAndAnneeScolaireIdAndEleveIdAndPeriode(
-                    classeId, anneeId, eleve.getId(), periode
+            // FIX: on ne part plus uniquement des notes déjà saisies
+            // (findByClasseIdAndAnneeScolaireIdAndEleveIdAndPeriode), ce qui
+            // faisait disparaître du bulletin toute matière programmée pour
+            // la classe mais sans note enregistrée. On part maintenant du
+            // programme complet de la classe (CoefficientMatiere), filtré
+            // par compatibilité sous-groupe, et on complète avec les notes
+            // existantes quand elles existent.
+            List<Note> notes = bulletinService.construireNotesPourBulletin(
+                    inscription, classeId, anneeId, periode
             );
 
             if (notes.isEmpty()) {
-                throw new RuntimeException("Aucune note trouvée");
+                throw new RuntimeException("Aucune matière programmée pour cette classe");
             }
 
             // ================= GENERATION PDF =================
