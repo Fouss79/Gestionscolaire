@@ -422,108 +422,48 @@ public class ResultatService {
 
     }
     private MatiereBulletinDTO mapNoteToMatiereBulletin(Note note) {
-
         MatiereBulletinDTO dto = new MatiereBulletinDTO();
 
-        // =========================================================
-        // MATIÈRE
-        // =========================================================
-
         if (note.getMatiere() != null) {
-
-            dto.setMatiereId(
-                    note.getMatiere().getId()
-            );
-
-            dto.setMatiereNom(
-                    note.getMatiere().getNom()
-            );
+            dto.setMatiereId(note.getMatiere().getId());
+            dto.setMatiereNom(note.getMatiere().getNom());
         }
 
-        // =========================================================
-        // NOTES
-        // =========================================================
-
         dto.setNoteClasse(
-                note.getNClass()
+                note.getNClass() != null ? note.getNClass() : 0.0
         );
 
         dto.setNoteExamen(
-                note.getNExem()
+                note.getNExem() != null ? note.getNExem() : 0.0
         );
-
-        // =========================================================
-        // COEFFICIENT
-        // =========================================================
 
         dto.setCoefficient(
-                note.getCoeff()
+                note.getCoeff() != null ? note.getCoeff() : 1
         );
 
-        // =========================================================
-        // SOUS-GROUPE
-        // =========================================================
-
         if (note.getSousGroupe() != null) {
-
-            dto.setSousGroupeId(
-                    note.getSousGroupe().getId()
-            );
-
-            dto.setSousGroupeNom(
-                    note.getSousGroupe().getNom()
-            );
+            dto.setSousGroupeId(note.getSousGroupe().getId());
+            dto.setSousGroupeNom(note.getSousGroupe().getNom());
         }
 
-        // =========================================================
-        // MOYENNE + POINTS
-        // =========================================================
-        //
-        // Si aucune note n'existe :
-        //
-        // nClass = null
-        // nExem  = null
-        //
-        // On ne doit PAS considérer cela comme une vraie note de 0.
-        //
-        // Le bulletin affichera donc "—".
-        //
-        // =========================================================
+        double noteClasse = note.getNClass() != null
+                ? note.getNClass()
+                : 0.0;
 
-        if (note.getNClass() != null || note.getNExem() != null) {
+        double noteExamen = note.getNExem() != null
+                ? note.getNExem()
+                : 0.0;
 
-            double nClass =
-                    note.getNClass() != null
-                            ? note.getNClass()
-                            : 0.0;
+        double moyenne = (noteClasse + (noteExamen * 2)) / 3.0;
 
-            double nExem =
-                    note.getNExem() != null
-                            ? note.getNExem()
-                            : 0.0;
+        int coefficient = note.getCoeff() != null
+                ? note.getCoeff()
+                : 1;
 
-            double moyenne =
-                    (nClass + (nExem * 2)) / 3.0;
-
-            dto.setMoyenne(moyenne);
-
-            int coefficient =
-                    note.getCoeff() != null
-                            ? note.getCoeff()
-                            : 1;
-
-            dto.setPoints(
-                    moyenne * coefficient
-            );
-
-        } else {
-
-            dto.setMoyenne(null);
-            dto.setPoints(null);
-        }
+        dto.setMoyenne(moyenne);
+        dto.setPoints(moyenne * coefficient);
 
         return dto;
     }
-
 
 }
