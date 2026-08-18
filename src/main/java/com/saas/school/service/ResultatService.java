@@ -3,7 +3,6 @@ package com.saas.school.service;
 import com.saas.school.dto.MatiereBulletinDTO;
 import com.saas.school.dto.ResultatBulletinDTO;
 import com.saas.school.dto.ResultatEleveDTO;
-import com.saas.school.dto.NoteResponseDTO;
 import com.saas.school.entity.Inscription;
 import com.saas.school.entity.Note;
 import com.saas.school.repository.InscriptionRepository;
@@ -19,11 +18,25 @@ import java.util.Objects;
 public class ResultatService {
 
     private final InscriptionRepository inscriptionRepository;
-    private final NoteService noteService;
     private final BulletinService bulletinService;
 
     /**
-     * Résultats de toute une classe pour une période donnée.
+     * ============================================================
+     * RÉSULTATS DE TOUTE UNE CLASSE
+     * ============================================================
+     *
+     * Le calcul utilise exactement la même logique que le bulletin :
+     *
+     * - matière programmée = présente même sans note
+     * - note classe vide = 0
+     * - note examen vide = 0
+     * - coefficient vide = 0
+     * - moyenne matière = (classe + examen × 2) / 3
+     * - points = moyenne × coefficient
+     * - moyenne générale = total points / total coefficients
+     *
+     * Le rang est donc basé sur la même moyenne que celle
+     * affichée dans le bulletin.
      */
     public List<ResultatEleveDTO> getResultatsClasse(
             Long classeId,
@@ -38,24 +51,25 @@ public class ResultatService {
                                 anneeScolaireId
                         );
 
-        List<ResultatEleveDTO> resultats = inscriptions.stream()
-                .map(inscription ->
-                        mapToResultatAvecBulletin(
-                                inscription,
-                                classeId,
-                                anneeScolaireId,
-                                periode
-                        )
-                )
-                .sorted(
-                        Comparator.comparing(
-                                ResultatEleveDTO::getMoyenneGenerale,
-                                Comparator.nullsLast(
-                                        Comparator.reverseOrder()
+        List<ResultatEleveDTO> resultats =
+                inscriptions.stream()
+                        .map(inscription ->
+                                mapToResultatAvecBulletin(
+                                        inscription,
+                                        classeId,
+                                        anneeScolaireId,
+                                        periode
                                 )
                         )
-                )
-                .toList();
+                        .sorted(
+                                Comparator.comparing(
+                                        ResultatEleveDTO::getMoyenneGenerale,
+                                        Comparator.nullsLast(
+                                                Comparator.reverseOrder()
+                                        )
+                                )
+                        )
+                        .toList();
 
         // =========================================================
         // ATTRIBUTION DU RANG
@@ -65,10 +79,10 @@ public class ResultatService {
         //
         // Exemple :
         //
-        // Élève A : 15.50 → 1er
-        // Élève B : 14.00 → 2e
-        // Élève C : 14.00 → 2e
-        // Élève D : 12.50 → 4e
+        // 15.50 → 1
+        // 14.00 → 2
+        // 14.00 → 2
+        // 12.50 → 4
         //
         // =========================================================
 
@@ -87,9 +101,13 @@ public class ResultatService {
             }
 
             if (derniereMoyenne == null
-                    || Double.compare(moyenne, derniereMoyenne) != 0) {
+                    || Double.compare(
+                    moyenne,
+                    derniereMoyenne
+            ) != 0) {
 
                 rang = i + 1;
+
                 derniereMoyenne = moyenne;
             }
 
@@ -98,8 +116,11 @@ public class ResultatService {
 
         return resultats;
     }
+
     /**
-     * Résultats de toute une école.
+     * ============================================================
+     * RÉSULTATS DE TOUTE UNE ÉCOLE
+     * ============================================================
      */
     public List<ResultatEleveDTO> getResultatsEcole(
             Long ecoleId,
@@ -115,9 +136,50 @@ public class ResultatService {
                         );
 
         return inscriptions.stream()
-                .map(i -> mapToResultat(i, periode))
+                .map(inscription -> {
+
+                    Long classeId =
+                            inscription.getClasse() != null
+                                    ? inscription.getClasse().getId()
+                                    : null;
+
+                    Long anneeId =
+                            inscription.getAnneeScolaire() != null
+                                    ? inscription
+                                    .getAnneeScolaire()
+                                    .getId()
+                                    : null;
+
+                    if (classeId == null || anneeId == null) {
+                        return mapInformationsEleve(
+                                inscription,
+                                0.0
+                        );
+                    }
+
+                    return mapToResultatAvecBulletin(
+                            inscription,
+                            classeId,
+                            anneeId,
+                            periode
+                    );
+                })
+                .sorted(
+                        Comparator.comparing(
+                                ResultatEleveDTO::getMoyenneGenerale,
+                                Comparator.nullsLast(
+                                        Comparator.reverseOrder()
+                                )
+                        )
+                )
                 .toList();
     }
+
+    /**
+     * ============================================================
+     * CALCUL DU RÉSULTAT D'UN ÉLÈVE
+     * ============================================================
+     */
     private ResultatEleveDTO mapToResultatAvecBulletin(
             Inscription inscription,
             Long classeId,
@@ -126,65 +188,13 @@ public class ResultatService {
     ) {
 
         ResultatEleveDTO dto =
-                new ResultatEleveDTO();
-
-        // =========================================================
-        // INFORMATIONS ÉLÈVE
-        // =========================================================
-
-        dto.setInscriptionId(
-                inscription.getId()
-        );
-
-        if (inscription.getEleve() != null) {
-
-            dto.setMatricule(
-                    inscription.getEleve().getMatricule()
-            );
-
-            dto.setNom(
-                    inscription.getEleve().getNom()
-            );
-
-            dto.setPrenom(
-                    inscription.getEleve().getPrenom()
-            );
-        }
-
-        // =========================================================
-        // CLASSE
-        // =========================================================
-
-        if (inscription.getClasse() != null) {
-
-            dto.setClasseNom(
-                    inscription.getClasse().getNomComplet()
-            );
-
-            if (inscription.getClasse().getNiveau() != null) {
-
-                dto.setNiveauNom(
-                        inscription.getClasse()
-                                .getNiveau()
-                                .getNom()
+                mapInformationsEleve(
+                        inscription,
+                        0.0
                 );
 
-                if (inscription.getClasse()
-                        .getNiveau()
-                        .getCycle() != null) {
-
-                    dto.setCycleNom(
-                            inscription.getClasse()
-                                    .getNiveau()
-                                    .getCycle()
-                                    .getNom()
-                    );
-                }
-            }
-        }
-
         // =========================================================
-        // RÉCUPÉRATION DES MATIÈRES PROGRAMMÉES
+        // MATIÈRES PROGRAMMÉES
         // =========================================================
 
         List<Note> notesBulletin =
@@ -196,7 +206,7 @@ public class ResultatService {
                 );
 
         // =========================================================
-        // CALCUL DES POINTS ET COEFFICIENTS
+        // CALCUL
         // =========================================================
 
         double totalPoints = 0.0;
@@ -208,42 +218,56 @@ public class ResultatService {
                 continue;
             }
 
-            // Note classe vide = 0
+            // -----------------------------------------------------
+            // NOTE CLASSE
+            // -----------------------------------------------------
+
             double noteClasse =
                     note.getNClass() != null
                             ? note.getNClass()
                             : 0.0;
 
-            // Note examen vide = 0
+            // -----------------------------------------------------
+            // NOTE EXAMEN
+            // -----------------------------------------------------
+
             double noteExamen =
                     note.getNExem() != null
                             ? note.getNExem()
                             : 0.0;
 
-            // Coefficient vide = 0
+            // -----------------------------------------------------
+            // COEFFICIENT
+            // -----------------------------------------------------
+
             double coefficient =
                     note.getCoeff() != null
                             ? note.getCoeff()
                             : 0.0;
 
-            // =====================================================
+            // -----------------------------------------------------
             // MOYENNE MATIÈRE
+            // -----------------------------------------------------
+            //
             // Classe = 1/3
             // Examen = 2/3
-            // =====================================================
+            //
+            // -----------------------------------------------------
 
-            double moyenne =
-                    (noteClasse + (noteExamen * 2.0)) / 3.0;
+            double moyenneMatiere =
+                    (
+                            noteClasse
+                                    + (noteExamen * 2.0)
+                    ) / 3.0;
 
-            // =====================================================
+            // -----------------------------------------------------
             // POINTS
-            // =====================================================
+            // -----------------------------------------------------
 
             double points =
-                    moyenne * coefficient;
+                    moyenneMatiere * coefficient;
 
             totalPoints += points;
-
             totalCoefficients += coefficient;
         }
 
@@ -263,9 +287,14 @@ public class ResultatService {
             moyenneGenerale = 0.0;
         }
 
-        // Arrondi à 2 décimales
+        // =========================================================
+        // ARRONDI
+        // =========================================================
+
         moyenneGenerale =
-                Math.round(moyenneGenerale * 100.0) / 100.0;
+                Math.round(
+                        moyenneGenerale * 100.0
+                ) / 100.0;
 
         dto.setMoyenneGenerale(
                 moyenneGenerale
@@ -289,34 +318,46 @@ public class ResultatService {
             Long inscriptionId,
             String periode
     ) {
-        Inscription inscription = inscriptionRepository
-                .findById(inscriptionId)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Inscription introuvable : " + inscriptionId
-                        )
-                );
 
-        ResultatBulletinDTO bulletin = new ResultatBulletinDTO();
+        Inscription inscription =
+                inscriptionRepository
+                        .findById(inscriptionId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Inscription introuvable : "
+                                                + inscriptionId
+                                )
+                        );
+
+        ResultatBulletinDTO bulletin =
+                new ResultatBulletinDTO();
 
         // =========================================================
         // INFORMATIONS ÉLÈVE
         // =========================================================
 
-        bulletin.setInscriptionId(inscription.getId());
+        bulletin.setInscriptionId(
+                inscription.getId()
+        );
 
         if (inscription.getEleve() != null) {
 
             bulletin.setMatricule(
-                    inscription.getEleve().getMatricule()
+                    inscription
+                            .getEleve()
+                            .getMatricule()
             );
 
             bulletin.setNom(
-                    inscription.getEleve().getNom()
+                    inscription
+                            .getEleve()
+                            .getNom()
             );
 
             bulletin.setPrenom(
-                    inscription.getEleve().getPrenom()
+                    inscription
+                            .getEleve()
+                            .getPrenom()
             );
         }
 
@@ -327,23 +368,30 @@ public class ResultatService {
         if (inscription.getClasse() != null) {
 
             bulletin.setClasseNom(
-                    inscription.getClasse().getNomComplet()
+                    inscription
+                            .getClasse()
+                            .getNomComplet()
             );
 
-            if (inscription.getClasse().getNiveau() != null) {
+            if (inscription
+                    .getClasse()
+                    .getNiveau() != null) {
 
                 bulletin.setNiveauNom(
-                        inscription.getClasse()
+                        inscription
+                                .getClasse()
                                 .getNiveau()
                                 .getNom()
                 );
 
-                if (inscription.getClasse()
+                if (inscription
+                        .getClasse()
                         .getNiveau()
                         .getCycle() != null) {
 
                     bulletin.setCycleNom(
-                            inscription.getClasse()
+                            inscription
+                                    .getClasse()
                                     .getNiveau()
                                     .getCycle()
                                     .getNom()
@@ -359,7 +407,9 @@ public class ResultatService {
         if (inscription.getAnneeScolaire() != null) {
 
             bulletin.setAnneeScolaire(
-                    inscription.getAnneeScolaire().getNom()
+                    inscription
+                            .getAnneeScolaire()
+                            .getNom()
             );
         }
 
@@ -369,24 +419,43 @@ public class ResultatService {
         // IDENTIFIANTS
         // =========================================================
 
-        Long classeId = inscription.getClasse() != null
-                ? inscription.getClasse().getId()
-                : null;
+        Long classeId =
+                inscription.getClasse() != null
+                        ? inscription
+                        .getClasse()
+                        .getId()
+                        : null;
 
-        Long anneeScolaireId = inscription.getAnneeScolaire() != null
-                ? inscription.getAnneeScolaire().getId()
-                : null;
+        Long anneeScolaireId =
+                inscription.getAnneeScolaire() != null
+                        ? inscription
+                        .getAnneeScolaire()
+                        .getId()
+                        : null;
 
         // =========================================================
-        // VÉRIFICATION CLASSE / ANNÉE
+        // CLASSE / ANNÉE INVALIDE
         // =========================================================
 
-        if (classeId == null || anneeScolaireId == null) {
+        if (classeId == null
+                || anneeScolaireId == null) {
 
-            bulletin.setMatieres(List.of());
-            bulletin.setTotalPoints(0.0);
-            bulletin.setTotalCoefficients(0.0);
-            bulletin.setMoyenneGenerale(0.0);
+            bulletin.setMatieres(
+                    List.of()
+            );
+
+            bulletin.setTotalPoints(
+                    0.0
+            );
+
+            bulletin.setTotalCoefficients(
+                    0.0
+            );
+
+            bulletin.setMoyenneGenerale(
+                    0.0
+            );
+
             bulletin.setAppreciation(
                     calculerAppreciation(0.0)
             );
@@ -396,19 +465,6 @@ public class ResultatService {
 
         // =========================================================
         // MATIÈRES DU BULLETIN
-        // =========================================================
-        //
-        // On part des matières programmées dans la classe.
-        //
-        // Une matière sans note existe quand même dans le bulletin.
-        //
-        // Exemple :
-        //
-        // Mathématiques : 12 / 14 / coef 4
-        // Français      : 10 / 12 / coef 3
-        // Anglais       :  0 /  0 / coef 2
-        // Histoire      :  0 /  0 / coef 0
-        //
         // =========================================================
 
         List<Note> notesBulletin =
@@ -420,7 +476,7 @@ public class ResultatService {
                 );
 
         // =========================================================
-        // CONVERSION Note -> MatiereBulletinDTO
+        // CONVERSION
         // =========================================================
 
         List<MatiereBulletinDTO> matieres =
@@ -432,46 +488,37 @@ public class ResultatService {
         bulletin.setMatieres(matieres);
 
         // =========================================================
-        // CALCUL DES TOTAUX
+        // TOTAUX
         // =========================================================
 
-        double totalPoints = matieres.stream()
-                .mapToDouble(m ->
-                        m.getPoints() != null
-                                ? m.getPoints()
-                                : 0.0
-                )
-                .sum();
+        double totalPoints =
+                matieres.stream()
+                        .mapToDouble(m ->
+                                m.getPoints() != null
+                                        ? m.getPoints()
+                                        : 0.0
+                        )
+                        .sum();
 
-        double totalCoefficients = matieres.stream()
-                .mapToDouble(m ->
-                        m.getCoefficient() != null
-                                ? m.getCoefficient()
-                                : 0.0
-                )
-                .sum();
+        double totalCoefficients =
+                matieres.stream()
+                        .mapToDouble(m ->
+                                m.getCoefficient() != null
+                                        ? m.getCoefficient()
+                                        : 0.0
+                        )
+                        .sum();
 
-        bulletin.setTotalPoints(totalPoints);
-        bulletin.setTotalCoefficients(totalCoefficients);
+        bulletin.setTotalPoints(
+                totalPoints
+        );
+
+        bulletin.setTotalCoefficients(
+                totalCoefficients
+        );
 
         // =========================================================
-        // CALCUL MOYENNE GÉNÉRALE
-        // =========================================================
-        //
-        // IMPORTANT :
-        //
-        // On ne fait PLUS :
-        //
-        // noteService.calculMoyennePeriode(...)
-        //
-        // La moyenne est calculée à partir des matières du bulletin.
-        //
-        // Moyenne générale =
-        //
-        //       Total points
-        // -----------------------
-        //   Total coefficients
-        //
+        // MOYENNE GÉNÉRALE
         // =========================================================
 
         double moyenneGenerale;
@@ -486,27 +533,27 @@ public class ResultatService {
             moyenneGenerale = 0.0;
         }
 
-        // Arrondi à 2 décimales
         moyenneGenerale =
-                Math.round(moyenneGenerale * 100.0) / 100.0;
+                Math.round(
+                        moyenneGenerale * 100.0
+                ) / 100.0;
 
-        bulletin.setMoyenneGenerale(moyenneGenerale);
+        bulletin.setMoyenneGenerale(
+                moyenneGenerale
+        );
 
         // =========================================================
         // APPRECIATION
         // =========================================================
 
         bulletin.setAppreciation(
-                calculerAppreciation(moyenneGenerale)
+                calculerAppreciation(
+                        moyenneGenerale
+                )
         );
 
         // =========================================================
         // RANG
-        // =========================================================
-        //
-        // Le rang continue d'être calculé avec les résultats
-        // de la classe.
-        //
         // =========================================================
 
         List<ResultatEleveDTO> resultats =
@@ -519,7 +566,8 @@ public class ResultatService {
         ResultatEleveDTO resultatEleve =
                 resultats.stream()
                         .filter(r ->
-                                r.getInscriptionId()
+                                r.getInscriptionId() != null
+                                        && r.getInscriptionId()
                                         .equals(inscriptionId)
                         )
                         .findFirst()
@@ -534,58 +582,15 @@ public class ResultatService {
 
         return bulletin;
     }
+
     /**
-     * Conversion d'une note vers la ligne du bulletin.
+     * ============================================================
+     * INFORMATIONS DE BASE D'UN ÉLÈVE
+     * ============================================================
      */
-    private MatiereBulletinDTO mapToMatiereBulletin(
-            NoteResponseDTO note
-    ) {
-
-        MatiereBulletinDTO dto =
-                new MatiereBulletinDTO();
-
-        dto.setMatiereId(
-                note.getMatiereId()
-        );
-
-        dto.setMatiereNom(
-                note.getMatiereNom()
-        );
-
-        dto.setCoefficient(
-                note.getCoeff()
-        );
-
-        dto.setNoteClasse(
-                note.getNClass()
-        );
-
-        dto.setNoteExamen(
-                note.getNExem()
-        );
-
-        dto.setMoyenne(
-                note.getMoyenne()
-        );
-
-        dto.setPoints(
-                note.getPoints()
-        );
-
-        dto.setSousGroupeId(
-                note.getSousGroupeId()
-        );
-
-        dto.setSousGroupeNom(
-                note.getSousGroupeNom()
-        );
-
-        return dto;
-    }
-
-    private ResultatEleveDTO mapToResultat(
+    private ResultatEleveDTO mapInformationsEleve(
             Inscription inscription,
-            String periode
+            Double moyenne
     ) {
 
         ResultatEleveDTO dto =
@@ -595,126 +600,232 @@ public class ResultatService {
                 inscription.getId()
         );
 
-        dto.setMatricule(
-                inscription.getEleve().getMatricule()
-        );
+        if (inscription.getEleve() != null) {
 
-        dto.setNom(
-                inscription.getEleve().getNom()
-        );
+            dto.setMatricule(
+                    inscription
+                            .getEleve()
+                            .getMatricule()
+            );
 
-        dto.setPrenom(
-                inscription.getEleve().getPrenom()
-        );
+            dto.setNom(
+                    inscription
+                            .getEleve()
+                            .getNom()
+            );
 
-        dto.setClasseNom(
-                inscription.getClasse().getNomComplet()
-        );
+            dto.setPrenom(
+                    inscription
+                            .getEleve()
+                            .getPrenom()
+            );
+        }
 
-        if (inscription.getClasse().getNiveau() != null) {
+        if (inscription.getClasse() != null) {
 
-            dto.setNiveauNom(
+            dto.setClasseNom(
                     inscription
                             .getClasse()
-                            .getNiveau()
-                            .getNom()
+                            .getNomComplet()
             );
 
             if (inscription
                     .getClasse()
-                    .getNiveau()
-                    .getCycle() != null) {
+                    .getNiveau() != null) {
 
-                dto.setCycleNom(
+                dto.setNiveauNom(
                         inscription
                                 .getClasse()
                                 .getNiveau()
-                                .getCycle()
                                 .getNom()
                 );
+
+                if (inscription
+                        .getClasse()
+                        .getNiveau()
+                        .getCycle() != null) {
+
+                    dto.setCycleNom(
+                            inscription
+                                    .getClasse()
+                                    .getNiveau()
+                                    .getCycle()
+                                    .getNom()
+                    );
+                }
             }
         }
 
-        Double moyenne =
-                noteService.calculMoyennePeriode(
-                        inscription.getId(),
-                        periode
-                );
-
-        dto.setMoyenneGenerale(moyenne);
+        dto.setMoyenneGenerale(
+                moyenne
+        );
 
         dto.setAppreciation(
-                calculerAppreciation(moyenne)
+                calculerAppreciation(
+                        moyenne
+                )
         );
 
         return dto;
     }
 
-    private String calculerAppreciation(Double moyenne) {
+    /**
+     * ============================================================
+     * CONVERSION NOTE -> MATIÈRE BULLETIN
+     * ============================================================
+     */
+    private MatiereBulletinDTO mapNoteToMatiereBulletin(
+            Note note
+    ) {
 
-        if (moyenne == null) return "-";
+        MatiereBulletinDTO dto =
+                new MatiereBulletinDTO();
 
-        if (moyenne >= 16) return "Très Bien";
+        // =========================================================
+        // MATIÈRE
+        // =========================================================
 
-        if (moyenne >= 14) return "Bien";
-
-        if (moyenne >= 12) return "Assez Bien";
-
-        if (moyenne >= 10) return "Passable";
-
-        return "Insuffisant";
-
-
-    }
-    private MatiereBulletinDTO mapNoteToMatiereBulletin(Note note) {
-
-        MatiereBulletinDTO dto = new MatiereBulletinDTO();
-
-        // ================= MATIÈRE =================
         if (note.getMatiere() != null) {
-            dto.setMatiereId(note.getMatiere().getId());
-            dto.setMatiereNom(note.getMatiere().getNom());
+
+            dto.setMatiereId(
+                    note.getMatiere().getId()
+            );
+
+            dto.setMatiereNom(
+                    note.getMatiere().getNom()
+            );
         }
 
-        // ================= NOTES =================
-        double noteClasse = note.getNClass() != null
-                ? note.getNClass()
-                : 0.0;
+        // =========================================================
+        // NOTES
+        // =========================================================
 
-        double noteExamen = note.getNExem() != null
-                ? note.getNExem()
-                : 0.0;
+        double noteClasse =
+                note.getNClass() != null
+                        ? note.getNClass()
+                        : 0.0;
 
-        dto.setNoteClasse(noteClasse);
-        dto.setNoteExamen(noteExamen);
+        double noteExamen =
+                note.getNExem() != null
+                        ? note.getNExem()
+                        : 0.0;
 
-        // ================= COEFFICIENT =================
-        double coefficient = note.getCoeff() != null
-                ? note.getCoeff()
-                : 0.0;
+        dto.setNoteClasse(
+                noteClasse
+        );
+
+        dto.setNoteExamen(
+                noteExamen
+        );
+
+        // =========================================================
+        // COEFFICIENT
+        // =========================================================
+
+        Integer coefficient = note.getCoeff();
+
+        /*
+         * Si Note.coeff est null, on essaie de récupérer
+         * le coefficient depuis le programme.
+         */
+        if (coefficient == null
+                && note.getCoefficientMatiere() != null) {
+
+            coefficient =
+                    note.getCoefficientMatiere()
+                            .getCoefficient();
+        }
+
+        if (coefficient == null) {
+            coefficient = 0;
+        }
 
         dto.setCoefficient(
-                note.getCoeff() != null
-                        ? note.getCoeff()
-                        : 0
+                coefficient
         );
 
-        // ================= MOYENNE MATIÈRE =================
-        double moyenne = (noteClasse + (noteExamen * 2)) / 3.0;
+        // =========================================================
+        // MOYENNE MATIÈRE
+        // =========================================================
 
-        dto.setMoyenne(moyenne);
+        double moyenne =
+                (
+                        noteClasse
+                                + (noteExamen * 2.0)
+                ) / 3.0;
 
-        // ================= POINTS =================
-        double points = moyenne * coefficient;
+        moyenne =
+                Math.round(
+                        moyenne * 100.0
+                ) / 100.0;
 
-        dto.setPoints(points);
+        dto.setMoyenne(
+                moyenne
+        );
 
-        // ================= SOUS-GROUPE =================
+        // =========================================================
+        // POINTS
+        // =========================================================
+
+        double points =
+                moyenne * coefficient;
+
+        points =
+                Math.round(
+                        points * 100.0
+                ) / 100.0;
+
+        dto.setPoints(
+                points
+        );
+
+        // =========================================================
+        // SOUS-GROUPE
+        // =========================================================
+
         if (note.getSousGroupe() != null) {
-            dto.setSousGroupeId(note.getSousGroupe().getId());
-            dto.setSousGroupeNom(note.getSousGroupe().getNom());
+
+            dto.setSousGroupeId(
+                    note.getSousGroupe().getId()
+            );
+
+            dto.setSousGroupeNom(
+                    note.getSousGroupe().getNom()
+            );
         }
 
         return dto;
+    }
+
+    /**
+     * ============================================================
+     * APPRECIATION
+     * ============================================================
+     */
+    private String calculerAppreciation(
+            Double moyenne
+    ) {
+
+        if (moyenne == null) {
+            return "-";
+        }
+
+        if (moyenne >= 16) {
+            return "Très Bien";
+        }
+
+        if (moyenne >= 14) {
+            return "Bien";
+        }
+
+        if (moyenne >= 12) {
+            return "Assez Bien";
+        }
+
+        if (moyenne >= 10) {
+            return "Passable";
+        }
+
+        return "Insuffisant";
     }
 }
