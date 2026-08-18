@@ -165,21 +165,7 @@ public class ResultatService {
         bulletin.setPeriode(periode);
 
         // =========================================================
-        // MATIÈRES DU BULLETIN
-        // =========================================================
-        //
-        // IMPORTANT :
-        // On utilise BulletinService.construireNotesPourBulletin()
-        // au lieu de NoteService.getByInscriptionEtPeriode().
-        //
-        // Cette méthode part des matières programmées / affectées
-        // à la classe et crée une Note vide si aucune note n'existe.
-        //
-        // Donc :
-        // - matière notée       -> valeurs réelles
-        // - matière non notée   -> valeurs null
-        // - sous-groupe         -> respecté
-        //
+        // IDENTIFIANTS
         // =========================================================
 
         Long classeId = inscription.getClasse() != null
@@ -190,16 +176,39 @@ public class ResultatService {
                 ? inscription.getAnneeScolaire().getId()
                 : null;
 
+        // =========================================================
+        // VÉRIFICATION CLASSE / ANNÉE
+        // =========================================================
+
         if (classeId == null || anneeScolaireId == null) {
 
             bulletin.setMatieres(List.of());
             bulletin.setTotalPoints(0.0);
             bulletin.setTotalCoefficients(0.0);
-            bulletin.setMoyenneGenerale(null);
-            bulletin.setAppreciation("-");
+            bulletin.setMoyenneGenerale(0.0);
+            bulletin.setAppreciation(
+                    calculerAppreciation(0.0)
+            );
 
             return bulletin;
         }
+
+        // =========================================================
+        // MATIÈRES DU BULLETIN
+        // =========================================================
+        //
+        // On part des matières programmées dans la classe.
+        //
+        // Une matière sans note existe quand même dans le bulletin.
+        //
+        // Exemple :
+        //
+        // Mathématiques : 12 / 14 / coef 4
+        // Français      : 10 / 12 / coef 3
+        // Anglais       :  0 /  0 / coef 2
+        // Histoire      :  0 /  0 / coef 0
+        //
+        // =========================================================
 
         List<Note> notesBulletin =
                 bulletinService.construireNotesPourBulletin(
@@ -222,7 +231,7 @@ public class ResultatService {
         bulletin.setMatieres(matieres);
 
         // =========================================================
-        // TOTAUX
+        // CALCUL DES TOTAUX
         // =========================================================
 
         double totalPoints = matieres.stream()
@@ -245,23 +254,58 @@ public class ResultatService {
         bulletin.setTotalCoefficients(totalCoefficients);
 
         // =========================================================
-        // MOYENNE GÉNÉRALE
+        // CALCUL MOYENNE GÉNÉRALE
+        // =========================================================
+        //
+        // IMPORTANT :
+        //
+        // On ne fait PLUS :
+        //
+        // noteService.calculMoyennePeriode(...)
+        //
+        // La moyenne est calculée à partir des matières du bulletin.
+        //
+        // Moyenne générale =
+        //
+        //       Total points
+        // -----------------------
+        //   Total coefficients
+        //
         // =========================================================
 
-        Double moyenne =
-                noteService.calculMoyennePeriode(
-                        inscriptionId,
-                        periode
-                );
+        double moyenneGenerale;
 
-        bulletin.setMoyenneGenerale(moyenne);
+        if (totalCoefficients > 0) {
+
+            moyenneGenerale =
+                    totalPoints / totalCoefficients;
+
+        } else {
+
+            moyenneGenerale = 0.0;
+        }
+
+        // Arrondi à 2 décimales
+        moyenneGenerale =
+                Math.round(moyenneGenerale * 100.0) / 100.0;
+
+        bulletin.setMoyenneGenerale(moyenneGenerale);
+
+        // =========================================================
+        // APPRECIATION
+        // =========================================================
 
         bulletin.setAppreciation(
-                calculerAppreciation(moyenne)
+                calculerAppreciation(moyenneGenerale)
         );
 
         // =========================================================
         // RANG
+        // =========================================================
+        //
+        // Le rang continue d'être calculé avec les résultats
+        // de la classe.
+        //
         // =========================================================
 
         List<ResultatEleveDTO> resultats =
@@ -422,30 +466,16 @@ public class ResultatService {
 
     }
     private MatiereBulletinDTO mapNoteToMatiereBulletin(Note note) {
+
         MatiereBulletinDTO dto = new MatiereBulletinDTO();
 
+        // ================= MATIÈRE =================
         if (note.getMatiere() != null) {
             dto.setMatiereId(note.getMatiere().getId());
             dto.setMatiereNom(note.getMatiere().getNom());
         }
 
-        dto.setNoteClasse(
-                note.getNClass() != null ? note.getNClass() : 0.0
-        );
-
-        dto.setNoteExamen(
-                note.getNExem() != null ? note.getNExem() : 0.0
-        );
-
-        dto.setCoefficient(
-                note.getCoeff() != null ? note.getCoeff() : 1
-        );
-
-        if (note.getSousGroupe() != null) {
-            dto.setSousGroupeId(note.getSousGroupe().getId());
-            dto.setSousGroupeNom(note.getSousGroupe().getNom());
-        }
-
+        // ================= NOTES =================
         double noteClasse = note.getNClass() != null
                 ? note.getNClass()
                 : 0.0;
@@ -454,16 +484,36 @@ public class ResultatService {
                 ? note.getNExem()
                 : 0.0;
 
+        dto.setNoteClasse(noteClasse);
+        dto.setNoteExamen(noteExamen);
+
+        // ================= COEFFICIENT =================
+        double coefficient = note.getCoeff() != null
+                ? note.getCoeff()
+                : 0.0;
+
+        dto.setCoefficient(
+                note.getCoeff() != null
+                        ? note.getCoeff()
+                        : 0
+        );
+
+        // ================= MOYENNE MATIÈRE =================
         double moyenne = (noteClasse + (noteExamen * 2)) / 3.0;
 
-        int coefficient = note.getCoeff() != null
-                ? note.getCoeff()
-                : 1;
-
         dto.setMoyenne(moyenne);
-        dto.setPoints(moyenne * coefficient);
+
+        // ================= POINTS =================
+        double points = moyenne * coefficient;
+
+        dto.setPoints(points);
+
+        // ================= SOUS-GROUPE =================
+        if (note.getSousGroupe() != null) {
+            dto.setSousGroupeId(note.getSousGroupe().getId());
+            dto.setSousGroupeNom(note.getSousGroupe().getNom());
+        }
 
         return dto;
     }
-
 }
