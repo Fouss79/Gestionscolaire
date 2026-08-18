@@ -127,10 +127,14 @@ public class AuthService {
 
         if (ecole != null) {
             Map<String, Object> ecoleMap = new java.util.HashMap<>();
+
             ecoleMap.put("id", ecole.getId());
             ecoleMap.put("nom", ecole.getNom());
             ecoleMap.put("plan", ecole.getPlan());
             ecoleMap.put("dateFin", ecole.getDateFin());
+
+            // 🖼️ Logo de l'école
+            ecoleMap.put("logo", ecole.getLogo());
 
             response.put("ecole", ecoleMap);
         }

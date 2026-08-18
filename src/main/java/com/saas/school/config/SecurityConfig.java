@@ -60,9 +60,11 @@ public class SecurityConfig {
 
                         .requestMatchers("/error").permitAll()
 
-                        // Toutes les autres routes
-                        .anyRequest().authenticated()
-                )
+// Images / fichiers publics
+                        .requestMatchers("/uploads/**").permitAll()
+
+// Toutes les autres routes
+                        .anyRequest().authenticated()                )
 
                 .addFilterBefore(
                         jwtAuthFilter,
