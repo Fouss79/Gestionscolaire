@@ -81,7 +81,7 @@ public class SecurityConfig {
 
         config.setAllowedOriginPatterns(List.of(
                 "http://localhost:3000",
-                "https://malisugu.vercel.app",
+                "https://danischool.vercel.app",
                 "https://*.trycloudflare.com"
         ));
 
