@@ -218,6 +218,7 @@ public class LigneFraisService {
         dto.setClasseNom(ligne.getInscription().getClasse().getNomComplet());
         dto.setTypeFraisCode(ligne.getTypeFrais().getCode());
         dto.setTypeFraisLibelle(ligne.getTypeFrais().getLibelle());
+        dto.setTypeFraisFrequence(ligne.getTypeFrais().getFrequence().name()); // ← NOUVEAU
         dto.setMois(ligne.getMois());
         dto.setAnnee(ligne.getAnnee());
         dto.setMontantTotal(ligne.getMontantTotal());
@@ -228,7 +229,6 @@ public class LigneFraisService {
 
         return dto;
     }
-
     /**
      * Recalcule toutes les lignes de frais "estimatives" (tarif non défini au moment
      * de leur création) pour un niveau/année/type de frais donné, une fois qu'un vrai

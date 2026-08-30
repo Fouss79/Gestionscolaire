@@ -11,6 +11,7 @@ public class LigneFraisDTO {
     private String classeNom;
     private String typeFraisCode;
     private String typeFraisLibelle;
+    private String typeFraisFrequence; // "MENSUEL", "ANNUEL", ... — NOUVEAU
     private Integer mois;
     private Integer annee;
     private Double montantTotal;
