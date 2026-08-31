@@ -180,8 +180,8 @@ public class AuthService {
 
         Map<String, FrequenceFrais> typesAvecFrequence = Map.of(
                 "INSCRIPTION", FrequenceFrais.UNIQUE,
-                "SCOLARITE", FrequenceFrais.MENSUEL,
-                "EXAMEN", FrequenceFrais.TRIMESTRIEL,
+                "SCOLARITE", FrequenceFrais.ANNUEL,
+                "EXAMEN", FrequenceFrais.UNIQUE,
                 "UNIFORME", FrequenceFrais.UNIQUE
         );
 
