@@ -8,12 +8,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class TypeFraisService {
 
     private final TypeFraisRepository typeFraisRepository;
     private final EcoleRepository ecoleRepository;
+    private final LigneFraisService ligneFraisService;
 
     public TypeFrais creer(Long ecoleId, TypeFrais typeFrais) {
 
@@ -23,7 +25,13 @@ public class TypeFraisService {
 
         typeFrais.setEcole(ecole);
 
-        return typeFraisRepository.save(typeFrais);
+        TypeFrais saved = typeFraisRepository.save(typeFrais);
+
+        // Rattrapage : applique immédiatement ce nouveau type de frais
+        // aux inscriptions déjà existantes (qui ne l'ont pas encore).
+        ligneFraisService.appliquerTypeFraisAuxInscriptionsExistantes(saved.getId());
+
+        return saved;
     }
 
     public List<TypeFrais> getByEcole(Long ecoleId) {
