@@ -2,6 +2,7 @@ package com.saas.school.service;
 
 import com.saas.school.dto.LigneFraisDTO;
 import com.saas.school.entity.*;
+import com.saas.school.repository.InscriptionRepository;
 import com.saas.school.repository.LigneFraisRepository;
 import com.saas.school.repository.TarifRepository;
 import com.saas.school.repository.TypeFraisRepository;
@@ -20,6 +21,7 @@ public class LigneFraisService {
     private final LigneFraisRepository ligneFraisRepository;
     private final TypeFraisRepository typeFraisRepository;
     private final TarifRepository tarifRepository;
+    private final InscriptionRepository inscriptionRepository;
 
     /**
      * Génère une ligne de frais pour chaque type de frais de l'école.
@@ -77,6 +79,58 @@ public class LigneFraisService {
         ligne.setEstimatif(estimatif);
 
         ligneFraisRepository.save(ligne);
+    }
+
+    /**
+     * RATTRAPAGE — applique un type de frais aux inscriptions déjà
+     * existantes qui n'en ont pas encore la ligne.
+     *
+     * Utile quand un nouveau TypeFrais est créé APRÈS que des élèves
+     * soient déjà inscrits : genererLignesFrais() n'est appelée qu'à la
+     * création de l'inscription, donc les élèves existants n'obtiennent
+     * jamais automatiquement les types créés après coup. Cette méthode
+     * comble cet écart, à appeler juste après la création d'un TypeFrais
+     * (ou via une action manuelle "Appliquer aux élèves existants").
+     *
+     * Ne recrée jamais une ligne déjà existante (idempotent).
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public int appliquerTypeFraisAuxInscriptionsExistantes(Long typeFraisId) {
+
+        TypeFrais type = typeFraisRepository.findById(typeFraisId)
+                .orElseThrow(() -> new RuntimeException("Type de frais introuvable"));
+
+        Long ecoleId = type.getEcole().getId();
+
+        // Toutes les inscriptions actives de l'école (années scolaires actives)
+        List<Inscription> inscriptions =
+                inscriptionRepository.findByEcole_IdAndAnneeScolaire_ActiveTrue(ecoleId);
+
+        int nbLignesCreees = 0;
+
+        for (Inscription inscription : inscriptions) {
+
+            boolean existe = ligneFraisRepository
+                    .existsByInscriptionIdAndTypeFraisId(inscription.getId(), type.getId());
+
+            if (existe) {
+                continue;
+            }
+
+            Long niveauId = inscription.getClasse().getNiveau().getId();
+            Long anneeId = inscription.getAnneeScolaire().getId();
+
+            Optional<Tarif> tarifTrouve = tarifRepository
+                    .findByNiveauIdAndAnneeScolaireIdAndTypeFrais_Code(niveauId, anneeId, type.getCode());
+
+            double montant = tarifTrouve.map(Tarif::getMontant).orElse(MONTANT_PAR_DEFAUT);
+            boolean estimatif = tarifTrouve.isEmpty();
+
+            genererLigneFrais(inscription, type, montant, estimatif);
+            nbLignesCreees++;
+        }
+
+        return nbLignesCreees;
     }
 
     // =========================

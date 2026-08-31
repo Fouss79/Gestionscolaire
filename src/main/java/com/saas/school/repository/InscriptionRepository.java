@@ -59,4 +59,5 @@ public interface InscriptionRepository extends JpaRepository<Inscription, Long> 
     boolean existsByEleveIdAndClasseIdAndAnneeScolaireId(Long eleveId, Long id, Long id1);
 
 
+    List<Inscription> findByEcole_IdAndAnneeScolaire_ActiveTrue(Long ecoleId);
 }
