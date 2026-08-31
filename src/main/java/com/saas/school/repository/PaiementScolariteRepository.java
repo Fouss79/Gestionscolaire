@@ -13,4 +13,6 @@ public interface PaiementScolariteRepository extends JpaRepository<PaiementScola
     List<PaiementScolarite> findByLigneFraisIdOrderByDatePaiementDesc(Long ligneFraisId);
 
     List<PaiementScolarite> findByLigneFrais_Inscription_Ecole_IdOrderByDatePaiementDesc(Long ecoleId);
+
+    List<PaiementScolarite> findByLigneFraisId(Long ligneFraisId);
 }

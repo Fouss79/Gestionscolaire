@@ -14,24 +14,16 @@ public interface LigneFraisRepository extends JpaRepository<LigneFrais, Long> {
 
     Optional<LigneFrais> findByInscriptionIdAndTypeFrais_Code(Long inscriptionId, String codeTypeFrais);
 
-    Optional<LigneFrais> findByInscriptionIdAndTypeFrais_CodeAndMois(
-            Long inscriptionId, String codeTypeFrais, Integer mois
-    );
+    // Une seule ligne par (inscription, typeFrais) — utilisé à la génération
+    // pour éviter les doublons, quelle que soit la fréquence (ANNUEL ou UNIQUE).
+    boolean existsByInscriptionIdAndTypeFraisId(Long inscriptionId, Long typeFraisId);
 
-    Optional<LigneFrais> findByInscriptionIdAndTypeFrais_CodeAndMoisIsNull(
-            Long inscriptionId, String codeTypeFrais
-    );
-
-    boolean existsByInscriptionIdAndTypeFraisIdAndMoisIsNull(Long inscriptionId, Long typeFraisId);
-
-    boolean existsByInscriptionIdAndTypeFraisIdAndMoisAndAnnee(
-            Long inscriptionId, Long typeFraisId, Integer mois, Integer annee
-    );
-
-    // ⚠️ nouveau — toutes les lignes estimatives d'un niveau/année/type, pour recalcul
+    // Toutes les lignes estimatives d'un niveau/année/type, pour recalcul
     List<LigneFrais> findByInscription_Classe_Niveau_IdAndInscription_AnneeScolaire_IdAndTypeFrais_CodeAndEstimatifTrue(
             Long niveauId, Long anneeScolaireId, String codeTypeFrais
     );
 
-    List<LigneFrais> findByInscription_Classe_Niveau_IdAndInscription_AnneeScolaire_IdAndTypeFrais_Code(Long niveauId, Long anneeScolaireId, String codeTypeFrais);
+    List<LigneFrais> findByInscription_Classe_Niveau_IdAndInscription_AnneeScolaire_IdAndTypeFrais_Code(
+            Long niveauId, Long anneeScolaireId, String codeTypeFrais
+    );
 }

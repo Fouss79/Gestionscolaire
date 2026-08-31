@@ -16,4 +16,6 @@ public class PaiementRequestDTO {
     private String modePaiement;
 
     private String reference;
+    private Integer annee;
+
 }

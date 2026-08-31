@@ -1,8 +1,9 @@
 package com.saas.school.controller;
 
 import com.saas.school.dto.LigneFraisDTO;
-import com.saas.school.entity.LigneFrais;
+import com.saas.school.dto.MoisPaiementDTO;
 import com.saas.school.service.LigneFraisService;
+import com.saas.school.service.PaiementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ import java.util.List;
 public class LigneFraisController {
 
     private final LigneFraisService ligneFraisService;
+    private final PaiementService paiementService;
 
     // Toutes les lignes de frais d'une école
     @GetMapping("/ecole/{ecoleId}")
@@ -44,5 +46,12 @@ public class LigneFraisController {
             @PathVariable String codeTypeFrais
     ) {
         return ligneFraisService.getByInscriptionAndTypeDTO(inscriptionId, codeTypeFrais);
+    }
+
+    // Suivi mois par mois d'une ligne de frais ANNUEL
+    // (montant dû, payé, reste pour chaque mois de l'année scolaire)
+    @GetMapping("/{id}/mois-paiement")
+    public List<MoisPaiementDTO> getSuiviMensuel(@PathVariable Long id) {
+        return paiementService.getSuiviMensuel(id);
     }
 }

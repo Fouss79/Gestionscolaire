@@ -8,8 +8,6 @@ import com.saas.school.repository.TypeFraisRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +25,13 @@ public class LigneFraisService {
      * Génère une ligne de frais pour chaque type de frais de l'école.
      * Si aucun tarif n'est configuré pour le niveau/l'année, un montant par
      * défaut est appliqué et la ligne est marquée "estimatif" pour alerte.
+     *
+     * Il n'y a désormais QU'UNE SEULE ligne par (inscription, typeFrais),
+     * quelle que soit la fréquence :
+     *   - ANNUEL : montant annuel total, payable en tranches mois par mois
+     *              (le détail par mois est calculé dynamiquement à partir
+     *              des paiements, voir PaiementService.getSuiviMensuel).
+     *   - UNIQUE : montant payable en une seule fois.
      */
     public void genererLignesFrais(Inscription inscription) {
 
@@ -45,21 +50,18 @@ public class LigneFraisService {
             double montant = tarifTrouve.map(Tarif::getMontant).orElse(MONTANT_PAR_DEFAUT);
             boolean estimatif = tarifTrouve.isEmpty();
 
-            if (type.getFrequence() == FrequenceFrais.MENSUEL) {
-                genererLignesMensuelles(inscription, type, montant, anneeScolaire, estimatif);
-            } else {
-                genererLigneAnnuelle(inscription, type, montant, estimatif);
-            }
+            genererLigneFrais(inscription, type, montant, estimatif);
         }
     }
 
     /**
-     * FRAIS UNIQUE / ANNUEL — une seule ligne, sans mois.
+     * Crée l'unique ligne de frais pour ce type, si elle n'existe pas déjà.
+     * Valable pour ANNUEL comme pour UNIQUE.
      */
-    private void genererLigneAnnuelle(Inscription inscription, TypeFrais type, Double montant, boolean estimatif) {
+    private void genererLigneFrais(Inscription inscription, TypeFrais type, Double montant, boolean estimatif) {
 
         boolean existe = ligneFraisRepository
-                .existsByInscriptionIdAndTypeFraisIdAndMoisIsNull(inscription.getId(), type.getId());
+                .existsByInscriptionIdAndTypeFraisId(inscription.getId(), type.getId());
 
         if (existe) {
             return;
@@ -68,78 +70,6 @@ public class LigneFraisService {
         LigneFrais ligne = new LigneFrais();
         ligne.setInscription(inscription);
         ligne.setTypeFrais(type);
-        ligne.setMontantTotal(montant);
-        ligne.setMontantPaye(0.0);
-        ligne.setResteAPayer(montant);
-        ligne.setStatutPaiement(montant > 0 ? StatutPaiement.NON_PAYE : StatutPaiement.PAYE);
-        ligne.setEstimatif(estimatif);
-
-        ligneFraisRepository.save(ligne);
-    }
-
-    /**
-     * FRAIS MENSUEL — ex: SCOLARITE de septembre à juin.
-     * Répartit le montant total sur 10 mois, avec la vraie année calendaire
-     * (septembre-décembre → année de début, janvier-juin → année de fin).
-     */
-
-    private void genererLignesMensuelles(
-            Inscription inscription,
-            TypeFrais type,
-            Double montantAnnuel,
-            AnneeScolaire anneeScolaire,
-            boolean estimatif
-    ) {
-
-        YearMonth debut = YearMonth.from(anneeScolaire.getDateDebut());
-        YearMonth fin = YearMonth.from(anneeScolaire.getDateFin());
-
-        long nombreMois = ChronoUnit.MONTHS.between(debut, fin) + 1;
-
-        double montantMensuel = montantAnnuel / nombreMois;
-
-        YearMonth courant = debut;
-
-        while (!courant.isAfter(fin)) {
-
-            creerLigneMensuelle(
-                    inscription,
-                    type,
-                    montantMensuel,
-                    courant.getMonthValue(),
-                    courant.getYear(),
-                    estimatif
-            );
-
-            courant = courant.plusMonths(1);
-        }
-    }
-    private void creerLigneMensuelle(
-            Inscription inscription,
-            TypeFrais type,
-            Double montant,
-            Integer mois,
-            Integer annee,
-            boolean estimatif
-    ) {
-
-        boolean existe = ligneFraisRepository
-                .existsByInscriptionIdAndTypeFraisIdAndMoisAndAnnee(
-                        inscription.getId(),
-                        type.getId(),
-                        mois,
-                        annee
-                );
-
-        if (existe) {
-            return;
-        }
-
-        LigneFrais ligne = new LigneFrais();
-        ligne.setInscription(inscription);
-        ligne.setTypeFrais(type);
-        ligne.setMois(mois);
-        ligne.setAnnee(annee);
         ligne.setMontantTotal(montant);
         ligne.setMontantPaye(0.0);
         ligne.setResteAPayer(montant);
@@ -218,7 +148,7 @@ public class LigneFraisService {
         dto.setClasseNom(ligne.getInscription().getClasse().getNomComplet());
         dto.setTypeFraisCode(ligne.getTypeFrais().getCode());
         dto.setTypeFraisLibelle(ligne.getTypeFrais().getLibelle());
-        dto.setTypeFraisFrequence(ligne.getTypeFrais().getFrequence().name()); // ← NOUVEAU
+        dto.setTypeFraisFrequence(ligne.getTypeFrais().getFrequence().name());
         dto.setMois(ligne.getMois());
         dto.setAnnee(ligne.getAnnee());
         dto.setMontantTotal(ligne.getMontantTotal());
@@ -229,14 +159,19 @@ public class LigneFraisService {
 
         return dto;
     }
+
     /**
      * Recalcule toutes les lignes de frais "estimatives" (tarif non défini au moment
      * de leur création) pour un niveau/année/type de frais donné, une fois qu'un vrai
      * tarif vient d'être configuré par l'admin.
+     *
+     * Comme il n'existe désormais qu'une seule ligne par (inscription, typeFrais),
+     * le nouveau montant s'applique tel quel — qu'il s'agisse d'un type ANNUEL
+     * (montant annuel total, réparti en tranches mensuelles au moment du paiement)
+     * ou UNIQUE (montant à payer en une fois).
      */
-
     @org.springframework.transaction.annotation.Transactional
-    public int recalculerLignesEstimatives(Long niveauId, Long anneeScolaireId, String codeTypeFrais, Double nouveauMontantAnnuel) {
+    public int recalculerLignesEstimatives(Long niveauId, Long anneeScolaireId, String codeTypeFrais, Double nouveauMontant) {
 
         // 🔥 On recalcule TOUTES les lignes du niveau/année/type, estimatives ou non
         List<LigneFrais> lignesAMettreAJour = ligneFraisRepository
@@ -248,29 +183,12 @@ public class LigneFraisService {
             return 0;
         }
 
-        boolean estMensuel = lignesAMettreAJour.stream().anyMatch(l -> l.getMois() != null);
-        double nouveauMontantParLigne = nouveauMontantAnnuel;
-
-        if (estMensuel) {
-
-            AnneeScolaire annee = lignesAMettreAJour.get(0)
-                    .getInscription()
-                    .getAnneeScolaire();
-
-            YearMonth debut = YearMonth.from(annee.getDateDebut());
-            YearMonth fin = YearMonth.from(annee.getDateFin());
-
-            long nbMois = ChronoUnit.MONTHS.between(debut, fin) + 1;
-
-            nouveauMontantParLigne = nouveauMontantAnnuel / nbMois;
-        }
-
         for (LigneFrais ligne : lignesAMettreAJour) {
 
             double montantDejaPaye = ligne.getMontantPaye() != null ? ligne.getMontantPaye() : 0.0;
-            double nouveauReste = Math.max(0.0, nouveauMontantParLigne - montantDejaPaye);
+            double nouveauReste = Math.max(0.0, nouveauMontant - montantDejaPaye);
 
-            ligne.setMontantTotal(nouveauMontantParLigne);
+            ligne.setMontantTotal(nouveauMontant);
             ligne.setResteAPayer(nouveauReste);
             ligne.setEstimatif(false); // le tarif est désormais réel/à jour
 

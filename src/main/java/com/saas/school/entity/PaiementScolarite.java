@@ -1,5 +1,6 @@
 package com.saas.school.entity;
 
+import com.saas.school.entity.LigneFrais;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -14,7 +15,6 @@ public class PaiementScolarite {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Ligne de frais concernée
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ligne_frais_id", nullable = false)
     private LigneFrais ligneFrais;
@@ -23,13 +23,20 @@ public class PaiementScolarite {
     private Double montant;
 
     @Column(length = 50)
-    private String modePaiement; // Espèces, Orange Money, Wave, Virement...
+    private String modePaiement;
 
     @Column(unique = true, length = 100)
     private String reference;
 
     @Column(nullable = false)
     private LocalDateTime datePaiement;
+
+    // Mois concerné par le paiement
+    // 1 = janvier ... 12 = décembre
+    private Integer mois;
+
+    // Année civile du paiement
+    private Integer annee;
 
     @PrePersist
     public void prePersist() {

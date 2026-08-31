@@ -22,10 +22,8 @@ public class LigneFrais {
     @ManyToOne
     @JoinColumn(name = "type_frais_id", nullable = false)
     private TypeFrais typeFrais;
-
-    private Integer mois; // null = frais annuel, 1-12 = frais mensuel
-    private Integer annee; // année calendaire réelle du mois (si applicable)
-
+    private Integer mois;   // null pour une ligne de frais annuelle
+    private Integer annee;  // null ou année scolaire selon ton modèle
     @Column(nullable = false)
     private Double montantTotal;
 
