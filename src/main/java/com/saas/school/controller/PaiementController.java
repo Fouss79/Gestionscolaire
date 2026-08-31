@@ -8,6 +8,10 @@ import com.saas.school.entity.PlanAbonnement;
 import com.saas.school.repository.PaiementRepository;
 import com.saas.school.service.AbonnementService;
 import com.saas.school.service.PaiementService;
+import com.saas.school.service.RecuService;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.servlet.view.RedirectView;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,7 @@ public class PaiementController {
     private final AbonnementService abonnementService;
     private final PaiementService paiementService;
     private final PaiementRepository paiementRepository;
+    private final RecuService recuService;
     @PostMapping("/init")
     public Map<String, Object> init(
             @RequestParam Long ecoleId,
@@ -111,5 +116,26 @@ public class PaiementController {
     public List<PaiementResponseDTO> getByEcole(@PathVariable Long ecoleId) {
         return paiementService.getByEcole(ecoleId);
     }
+    @GetMapping("/{paiementId}/recus")
+    public ResponseEntity<byte[]> genererRecu(@PathVariable Long paiementId) {
 
+        byte[] pdf = recuService.genererRecuPdf(paiementId);
+
+        HttpHeaders headers = new HttpHeaders();
+
+        headers.setContentType(MediaType.APPLICATION_PDF);
+
+        headers.setContentDisposition(
+                ContentDisposition.builder("attachment")
+                        .filename("recu-paiement-" + paiementId + ".pdf")
+                        .build()
+        );
+
+        headers.setContentLength(pdf.length);
+
+        return ResponseEntity
+                .ok()
+                .headers(headers)
+                .body(pdf);
+    }
 }
