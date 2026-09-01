@@ -273,12 +273,12 @@ public class RapportPaiementPdfService {
          */
 
         float[] largeurs = {
-                70,
-                55,
-                95,
-                70,
-                75,
-                80
+                90,  // Référence
+                65,  // Date
+                90,  // Type de frais
+                65,  // Période
+                70,  // Mode
+                80   // Montant
         };
 
         // ==============================
