@@ -26,4 +26,6 @@ public interface LigneFraisRepository extends JpaRepository<LigneFrais, Long> {
     List<LigneFrais> findByInscription_Classe_Niveau_IdAndInscription_AnneeScolaire_IdAndTypeFrais_Code(
             Long niveauId, Long anneeScolaireId, String codeTypeFrais
     );
+    List<LigneFrais> findByInscription_Id( Long inscriptionId );
+
 }
