@@ -57,12 +57,20 @@ public class OperationComptable {
     private String modePaiement;
 
     // =====================================================
-    // LIEN AVEC PAIEMENT SCOLARITÉ
+    // LIEN AVEC PAIEMENT SCOLARITÉ (recette)
     // =====================================================
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "paiement_scolarite_id", unique = true)
     private PaiementScolarite paiementScolarite;
+
+    // =====================================================
+    // LIEN AVEC VERSEMENT SUR UNE DÉPENSE (dépense échelonnée)
+    // =====================================================
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "paiement_depense_id", unique = true)
+    private PaiementDepense paiementDepense;
 
     // =====================================================
     // CATÉGORIE DE DÉPENSE

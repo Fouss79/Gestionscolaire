@@ -4,6 +4,7 @@ import com.saas.school.dto.DepenseDTO;
 import com.saas.school.entity.CategorieDepense;
 import com.saas.school.entity.Depense;
 import com.saas.school.entity.Ecole;
+
 import com.saas.school.repository.CategorieDepenseRepository;
 import com.saas.school.repository.DepenseRepository;
 import com.saas.school.repository.EcoleRepository;
@@ -19,15 +20,21 @@ public class DepenseService {
     private final DepenseRepository depenseRepository;
     private final CategorieDepenseRepository categorieDepenseRepository;
     private final EcoleRepository ecoleRepository;
-    private final OperationComptableService operationComptableService;
 
+    /**
+     * Crée une dépense avec son montant total. Aucun paiement n'est
+     * enregistré à la création : montantPaye = 0, resteAPayer = montantTotal.
+     * Chaque versement se fait ensuite via PaiementDepenseService, qui crée
+     * à son tour l'opération comptable correspondante (voir
+     * OperationComptableService.creerDepenseDepuisPaiement).
+     */
     public DepenseDTO creer(Long ecoleId, DepenseDTO dto) {
 
         if (dto.getLibelle() == null || dto.getLibelle().isBlank()) {
             throw new RuntimeException("Le libellé est obligatoire");
         }
 
-        if (dto.getMontant() == null || dto.getMontant()<= 0) {
+        if (dto.getMontantTotal() == null || dto.getMontantTotal() <= 0) {
             throw new RuntimeException("Le montant doit être supérieur à zéro");
         }
 
@@ -36,36 +43,29 @@ public class DepenseService {
         }
 
         Ecole ecole = ecoleRepository.findById(ecoleId)
-                .orElseThrow(() ->
-                        new RuntimeException("École introuvable"));
+                .orElseThrow(() -> new RuntimeException("École introuvable"));
 
-        CategorieDepense categorie =
-                categorieDepenseRepository.findById(dto.getCategorieId())
-                        .orElseThrow(() ->
-                                new RuntimeException("Catégorie introuvable"));
-        System.out.println("=================================");
-        System.out.println("Categorie ID = " + categorie.getId());
-        System.out.println("Categorie nom = " + categorie.getNom());
-        System.out.println("Ecole catégorie = " +
-                (categorie.getEcole() != null
-                        ? categorie.getEcole().getId()
-                        : null));
-        System.out.println("=================================");
+        // La catégorie est facultative — comme pour une recette libre
+        CategorieDepense categorie = null;
 
-        // Vérification importante :
-        // la catégorie doit appartenir à la même école
-        if (categorie.getEcole() == null
-                || !categorie.getEcole().getId().equals(ecoleId)) {
+        if (dto.getCategorieId() != null) {
 
-            throw new RuntimeException(
-                    "Cette catégorie n'appartient pas à cette école"
-            );
+            categorie = categorieDepenseRepository.findById(dto.getCategorieId())
+                    .orElseThrow(() -> new RuntimeException("Catégorie introuvable"));
+
+            // Si une catégorie est fournie, elle doit appartenir à la même école
+            if (categorie.getEcole() == null || !categorie.getEcole().getId().equals(ecoleId)) {
+                throw new RuntimeException("Cette catégorie n'appartient pas à cette école");
+            }
         }
 
         Depense depense = new Depense();
 
         depense.setLibelle(dto.getLibelle().trim());
-        depense.setMontant(dto.getMontant());
+        depense.setMontantTotal(dto.getMontantTotal());
+        depense.setMontantPaye(0.0);
+        depense.setResteAPayer(dto.getMontantTotal());
+        depense.setStatutPaiement(StatutPaiement.NON_PAYE);
         depense.setDateDepense(dto.getDateDepense());
         depense.setDescription(dto.getDescription());
         depense.setCategorie(categorie);
@@ -73,14 +73,10 @@ public class DepenseService {
 
         Depense saved = depenseRepository.save(depense);
 
-        operationComptableService.creerDepense(saved);
-
         return toDTO(saved);
-
     }
 
     public List<DepenseDTO> findByEcole(Long ecoleId) {
-
         return depenseRepository
                 .findByEcole_IdOrderByDateDepenseDesc(ecoleId)
                 .stream()
@@ -88,13 +84,25 @@ public class DepenseService {
                 .toList();
     }
 
-    private DepenseDTO toDTO(Depense depense) {
+    public Depense getById(Long id) {
+        return depenseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Dépense introuvable"));
+    }
+
+    public DepenseDTO getByIdDTO(Long id) {
+        return toDTO(getById(id));
+    }
+
+    DepenseDTO toDTO(Depense depense) {
 
         DepenseDTO dto = new DepenseDTO();
 
         dto.setId(depense.getId());
         dto.setLibelle(depense.getLibelle());
-        dto.setMontant(depense.getMontant());
+        dto.setMontantTotal(depense.getMontantTotal());
+        dto.setMontantPaye(depense.getMontantPaye());
+        dto.setResteAPayer(depense.getResteAPayer());
+        dto.setStatutPaiement(depense.getStatutPaiement() != null ? depense.getStatutPaiement().name() : null);
         dto.setDateDepense(depense.getDateDepense());
         dto.setDescription(depense.getDescription());
 

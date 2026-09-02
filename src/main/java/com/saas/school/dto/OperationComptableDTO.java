@@ -45,6 +45,9 @@ public class OperationComptableDTO {
     private String elevePrenom;
     private String typeFraisNom;
 
+    // ===== Dépense payée en plusieurs versements =====
+    private Long depenseId;
+
     // ===== Rapport comptable global (uniquement sur l'objet racine) =====
     private Double totalRecettes;
     private Double totalDepenses;

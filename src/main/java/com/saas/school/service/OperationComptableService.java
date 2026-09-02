@@ -1,7 +1,12 @@
 package com.saas.school.service;
 
 import com.saas.school.dto.OperationComptableDTO;
-import com.saas.school.entity.*;
+import com.saas.school.entity.CategorieDepense;
+import com.saas.school.entity.Ecole;
+import com.saas.school.entity.NatureOperation;
+import com.saas.school.entity.OperationComptable;
+import com.saas.school.entity.PaiementDepense;
+import com.saas.school.entity.PaiementScolarite;
 import com.saas.school.repository.OperationComptableRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -66,72 +71,137 @@ public class OperationComptableService {
     }
 
     // =========================================================
-    // CRÉER UNE DÉPENSE
+    // CRÉER UNE DÉPENSE (OPÉRATION) À PARTIR D'UN VERSEMENT
+    // SUR UNE DÉPENSE (paiement en plusieurs tranches)
     // =========================================================
-
-    // =========================================================
-// CRÉER UNE OPÉRATION COMPTABLE POUR UNE DÉPENSE
-// =========================================================
 
     @Transactional
-    public OperationComptable creerDepense(Depense depense) {
+    public OperationComptable creerDepenseDepuisPaiement(PaiementDepense paiementDepense, Ecole ecole) {
 
-        if (depense == null) {
-            throw new IllegalArgumentException("La dépense est obligatoire");
+        if (paiementDepense == null) {
+            throw new IllegalArgumentException("Le paiement de dépense est obligatoire");
         }
 
-        if (depense.getEcole() == null) {
+        if (ecole == null) {
             throw new IllegalArgumentException("L'école est obligatoire");
         }
 
-        if (depense.getMontant() == null || depense.getMontant() <= 0) {
-            throw new IllegalArgumentException(
-                    "Le montant de la dépense doit être supérieur à zéro"
-            );
+        if (paiementDepense.getMontant() == null || paiementDepense.getMontant() <= 0) {
+            throw new IllegalArgumentException("Le montant du versement doit être supérieur à zéro");
         }
 
-        if (depense.getLibelle() == null || depense.getLibelle().isBlank()) {
-            throw new IllegalArgumentException(
-                    "Le libellé de la dépense est obligatoire"
-            );
+        if (operationComptableRepository.existsByPaiementDepense_Id(paiementDepense.getId())) {
+            throw new IllegalStateException("Une opération comptable existe déjà pour ce versement");
         }
 
         OperationComptable operation = new OperationComptable();
 
-        operation.setEcole(depense.getEcole());
-
+        operation.setEcole(ecole);
         operation.setNature(NatureOperation.DEPENSE);
+        operation.setMontant(paiementDepense.getMontant());
+        operation.setDateOperation(
+                paiementDepense.getDatePaiement() != null
+                        ? paiementDepense.getDatePaiement()
+                        : LocalDateTime.now()
+        );
+        operation.setReference(paiementDepense.getReference());
+        operation.setModePaiement(paiementDepense.getModePaiement());
+        operation.setPaiementDepense(paiementDepense);
 
-        operation.setMontant(depense.getMontant());
+        String libelle = "Dépense";
 
-        // On utilise la vraie date de la dépense
-        if (depense.getDateDepense() != null) {
-            operation.setDateOperation(
-                    depense.getDateDepense().atStartOfDay()
-            );
-        } else {
-            operation.setDateOperation(LocalDateTime.now());
+        if (paiementDepense.getDepense() != null && paiementDepense.getDepense().getLibelle() != null) {
+            libelle = paiementDepense.getDepense().getLibelle();
         }
 
-        operation.setLibelle(depense.getLibelle());
+        if (paiementDepense.getDepense() != null && paiementDepense.getDepense().getCategorie() != null) {
+            operation.setCategorieDepense(paiementDepense.getDepense().getCategorie());
+        }
 
+        operation.setLibelle(libelle);
 
-
-        operation.setCategorieDepense(
-                depense.getCategorie()
-        );
-        System.out.println("=================================");
-        System.out.println("Categorie opération ID = " +
-                (operation.getCategorieDepense() != null
-                        ? operation.getCategorieDepense().getId()
-                        : null));
-        System.out.println("Categorie opération nom = " +
-                (operation.getCategorieDepense() != null
-                        ? operation.getCategorieDepense().getNom()
-                        : null));
-        System.out.println("=================================");
         return operationComptableRepository.save(operation);
     }
+
+    // =========================================================
+    // CRÉER UNE RECETTE LIBRE (don, subvention, location, etc. —
+    // non liée à un paiement d'élève)
+    // =========================================================
+
+    @Transactional
+    public OperationComptable creerRecette(
+            Ecole ecole,
+            Double montant,
+            String libelle,
+            String reference,
+            String modePaiement
+    ) {
+
+        if (ecole == null) {
+            throw new IllegalArgumentException("L'école est obligatoire");
+        }
+
+        if (montant == null || montant <= 0) {
+            throw new IllegalArgumentException("Le montant doit être supérieur à zéro");
+        }
+
+        if (libelle == null || libelle.isBlank()) {
+            throw new IllegalArgumentException("Le libellé de la recette est obligatoire");
+        }
+
+        OperationComptable operation = new OperationComptable();
+
+        operation.setEcole(ecole);
+        operation.setNature(NatureOperation.RECETTE);
+        operation.setMontant(montant);
+        operation.setDateOperation(LocalDateTime.now());
+        operation.setLibelle(libelle);
+        operation.setReference(reference);
+        operation.setModePaiement(modePaiement);
+
+        return operationComptableRepository.save(operation);
+    }
+
+    // =========================================================
+    // CRÉER UNE DÉPENSE LIBRE (sans suivi d'échéancier)
+    // =========================================================
+
+    @Transactional
+    public OperationComptable creerDepense(
+            Ecole ecole,
+            Double montant,
+            String libelle,
+            String reference,
+            String modePaiement,
+            CategorieDepense categorieDepense
+    ) {
+
+        if (ecole == null) {
+            throw new IllegalArgumentException("L'école est obligatoire");
+        }
+
+        if (montant == null || montant <= 0) {
+            throw new IllegalArgumentException("Le montant doit être supérieur à zéro");
+        }
+
+        if (libelle == null || libelle.isBlank()) {
+            throw new IllegalArgumentException("Le libellé de la dépense est obligatoire");
+        }
+
+        OperationComptable operation = new OperationComptable();
+
+        operation.setEcole(ecole);
+        operation.setNature(NatureOperation.DEPENSE);
+        operation.setMontant(montant);
+        operation.setDateOperation(LocalDateTime.now());
+        operation.setLibelle(libelle);
+        operation.setReference(reference);
+        operation.setModePaiement(modePaiement);
+        operation.setCategorieDepense(categorieDepense);
+
+        return operationComptableRepository.save(operation);
+    }
+
     // =========================================================
     // RAPPORT COMPTABLE GLOBAL
     // =========================================================
@@ -177,6 +247,14 @@ public class OperationComptableService {
         rapport.setOperations(operationsDTO);
 
         return rapport;
+    }
+
+    // =========================================================
+    // CONVERSION PUBLIQUE (utilisée par le contrôleur après création)
+    // =========================================================
+
+    public OperationComptableDTO toDto(OperationComptable operation) {
+        return mapToDTO(operation);
     }
 
     // =========================================================
@@ -243,6 +321,22 @@ public class OperationComptableService {
                     }
                 }
             }
+
+        } else if (operation.getPaiementDepense() != null) {
+
+            dto.setTypeOperation("DEPENSE_VERSEMENT");
+
+            Long paiementDepenseId = operation.getPaiementDepense().getId();
+
+            dto.setReferenceId(paiementDepenseId);
+
+            if (operation.getPaiementDepense().getDepense() != null) {
+                dto.setDepenseId(operation.getPaiementDepense().getDepense().getId());
+            }
+
+        } else if (operation.getNature() == NatureOperation.RECETTE) {
+
+            dto.setTypeOperation("RECETTE_LIBRE");
 
         } else {
             dto.setTypeOperation("DEPENSE");

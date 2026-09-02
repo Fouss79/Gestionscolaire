@@ -12,5 +12,7 @@ public interface OperationComptableRepository
 
     List<OperationComptable>
     findByEcole_IdOrderByDateOperationDesc(Long ecoleId);
+
+    boolean existsByPaiementDepense_Id(Long id);
 }
 

@@ -1,12 +1,12 @@
 package com.saas.school.entity;
 
+import com.saas.school.service.StatutPaiement;
 import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "depenses")
 @Data
 public class Depense {
 
@@ -17,20 +17,32 @@ public class Depense {
     @Column(nullable = false)
     private String libelle;
 
-    @Column(nullable = false)
-    private Double montant;
+    private String description;
 
     @Column(nullable = false)
     private LocalDate dateDepense;
 
-    @Column(length = 1000)
-    private String description;
+    // Montant total de la dépense (ex : facture fournisseur de 500 000 FCFA)
+    @Column(nullable = false)
+    private Double montantTotal;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "categorie_id", nullable = false)
+    // Somme de tous les PaiementDepense déjà enregistrés sur cette dépense
+    @Column(nullable = false)
+    private Double montantPaye = 0.0;
+
+    // montantTotal - montantPaye
+    @Column(nullable = false)
+    private Double resteAPayer;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatutPaiement statutPaiement = StatutPaiement.NON_PAYE;
+
+    @ManyToOne
+    @JoinColumn(name = "categorie_id")
     private CategorieDepense categorie;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "ecole_id", nullable = false)
     private Ecole ecole;
 }
