@@ -26,6 +26,8 @@ public class PaiementService {
     private final PaiementRepository paiementRepository;
     private final PaiementScolariteRepository paiementScolariteRepository;
     private final LigneFraisRepository ligneFraisRepository;
+    private final OperationComptableService operationComptableService;
+
 
     public Paiement creerPaiement(Long ecoleId, PlanAbonnement plan, int duree) {
 
@@ -198,9 +200,29 @@ public class PaiementService {
         }
 
         ligneFraisRepository.save(ligne);
-
         PaiementScolarite saved =
                 paiementScolariteRepository.save(paiement);
+
+// =============================================
+// CRÉATION AUTOMATIQUE DE L'OPÉRATION COMPTABLE
+// =============================================
+
+        Inscription inscription =
+                ligne.getInscription();
+
+        Ecole ecole =
+                inscription.getEcole();
+
+        if (ecole == null) {
+            throw new RuntimeException(
+                    "Impossible de créer l'opération comptable : école introuvable."
+            );
+        }
+
+        operationComptableService.creerRecetteScolarite(
+                saved,
+                ecole
+        );
 
         return mapToDto(saved);
     }
