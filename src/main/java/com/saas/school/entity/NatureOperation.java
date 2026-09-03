@@ -1,5 +1,7 @@
 package com.saas.school.entity;
 public enum NatureOperation {
     RECETTE,
-    DEPENSE
+    DEPENSE,
+    EMPRUNT,
+    REMBOURSEMENT_EMPRUNT
 }

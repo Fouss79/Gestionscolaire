@@ -34,7 +34,7 @@ public class OperationComptable {
     // =====================================================
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 30)
     private NatureOperation nature;
 
     // =====================================================
@@ -57,7 +57,7 @@ public class OperationComptable {
     private String modePaiement;
 
     // =====================================================
-    // LIEN AVEC PAIEMENT SCOLARITÉ (recette)
+    // LIEN AVEC PAIEMENT SCOLARITÉ
     // =====================================================
 
     @OneToOne(fetch = FetchType.LAZY)
@@ -65,12 +65,28 @@ public class OperationComptable {
     private PaiementScolarite paiementScolarite;
 
     // =====================================================
-    // LIEN AVEC VERSEMENT SUR UNE DÉPENSE (dépense échelonnée)
+    // LIEN AVEC VERSEMENT SUR UNE DÉPENSE
     // =====================================================
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "paiement_depense_id", unique = true)
     private PaiementDepense paiementDepense;
+
+    // =====================================================
+    // LIEN AVEC EMPRUNT
+    // =====================================================
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "emprunt_id", unique = true)
+    private Emprunt emprunt;
+
+    // =====================================================
+    // LIEN AVEC REMBOURSEMENT D'EMPRUNT
+    // =====================================================
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "remboursement_emprunt_id", unique = true)
+    private RemboursementEmprunt remboursementEmprunt;
 
     // =====================================================
     // CATÉGORIE DE DÉPENSE
@@ -94,6 +110,10 @@ public class OperationComptable {
             dateOperation = LocalDateTime.now();
         }
 
-        createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+
     }
-}
+
+    private Long paiementEnseignantId;}

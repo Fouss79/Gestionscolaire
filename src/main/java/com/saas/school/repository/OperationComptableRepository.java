@@ -14,5 +14,9 @@ public interface OperationComptableRepository
     findByEcole_IdOrderByDateOperationDesc(Long ecoleId);
 
     boolean existsByPaiementDepense_Id(Long id);
+
+    boolean existsByRemboursementEmprunt_Id(Long remboursementId);
+
+    boolean existsByEmprunt_Id(Long id);
 }
 

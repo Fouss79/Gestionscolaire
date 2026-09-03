@@ -2,13 +2,16 @@ package com.saas.school.controller;
 
 import com.saas.school.dto.EmploiDto;
 import com.saas.school.dto.EmploiDuTempsResponseDTO;
+import com.saas.school.entity.Emargement;
 import com.saas.school.entity.EmploiDuTemps;
 import com.saas.school.repository.EmploiDuTempsRepository;
+import com.saas.school.service.EmargementService;
 import com.saas.school.service.EmploiDuTempsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -19,6 +22,7 @@ public class EmploiDuTempsController {
 
     private final EmploiDuTempsService emploiService;
     private final EmploiDuTempsRepository edtRepo;
+    private final EmargementService emargementService;
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody EmploiDto dto) {

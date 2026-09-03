@@ -72,6 +72,7 @@ public class EnseignantService {
         enseignant.setDateEmbauche(request.getDateEmbauche());
         enseignant.setDateFinContrat(request.getDateFinContrat());
         enseignant.setSalaireBase(request.getSalaireBase());
+        enseignant.setTauxHoraire(request.getTauxHoraire());
         enseignant.setNombreHeuresParSemaine(request.getNombreHeuresParSemaine());
 
         enseignant.setMatieresEnseignees(matieres);
@@ -126,14 +127,14 @@ public class EnseignantService {
         dto.setSpecialite(e.getSpecialite());
         dto.setNiveauDiplome(e.getNiveauDiplome() != null ? e.getNiveauDiplome().name() : null);
         dto.setTypeContrat(e.getTypeContrat() != null ? e.getTypeContrat().name() : null);
+        dto.setSalaireBase(e.getSalaireBase());
+        dto.setTauxHoraire(e.getTauxHoraire());
         dto.setActif(e.getActif());
 
         dto.setMatiereIds(e.getMatieresEnseignees().stream().map(Matiere::getId).toList());
         dto.setMatiereNoms(e.getMatieresEnseignees().stream().map(Matiere::getNom).toList());
 
         return dto;
-
-
     }
 
     public Enseignant modifierEnseignant(Long id, EnseignantRequest request) {
@@ -168,6 +169,7 @@ public class EnseignantService {
         enseignant.setDateEmbauche(request.getDateEmbauche());
         enseignant.setDateFinContrat(request.getDateFinContrat());
         enseignant.setSalaireBase(request.getSalaireBase());
+        enseignant.setTauxHoraire(request.getTauxHoraire());
         enseignant.setNombreHeuresParSemaine(request.getNombreHeuresParSemaine());
 
         if (request.getMatiereIds() != null) {
@@ -181,6 +183,7 @@ public class EnseignantService {
     public EnseignantResponseDTO getByIdDto(Long id) {
         return mapToDto(getById(id));
     }
+
     private Role obtenirOuCreerRoleEnseignant(Ecole ecole){
 
         return roleRepository

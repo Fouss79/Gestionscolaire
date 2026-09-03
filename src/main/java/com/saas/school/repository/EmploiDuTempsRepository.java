@@ -136,11 +136,20 @@ public interface EmploiDuTempsRepository
     // =========================================================
     // 👨‍🏫 CONFLIT ENSEIGNANT
     // =========================================================
-
+    /*
+     * ⚠️ FIX : "e.id <> :id" ne matche JAMAIS quand :id est NULL
+     * (comparaison SQL avec NULL = UNKNOWN = false).
+     *
+     * Or :id est NULL à chaque CRÉATION (verifierConflits appelé
+     * avec idEnCoursDeModification = null), ce qui désactivait
+     * complètement la détection de conflit à la création.
+     *
+     * On protège maintenant explicitement le cas :id IS NULL.
+     */
     @Query("""
         SELECT COUNT(e) > 0
         FROM EmploiDuTemps e
-        WHERE e.id <> :id
+        WHERE (:id IS NULL OR e.id <> :id)
           AND e.enseignant.id = :enseignantId
           AND e.anneeScolaire.id = :anneeId
           AND e.jour = :jour
@@ -178,11 +187,13 @@ public interface EmploiDuTempsRepository
      *
      * 5. NULL vs NULL
      *    → CONFLIT
+     *
+     * ⚠️ FIX : même problème que ci-dessus sur "e.id <> :id".
      */
     @Query("""
         SELECT COUNT(e) > 0
         FROM EmploiDuTemps e
-        WHERE e.id <> :id
+        WHERE (:id IS NULL OR e.id <> :id)
           AND e.classe.id = :classeId
           AND e.anneeScolaire.id = :anneeId
           AND e.jour = :jour
@@ -208,11 +219,13 @@ public interface EmploiDuTempsRepository
     // =========================================================
     // 🏫 CONFLIT SALLE
     // =========================================================
-
+    /*
+     * ⚠️ FIX : même problème que ci-dessus sur "e.id <> :id".
+     */
     @Query("""
         SELECT COUNT(e) > 0
         FROM EmploiDuTemps e
-        WHERE e.id <> :id
+        WHERE (:id IS NULL OR e.id <> :id)
           AND e.salle.id = :salleId
           AND e.anneeScolaire.id = :anneeId
           AND e.jour = :jour
@@ -245,7 +258,12 @@ public interface EmploiDuTempsRepository
     // =========================================================
     // 👨‍🏫 PROF - GÉNÉRATION AUTOMATIQUE
     // =========================================================
+    List<EmploiDuTemps> findByAnneeScolaireId(Long anneeId);
 
+    // Pour le résumé global, filtré par école (via l'année scolaire ou directement l'école)
+    List<EmploiDuTemps> findByAnneeScolaire_Ecole_Id(Long ecoleId);
+
+    List<EmploiDuTemps> findByEnseignant_IdAndAnneeScolaire_Ecole_Id(Long enseignantId, Long ecoleId);
     boolean existsByEnseignantIdAndAnneeScolaireIdAndJourAndHeureDebutLessThanAndHeureFinGreaterThan(
             Long enseignantId,
             Long anneeScolaireId,
@@ -254,7 +272,11 @@ public interface EmploiDuTempsRepository
             Integer heureDebut
     );
 
+    List<EmploiDuTemps> findByEnseignant_Id(Long enseignantId);
 
+
+
+    List<EmploiDuTemps> findByEnseignant_IdAndAnneeScolaireId(Long enseignantId, Long anneeId);
     // =========================================================
     // 👨‍🎓 CLASSE - ANCIENNE MÉTHODE
     // =========================================================

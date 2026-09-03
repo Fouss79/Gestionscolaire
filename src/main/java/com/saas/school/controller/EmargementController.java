@@ -1,10 +1,13 @@
 package com.saas.school.controller;
 
+import com.saas.school.dto.EmargementDTO;
+import com.saas.school.dto.EmargementResumeDTO;
 import com.saas.school.entity.Emargement;
 import com.saas.school.entity.EmploiDuTemps;
 import com.saas.school.repository.EmploiDuTempsRepository;
 import com.saas.school.service.EmargementService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -16,8 +19,9 @@ import java.util.List;
 @CrossOrigin("*")
 public class EmargementController {
 
-    private final EmargementService service;
+
     private final EmploiDuTempsRepository emploiRepo;
+    private final EmargementService emargementService;
 
     // ================= EMPLOI =================
     @GetMapping("/emploi")
@@ -25,7 +29,7 @@ public class EmargementController {
             @RequestParam String date,
             @RequestParam Long anneeId
     ) {
-        return service.getEmploiParDate(
+        return emargementService.getEmploiParDate(
                 LocalDate.parse(date),
                 anneeId
         );
@@ -36,7 +40,7 @@ public class EmargementController {
     public List<Emargement> getByDate(
             @RequestParam String date
     ) {
-        return service.getEmargementsParDate(
+        return emargementService.getEmargementsParDate(
                 LocalDate.parse(date)
         );
     }
@@ -51,6 +55,41 @@ public class EmargementController {
         EmploiDuTemps edt = emploiRepo.findById(edtId)
                 .orElseThrow(() -> new RuntimeException("EDT introuvable"));
 
-        return service.emarger(edt, LocalDate.parse(date));
+        return emargementService.emarger(edt, LocalDate.parse(date));
+    }
+
+    @GetMapping("/enseignant/{enseignantId}")
+    public ResponseEntity<List<EmargementDTO>> getEmargementsEnseignant(
+            @PathVariable Long enseignantId,
+            @RequestParam Long anneeId,
+            @RequestParam(required = false) LocalDate debut,
+            @RequestParam(required = false) LocalDate fin) {
+
+        if (debut != null && fin != null) {
+            return ResponseEntity.ok(
+                    emargementService.getEmargementsParEnseignantEtPeriode(enseignantId, debut, fin, anneeId));
+        }
+        return ResponseEntity.ok(emargementService.getEmargementsParEnseignant(enseignantId, anneeId));
+    }
+
+    @GetMapping("/enseignant/{enseignantId}/resume")
+    public ResponseEntity<EmargementResumeDTO> getResumeEnseignant(
+            @PathVariable Long enseignantId,
+            @RequestParam LocalDate debut,
+            @RequestParam LocalDate fin,
+            @RequestParam Long anneeId) {
+
+        return ResponseEntity.ok(
+                emargementService.getResumeParEnseignant(enseignantId, debut, fin, anneeId));
+    }
+
+    @GetMapping("/resume")
+    public ResponseEntity<List<EmargementResumeDTO>> getResumeTousEnseignants(
+            @RequestParam LocalDate debut,
+            @RequestParam LocalDate fin,
+            @RequestParam Long anneeId) {
+
+        return ResponseEntity.ok(
+                emargementService.getResumeTousEnseignants(debut, fin, anneeId));
     }
 }

@@ -19,6 +19,8 @@ public class EnseignantResponseDTO {
     private String specialite;
     private String niveauDiplome;
     private String typeContrat;
+    private Double salaireBase;
+    private Double tauxHoraire;
     private Boolean actif;
 
     private List<Long> matiereIds;

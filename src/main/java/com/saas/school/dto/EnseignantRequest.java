@@ -24,13 +24,14 @@ public class EnseignantRequest {
     private String contactUrgenceTelephone;
 
     private String specialite;
-    private String niveauDiplome;   // "BEPC","BAC","LICENCE","MASTER","DOCTORAT","AUTRE"
+    private String niveauDiplome;
     private String diplomeObtenu;
 
-    private String typeContrat;     // "CDI","CDD","VACATAIRE","STAGIAIRE"
+    private String typeContrat;
     private LocalDate dateEmbauche;
     private LocalDate dateFinContrat;
     private Double salaireBase;
+    private Double tauxHoraire;
     private Integer nombreHeuresParSemaine;
 
     private List<Long> matiereIds;

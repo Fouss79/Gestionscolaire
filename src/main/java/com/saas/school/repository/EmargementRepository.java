@@ -17,4 +17,23 @@ public interface EmargementRepository extends JpaRepository<Emargement, Long> {
     long countByEmploiDuTempsId(Long emploiDuTempsId);
 
     void deleteByEmploiDuTempsId(Long emploiDuTempsId);
+
+
+
+    // Tous les émargements d'un enseignant
+    List<Emargement> findByEmploiDuTemps_Enseignant_Id(Long enseignantId);
+
+    // Émargements d'un enseignant sur une période donnée
+    List<Emargement> findByEmploiDuTemps_Enseignant_IdAndDateHeureBetween(
+            Long enseignantId, LocalDate debut, LocalDate fin);
+
+    List<Emargement> findByDateHeureBetween(LocalDate debut, LocalDate fin);
+
+    List<Emargement> findByDateHeureBetweenAndEmploiDuTemps_AnneeScolaire_Ecole_Id(
+            LocalDate debut, LocalDate fin, Long ecoleId);
+    List<Emargement> findByDateHeureBetweenAndEmploiDuTemps_AnneeScolaireId(
+            LocalDate debut, LocalDate fin, Long anneeId);
+
+    List<Emargement> findByEmploiDuTemps_Enseignant_IdAndDateHeureBetweenAndEmploiDuTemps_AnneeScolaireId(
+            Long enseignantId, LocalDate debut, LocalDate fin, Long anneeId);
 }

@@ -53,5 +53,8 @@ public class OperationComptableDTO {
     private Double totalDepenses;
     private Double solde;
     private Integer nombreOperations;
+    private Double totalEmprunts;
+    private Double totalRemboursements;
     private List<OperationComptableDTO> operations;
+
 }

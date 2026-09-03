@@ -75,6 +75,8 @@ public class Enseignant {
     private LocalDate dateFinContrat; // pertinent si CDD/vacataire
 
     private Double salaireBase;
+    // Après salaireBase
+    private Double tauxHoraire; // montant payé par heure émargée (pertinent surtout pour vacataires)
 
     private Integer nombreHeuresParSemaine;
 

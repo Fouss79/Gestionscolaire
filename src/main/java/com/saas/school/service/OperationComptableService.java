@@ -1,12 +1,7 @@
 package com.saas.school.service;
 
 import com.saas.school.dto.OperationComptableDTO;
-import com.saas.school.entity.CategorieDepense;
-import com.saas.school.entity.Ecole;
-import com.saas.school.entity.NatureOperation;
-import com.saas.school.entity.OperationComptable;
-import com.saas.school.entity.PaiementDepense;
-import com.saas.school.entity.PaiementScolarite;
+import com.saas.school.entity.*;
 import com.saas.school.repository.OperationComptableRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -201,7 +196,215 @@ public class OperationComptableService {
 
         return operationComptableRepository.save(operation);
     }
+    // =========================================================
+// CRÉER UNE OPÉRATION COMPTABLE À PARTIR D'UN REMBOURSEMENT
+// D'EMPRUNT
+// =========================================================
 
+    @Transactional
+    public OperationComptable creerDepenseDepuisRemboursement(
+            RemboursementEmprunt remboursement,
+            Ecole ecole
+    ) {
+
+        if (remboursement == null) {
+            throw new IllegalArgumentException(
+                    "Le remboursement d'emprunt est obligatoire"
+            );
+        }
+
+        if (ecole == null) {
+            throw new IllegalArgumentException(
+                    "L'école est obligatoire"
+            );
+        }
+
+        if (remboursement.getMontant() == null
+                || remboursement.getMontant() <= 0) {
+
+            throw new IllegalArgumentException(
+                    "Le montant du remboursement doit être supérieur à zéro"
+            );
+        }
+
+        if (remboursement.getId() == null) {
+            throw new IllegalArgumentException(
+                    "Le remboursement doit être enregistré avant de créer l'opération comptable"
+            );
+        }
+
+        // Évite de créer deux opérations pour le même remboursement
+        if (operationComptableRepository
+                .existsByRemboursementEmprunt_Id(remboursement.getId())) {
+
+            throw new IllegalStateException(
+                    "Une opération comptable existe déjà pour ce remboursement"
+            );
+        }
+
+        OperationComptable operation = new OperationComptable();
+
+        operation.setEcole(ecole);
+
+        // IMPORTANT :
+        // Un remboursement d'emprunt n'est pas une dépense ordinaire.
+        operation.setNature(NatureOperation.REMBOURSEMENT_EMPRUNT);
+
+        operation.setMontant(remboursement.getMontant());
+
+        operation.setDateOperation(
+                remboursement.getDateRemboursement() != null
+                        ? remboursement.getDateRemboursement()
+                        : LocalDateTime.now()
+        );
+
+        operation.setReference(remboursement.getReference());
+
+        operation.setModePaiement(
+                remboursement.getModePaiement()
+        );
+
+        operation.setRemboursementEmprunt(remboursement);
+
+        // Libellé
+        String libelle = "Remboursement d'emprunt";
+
+        if (remboursement.getEmprunt() != null
+                && remboursement.getEmprunt().getLibelle() != null
+                && !remboursement.getEmprunt().getLibelle().isBlank()) {
+
+            libelle = "Remboursement - "
+                    + remboursement.getEmprunt().getLibelle();
+        }
+
+        operation.setLibelle(libelle);
+
+        return operationComptableRepository.save(operation);
+    }
+    // =========================================================
+// CRÉER UNE OPÉRATION COMPTABLE À PARTIR D'UN EMPRUNT
+// =========================================================
+
+    @Transactional
+    public OperationComptable creerRecetteEmprunt(
+            Emprunt emprunt,
+            Ecole ecole
+    ) {
+
+        if (emprunt == null) {
+            throw new IllegalArgumentException(
+                    "L'emprunt est obligatoire"
+            );
+        }
+
+        if (ecole == null) {
+            throw new IllegalArgumentException(
+                    "L'école est obligatoire"
+            );
+        }
+
+        if (emprunt.getId() == null) {
+            throw new IllegalArgumentException(
+                    "L'emprunt doit être enregistré avant de créer l'opération comptable"
+            );
+        }
+
+        if (emprunt.getMontantEmprunte() == null
+                || emprunt.getMontantEmprunte() <= 0) {
+
+            throw new IllegalArgumentException(
+                    "Le montant emprunté doit être supérieur à zéro"
+            );
+        }
+
+        if (operationComptableRepository
+                .existsByEmprunt_Id(emprunt.getId())) {
+
+            throw new IllegalStateException(
+                    "Une opération comptable existe déjà pour cet emprunt"
+            );
+        }
+
+        OperationComptable operation = new OperationComptable();
+
+        operation.setEcole(ecole);
+
+        // Un emprunt augmente la trésorerie,
+        // mais ce n'est pas une recette.
+        operation.setNature(NatureOperation.EMPRUNT);
+
+        // IMPORTANT :
+        // seul l'argent réellement reçu entre en trésorerie.
+        operation.setMontant(emprunt.getMontantEmprunte());
+
+        operation.setDateOperation(
+                emprunt.getDateEmprunt() != null
+                        ? emprunt.getDateEmprunt()
+                        : LocalDateTime.now()
+        );
+
+        operation.setLibelle(
+                "Emprunt - " + emprunt.getLibelle()
+        );
+
+        operation.setReference(
+                "EMP-" + emprunt.getId()
+        );
+
+        operation.setEmprunt(emprunt);
+
+        return operationComptableRepository.save(operation);
+    }
+
+    @Transactional
+    public OperationComptable creerDepenseDepuisPaiementEnseignant(
+            PaiementEnseignant paiement) {
+
+        if (paiement == null) {
+            throw new IllegalArgumentException("Le paiement enseignant est obligatoire");
+        }
+
+        if (paiement.getEnseignant() == null) {
+            throw new IllegalArgumentException("L'enseignant est obligatoire");
+        }
+
+        if (paiement.getMontant() == null || paiement.getMontant() <= 0) {
+            throw new IllegalArgumentException(
+                    "Le montant du paiement enseignant doit être supérieur à zéro"
+            );
+        }
+
+        Ecole ecole = paiement.getEnseignant().getEcole();
+
+        if (ecole == null) {
+            throw new IllegalArgumentException(
+                    "L'enseignant n'est associé à aucune école"
+            );
+        }
+
+        OperationComptable operation = new OperationComptable();
+
+        operation.setEcole(ecole);
+        operation.setNature(NatureOperation.DEPENSE);
+        operation.setMontant(paiement.getMontant());
+
+        operation.setDateOperation(
+                paiement.getDatePaiement() != null
+                        ? paiement.getDatePaiement().atStartOfDay()
+                        : LocalDateTime.now()
+        );
+
+        operation.setLibelle(
+                "Paiement enseignant - "
+                        + paiement.getEnseignant().getNom()
+                        + " "
+                        + paiement.getEnseignant().getPrenom()
+        );
+
+
+
+        return operationComptableRepository.save(operation);
+    }
     // =========================================================
     // RAPPORT COMPTABLE GLOBAL
     // =========================================================
@@ -214,14 +417,18 @@ public class OperationComptableService {
         }
 
         List<OperationComptable> operations =
-                operationComptableRepository.findByEcole_IdOrderByDateOperationDesc(ecoleId);
+                operationComptableRepository
+                        .findByEcole_IdOrderByDateOperationDesc(ecoleId);
+
+        List<OperationComptableDTO> operationsDTO =
+                operations.stream()
+                        .map(this::mapToDTO)
+                        .toList();
 
         double totalRecettes = 0.0;
         double totalDepenses = 0.0;
-
-        List<OperationComptableDTO> operationsDTO = operations.stream()
-                .map(this::mapToDTO)
-                .toList();
+        double totalEmprunts = 0.0;
+        double totalRemboursements = 0.0;
 
         for (OperationComptable operation : operations) {
 
@@ -229,26 +436,40 @@ public class OperationComptableService {
                 continue;
             }
 
-            if (operation.getNature() == NatureOperation.RECETTE) {
-                totalRecettes += operation.getMontant();
-            } else if (operation.getNature() == NatureOperation.DEPENSE) {
-                totalDepenses += operation.getMontant();
+            switch (operation.getNature()) {
+
+                case RECETTE ->
+                        totalRecettes += operation.getMontant();
+
+                case DEPENSE ->
+                        totalDepenses += operation.getMontant();
+
+                case EMPRUNT ->
+                        totalEmprunts += operation.getMontant();
+
+                case REMBOURSEMENT_EMPRUNT ->
+                        totalRemboursements += operation.getMontant();
             }
         }
 
-        double solde = totalRecettes - totalDepenses;
+        double tresorerie =
+                totalRecettes
+                        + totalEmprunts
+                        - totalDepenses
+                        - totalRemboursements;
 
         OperationComptableDTO rapport = new OperationComptableDTO();
 
         rapport.setTotalRecettes(totalRecettes);
         rapport.setTotalDepenses(totalDepenses);
-        rapport.setSolde(solde);
+        rapport.setTotalEmprunts(totalEmprunts);
+        rapport.setTotalRemboursements(totalRemboursements);
+        rapport.setSolde(tresorerie);
         rapport.setNombreOperations(operations.size());
         rapport.setOperations(operationsDTO);
 
         return rapport;
     }
-
     // =========================================================
     // CONVERSION PUBLIQUE (utilisée par le contrôleur après création)
     // =========================================================
@@ -337,6 +558,7 @@ public class OperationComptableService {
         } else if (operation.getNature() == NatureOperation.RECETTE) {
 
             dto.setTypeOperation("RECETTE_LIBRE");
+
 
         } else {
             dto.setTypeOperation("DEPENSE");
