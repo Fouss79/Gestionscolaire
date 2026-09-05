@@ -81,8 +81,13 @@ private final EcoleRepository ecoleRepository;
 					"GESTION_EMPLOIS_DU_TEMPS",
 					"Gestion des emplois du temps");
 
+			creerPermission(permissionRepository,
+					"GESTION_SCOLARITES",
+					"Gestion des scolarités");
 
-
+			creerPermission(permissionRepository,
+					"GESTION_COMPTABILITES",
+					"Gestion des comptabilités");
 
 			// Rôles
 			Role superAdminRole = creerRole(roleRepository, "SUPER_ADMIN");
