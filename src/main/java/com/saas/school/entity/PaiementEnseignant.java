@@ -5,6 +5,8 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Data
@@ -57,5 +59,18 @@ public class PaiementEnseignant {
 
     public enum StatutPaiement {
         EN_ATTENTE, PAYE
+
+
+
     }
+
+    @ManyToMany
+    @JoinTable(
+            name = "paiement_enseignant_emargement",
+            joinColumns = @JoinColumn(name = "paiement_id"),
+            inverseJoinColumns = @JoinColumn(name = "emargement_id")
+    )
+    private List<Emargement> emargements = new ArrayList<>();
+
+
 }
