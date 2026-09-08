@@ -7,6 +7,7 @@ import com.saas.school.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -25,63 +26,121 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
     private final TypeFraisRepository typeFraisRepository;
-    private final  JwtService jwtService;
+    private final JwtService jwtService;
+
+    @Transactional
     public void register(RegisterRequest request) {
 
-        // 1. créer école
+        // ============================================================
+        // 0. VALIDATION ANNÉE SCOLAIRE
+        // ============================================================
+
+        LocalDate debut = request.getDateDebutAnneeScolaire();
+        LocalDate fin = request.getDateFinAnneeScolaire();
+
+        if (debut == null || fin == null) {
+            throw new RuntimeException(
+                    "Les dates de début et de fin de l'année scolaire sont obligatoires."
+            );
+        }
+
+        if (!fin.isAfter(debut)) {
+            throw new RuntimeException(
+                    "La date de fin doit être postérieure à la date de début."
+            );
+        }
+
+        // Nom automatique : 2026-2027
+        String nom = debut.getYear() + "-" + fin.getYear();
+
+        // ============================================================
+        // 1. CRÉER ÉCOLE
+        // ============================================================
+
         Ecole ecole = new Ecole();
+
         ecole.setNom(request.getNomEcole());
         ecole.setAdresse(request.getAdresse());
         ecole.setVille(request.getVille());
         ecole.setPays(request.getPays());
+        ecole.setTelephone(request.getTelephone());
+
         ecole.setCreatedAt(LocalDateTime.now());
         ecole.setActive(true);
-        ecole.setTelephone(request.getTelephone());
 
         ecoleRepository.save(ecole);
 
-        // 🔥 2. assigner plan BASIC automatiquement
+        // ============================================================
+        // 2. ASSIGNER PLAN BASIC
+        // ============================================================
+
         abonnementService.assignerPlan(
                 ecole.getId(),
                 PlanAbonnement.BASIC,
-                1 // 1 mois gratuit ou 1 mois d'essai
+                1
         );
 
-        // 3. créer admin
+        // ============================================================
+        // 3. CRÉER LES RÔLES
+        // ============================================================
+
+        Role role = creerRolesParDefaut(ecole);
+
+        // ============================================================
+        // 4. CRÉER ADMIN
+        // ============================================================
+
         Utilisateur user = new Utilisateur();
+
         user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-
-
-        Role role =creerRolesParDefaut(ecole);
-
-
-
+        user.setPassword(
+                passwordEncoder.encode(request.getPassword())
+        );
 
         user.setRole(role);
         user.setEcole(ecole);
 
         utilisateurRepository.save(user);
-        LocalDate debut = LocalDate.parse("2025-10-01");
-        LocalDate fin = LocalDate.parse("2026-07-31");
-        AnneeScolaire as = anneeScolaireService.creer("2025-2026",debut,fin,ecole.getId());
-        anneeScolaireService.activer(as.getId());
-        creerTypesFraisParDefaut(ecole);
 
+        // ============================================================
+        // 5. CRÉER L'ANNÉE SCOLAIRE
+        // ============================================================
+
+        AnneeScolaire as = anneeScolaireService.creer(
+                nom,
+                debut,
+                fin,
+                ecole.getId()
+        );
+
+        // Activer automatiquement l'année créée
+        anneeScolaireService.activer(as.getId());
+
+        // ============================================================
+        // 6. CRÉER LES TYPES DE FRAIS PAR DÉFAUT
+        // ============================================================
+
+        creerTypesFraisParDefaut(ecole);
     }
+
     public Map<String, Object> login(LoginRequest request) {
 
-        Utilisateur user = utilisateurRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Email incorrect"));
+        Utilisateur user = utilisateurRepository
+                .findByEmail(request.getEmail())
+                .orElseThrow(() ->
+                        new RuntimeException("Email incorrect")
+                );
 
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(
+                request.getPassword(),
+                user.getPassword()
+        )) {
             throw new RuntimeException("Mot de passe incorrect");
         }
 
         Ecole ecole = user.getEcole();
 
-        // 🔐 SUPER ADMIN bypass
+        // SUPER ADMIN bypass
         boolean isSuperAdmin =
                 user.getRole() != null &&
                         "SUPER_ADMIN".equals(user.getRole().getNom());
@@ -97,12 +156,16 @@ public class AuthService {
             }
 
             if (ecole.getDateFin() != null &&
-                    ecole.getDateFin().isBefore(java.time.LocalDate.now())) {
+                    ecole.getDateFin().isBefore(LocalDate.now())) {
+
                 throw new RuntimeException("Abonnement expiré");
             }
         }
 
-        // 🔥 permissions du rôle
+        // ============================================================
+        // PERMISSIONS
+        // ============================================================
+
         List<String> permissions = user.getRole()
                 .getPermissions()
                 .stream()
@@ -115,8 +178,12 @@ public class AuthService {
                 permissions
         );
 
-        // 📦 RESPONSE
-        Map<String, Object> response = new java.util.HashMap<>();
+        // ============================================================
+        // RESPONSE
+        // ============================================================
+
+        Map<String, Object> response =
+                new java.util.HashMap<>();
 
         response.put("token", token);
         response.put("id", user.getId());
@@ -126,26 +193,34 @@ public class AuthService {
         response.put("permissions", permissions);
 
         if (ecole != null) {
-            Map<String, Object> ecoleMap = new java.util.HashMap<>();
+
+            Map<String, Object> ecoleMap =
+                    new java.util.HashMap<>();
 
             ecoleMap.put("id", ecole.getId());
             ecoleMap.put("nom", ecole.getNom());
             ecoleMap.put("plan", ecole.getPlan());
             ecoleMap.put("dateFin", ecole.getDateFin());
-
-            // 🖼️ Logo de l'école
             ecoleMap.put("logo", ecole.getLogo());
 
             response.put("ecole", ecoleMap);
         }
-        System.out.println("PERMISSIONS FROM DB = " +
-                user.getRole().getPermissions()
-                        .stream()
-                        .map(Permission::getCode)
-                        .toList()
+
+        System.out.println(
+                "PERMISSIONS FROM DB = " +
+                        user.getRole()
+                                .getPermissions()
+                                .stream()
+                                .map(Permission::getCode)
+                                .toList()
         );
+
         return response;
     }
+
+    // ============================================================
+    // CRÉATION DES RÔLES
+    // ============================================================
 
     private Role creerRolesParDefaut(Ecole ecole) {
 
@@ -161,11 +236,15 @@ public class AuthService {
 
         for (String nomRole : roles) {
 
-            Role role = roleRepository.findByNomAndEcole(nomRole, ecole)
+            Role role = roleRepository
+                    .findByNomAndEcole(nomRole, ecole)
                     .orElseGet(() -> {
+
                         Role r = new Role();
+
                         r.setNom(nomRole);
                         r.setEcole(ecole);
+
                         return roleRepository.save(r);
                     });
 
@@ -176,27 +255,38 @@ public class AuthService {
 
         return adminRole;
     }
+
+    // ============================================================
+    // TYPES DE FRAIS
+    // ============================================================
+
     private void creerTypesFraisParDefaut(Ecole ecole) {
 
-        Map<String, FrequenceFrais> typesAvecFrequence = Map.of(
-                "INSCRIPTION", FrequenceFrais.UNIQUE,
-                "SCOLARITE", FrequenceFrais.ANNUEL,
-                "EXAMEN", FrequenceFrais.UNIQUE,
-                "UNIFORME", FrequenceFrais.UNIQUE
-        );
+        Map<String, FrequenceFrais> typesAvecFrequence =
+                Map.of(
+                        "INSCRIPTION", FrequenceFrais.UNIQUE,
+                        "SCOLARITE", FrequenceFrais.ANNUEL,
+                        "EXAMEN", FrequenceFrais.UNIQUE,
+                        "UNIFORME", FrequenceFrais.UNIQUE
+                );
 
-        for (Map.Entry<String, FrequenceFrais> entry : typesAvecFrequence.entrySet()) {
+        for (Map.Entry<String, FrequenceFrais> entry
+                : typesAvecFrequence.entrySet()) {
 
             String code = entry.getKey();
             FrequenceFrais frequence = entry.getValue();
 
             boolean existe = typeFraisRepository
-                    .findByEcoleIdAndCode(ecole.getId(), code)
+                    .findByEcoleIdAndCode(
+                            ecole.getId(),
+                            code
+                    )
                     .isPresent();
 
             if (!existe) {
 
                 TypeFrais tf = new TypeFrais();
+
                 tf.setCode(code);
                 tf.setLibelle(code);
                 tf.setFrequence(frequence);
@@ -206,15 +296,25 @@ public class AuthService {
             }
         }
     }
-    public void assignerPermissionsRole(Long roleId, List<String> codes) {
-        Role role = roleRepository.findById(roleId).orElseThrow();
 
+    // ============================================================
+    // PERMISSIONS
+    // ============================================================
 
-        List<Permission> perms = permissionRepository.findAllByCodeIn(codes);
+    public void assignerPermissionsRole(
+            Long roleId,
+            List<String> codes
+    ) {
+
+        Role role = roleRepository
+                .findById(roleId)
+                .orElseThrow();
+
+        List<Permission> perms =
+                permissionRepository.findAllByCodeIn(codes);
 
         role.setPermissions(perms);
 
         roleRepository.save(role);
     }
 }
-

@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 public class RegisterRequest {
 
@@ -23,4 +25,6 @@ public class RegisterRequest {
     @NotBlank(message = "Mot de passe obligatoire")
     private String password;
     private String image;
+    private LocalDate dateDebutAnneeScolaire;
+    private LocalDate dateFinAnneeScolaire;
 }
