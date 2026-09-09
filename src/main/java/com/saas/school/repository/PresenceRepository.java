@@ -4,6 +4,7 @@ import com.saas.school.entity.Presence;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,4 +21,7 @@ public interface PresenceRepository extends JpaRepository<Presence, Long> {
     long countByInscriptionIdAndPeriodeIdAndStatut(
             Long inscriptionId, Long periodeId, Presence.StatutPresence statut
     );
-}
+
+    List<Presence> findByInscription_Classe_IdAndDateBetween(Long classeId, LocalDate debut, LocalDate fin);
+
+    List<Presence> findByInscriptionIdAndDateBetweenOrderByDateAsc(Long inscriptionId, LocalDate debut, LocalDate fin);}

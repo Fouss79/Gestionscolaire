@@ -56,6 +56,23 @@ public class PresenceController {
         return presenceService.getStatsParClasse(classeId, LocalDate.parse(date));
     }
 
+    /**
+     * Stats de présence d'une classe sur une PÉRIODE (au lieu d'une seule
+     * journée) — présences/absences cumulées et taux par élève.
+     *
+     * GET /api/presences/classe/{classeId}/stats-periode?debut=2026-01-01&fin=2026-01-31
+     */
+    @GetMapping("/classe/{classeId}/stats-periode")
+    public List<Map<String, Object>> getStatsParClassePeriode(
+            @PathVariable Long classeId,
+            @RequestParam String debut,
+            @RequestParam String fin
+    ) {
+        return presenceService.getStatsParClassePeriode(
+                classeId, LocalDate.parse(debut), LocalDate.parse(fin)
+        );
+    }
+
     @GetMapping("/classe/{classeId}/eleves-inscriptions")
     public List<Map<String, Object>> getElevesAvecInscription(@PathVariable Long classeId) {
         return presenceService.getElevesAvecInscription(classeId);
@@ -84,5 +101,22 @@ public class PresenceController {
             @RequestParam Long periodeId
     ) {
         return presenceService.compterAbsences(inscriptionId, periodeId);
+    }
+
+    /**
+     * Historique détaillé (jour par jour) des présences d'un élève sur une
+     * période — équivalent élève de l'historique enseignant des émargements.
+     *
+     * GET /api/presences/inscription/{inscriptionId}/historique?debut=2026-01-01&fin=2026-01-31
+     */
+    @GetMapping("/inscription/{inscriptionId}/historique")
+    public List<PresenceResponseDTO> getHistoriqueEleve(
+            @PathVariable Long inscriptionId,
+            @RequestParam String debut,
+            @RequestParam String fin
+    ) {
+        return presenceService.getHistoriqueEleve(
+                inscriptionId, LocalDate.parse(debut), LocalDate.parse(fin)
+        );
     }
 }

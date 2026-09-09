@@ -17,7 +17,12 @@ public class PaiementEnseignantDTO {
     private LocalDate periodeFin;
     private int totalHeures;
     private double tauxHoraire;
-    private double montant;
+
+    private double salaireBase;
+    private double montantHeures; // heures émargées × tauxHoraire (pas un bonus "sup")
+
+    private double montant; // salaireBase + montantHeuresSup
+
     private String statut; // NON_GENERE / EN_ATTENTE / PAYE
     private LocalDate datePaiement;
 }

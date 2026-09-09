@@ -74,7 +74,7 @@ public class PresenceService {
                         ? Presence.StatutPresence.ABSENT
                         : Presence.StatutPresence.PRESENT
         );
-       System.out.println(presence);
+        System.out.println(presence);
         Presence saved = presenceRepository.save(presence);
         return mapToDto(saved);
     }
@@ -83,9 +83,31 @@ public class PresenceService {
         return presenceRepository.findByEmploiDuTempsIdAndDate(edtId, date);
     }
 
+    /**
+     * Stats de présence d'une classe pour UNE journée précise (comportement
+     * historique, inchangé).
+     */
     public List<Map<String, Object>> getStatsParClasse(Long classeId, LocalDate date) {
-
         List<Presence> presences = presenceRepository.findByInscription_Classe_IdAndDate(classeId, date);
+        return construireStats(presences);
+    }
+
+    /**
+     * Stats de présence d'une classe sur une PÉRIODE (debut → fin inclus),
+     * agrégées par élève — présences/absences cumulées et taux global sur
+     * la période, plutôt que sur une seule journée.
+     */
+    public List<Map<String, Object>> getStatsParClassePeriode(Long classeId, LocalDate debut, LocalDate fin) {
+        List<Presence> presences =
+                presenceRepository.findByInscription_Classe_IdAndDateBetween(classeId, debut, fin);
+        return construireStats(presences);
+    }
+
+    /**
+     * Factorise l'agrégation par élève (nombre de présences/absences + taux),
+     * utilisée aussi bien pour une journée que pour une période.
+     */
+    private List<Map<String, Object>> construireStats(List<Presence> presences) {
 
         Map<Long, Map<String, Object>> stats = new HashMap<>();
 
@@ -119,6 +141,19 @@ public class PresenceService {
         }
 
         return new ArrayList<>(stats.values());
+    }
+
+    /**
+     * Historique détaillé (jour par jour) des présences d'UN élève sur une
+     * période — équivalent, côté élève, de la page "Historique enseignant"
+     * des émargements.
+     */
+    public List<PresenceResponseDTO> getHistoriqueEleve(Long inscriptionId, LocalDate debut, LocalDate fin) {
+        return presenceRepository
+                .findByInscriptionIdAndDateBetweenOrderByDateAsc(inscriptionId, debut, fin)
+                .stream()
+                .map(this::mapToDto)
+                .toList();
     }
 
     /**

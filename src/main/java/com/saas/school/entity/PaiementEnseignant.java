@@ -42,8 +42,10 @@ public class PaiementEnseignant {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutPaiement statut;
+    private double montantHeures;
 
     private LocalDate datePaiement;
+    private double salaireBase;
 
     @Column(nullable = false)
     private Long anneeScolaireId; // scope école, même logique que EmploiDuTemps
