@@ -31,120 +31,319 @@ public class RapportPaiementEnseignantPdfService {
             DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.FRENCH);
 
     private static final float MARGE_GAUCHE = 45;
+    private static final float MARGE_DROITE = 45;
+    private static final float MARGE_HAUT = 50;
     private static final float MARGE_BAS = 50;
 
-    // État de pagination mutable pendant la génération
-    private PDDocument document;
-    private PDPageContentStream cs;
-    private float y;
-    private float largeurPage;
-    private PDFont fontRegular;
-    private PDFont fontBold;
+    // ============================================================
+    // GÉNÉRATION DU PDF
+    // ============================================================
 
     public byte[] genererRapportPdf(Long enseignantId, Long anneeId) {
 
         RapportPaiementEnseignantDTO rapport =
-                paiementEnseignantService.rapportEnseignant(enseignantId, anneeId);
+                paiementEnseignantService.rapportEnseignant(
+                        enseignantId,
+                        anneeId
+                );
 
         Enseignant enseignant = enseignantRepo.findById(enseignantId)
-                .orElseThrow(() -> new RuntimeException("Enseignant introuvable"));
+                .orElseThrow(() ->
+                        new RuntimeException("Enseignant introuvable"));
 
         Ecole ecole = enseignant.getEcole();
 
-        document = new PDDocument();
+        /*
+         * IMPORTANT :
+         * Toutes les variables PDFBox sont locales à cette génération.
+         * Rien n'est partagé entre deux téléchargements.
+         */
+        try (PDDocument document = new PDDocument()) {
 
-        try {
-            // ===== POLICES UNICODE =====
-            try (InputStream regularStream = new ClassPathResource("fonts/DejaVuSans.ttf").getInputStream();
-                 InputStream boldStream = new ClassPathResource("fonts/DejaVuSans-Bold.ttf").getInputStream()) {
+            PDFont fontRegular;
+            PDFont fontBold;
 
-                fontRegular = PDType0Font.load(document, regularStream);
-                fontBold = PDType0Font.load(document, boldStream);
+            // ====================================================
+            // POLICES
+            // ====================================================
+
+            try (
+                    InputStream regularStream =
+                            new ClassPathResource(
+                                    "fonts/DejaVuSans.ttf"
+                            ).getInputStream();
+
+                    InputStream boldStream =
+                            new ClassPathResource(
+                                    "fonts/DejaVuSans-Bold.ttf"
+                            ).getInputStream()
+            ) {
+
+                fontRegular =
+                        PDType0Font.load(document, regularStream);
+
+                fontBold =
+                        PDType0Font.load(document, boldStream);
             }
 
-            nouvellePage();
+            // ====================================================
+            // ÉTAT LOCAL DE LA GÉNÉRATION
+            // ====================================================
 
-            // ===== EN-TÊTE ÉCOLE =====
-            ecrireTitre(ecole != null && ecole.getNom() != null ? nettoyerTexte(ecole.getNom()) : "École", 16);
-            y -= 26;
+            PdfContext ctx = new PdfContext(
+                    document,
+                    fontRegular,
+                    fontBold
+            );
 
-            ecrireTitre("RAPPORT DE PAIEMENTS ENSEIGNANT", 14);
-            y -= 15;
+            // ====================================================
+            // PREMIÈRE PAGE
+            // ====================================================
 
-            ligneHorizontale();
-            y -= 25;
+            nouvellePage(ctx);
 
-            // ===== IDENTITÉ ENSEIGNANT =====
-            String nomComplet = (rapport.getEnseignantPrenom() != null ? rapport.getEnseignantPrenom() : "")
-                    + " " + (rapport.getEnseignantNom() != null ? rapport.getEnseignantNom() : "");
+            // ====================================================
+            // EN-TÊTE
+            // ====================================================
 
-            y = ecrireLigne(MARGE_GAUCHE, y, "Enseignant", nomComplet.trim());
+            String nomEcole =
+                    ecole != null && ecole.getNom() != null
+                            ? nettoyerTexte(ecole.getNom())
+                            : "École";
+
+            ecrireTitre(ctx, nomEcole, 16);
+
+            ctx.y -= 26;
+
+            ecrireTitre(
+                    ctx,
+                    "RAPPORT DE PAIEMENTS ENSEIGNANT",
+                    14
+            );
+
+            ctx.y -= 15;
+
+            ligneHorizontale(ctx);
+
+            ctx.y -= 25;
+
+            // ====================================================
+            // IDENTITÉ ENSEIGNANT
+            // ====================================================
+
+            String nomComplet =
+                    (rapport.getEnseignantPrenom() != null
+                            ? rapport.getEnseignantPrenom()
+                            : "")
+                            + " "
+                            + (rapport.getEnseignantNom() != null
+                            ? rapport.getEnseignantNom()
+                            : "");
+
+            ctx.y = ecrireLigne(
+                    ctx,
+                    MARGE_GAUCHE,
+                    ctx.y,
+                    "Enseignant",
+                    nomComplet.trim()
+            );
 
             if (rapport.getMatricule() != null) {
-                y = ecrireLigne(MARGE_GAUCHE, y, "Matricule", rapport.getMatricule());
+
+                ctx.y = ecrireLigne(
+                        ctx,
+                        MARGE_GAUCHE,
+                        ctx.y,
+                        "Matricule",
+                        rapport.getMatricule()
+                );
             }
 
-            y = ecrireLigne(MARGE_GAUCHE, y, "Type de contrat", libelleContrat(rapport.getTypeContrat()));
+            ctx.y = ecrireLigne(
+                    ctx,
+                    MARGE_GAUCHE,
+                    ctx.y,
+                    "Type de contrat",
+                    libelleContrat(
+                            rapport.getTypeContrat()
+                    )
+            );
 
-            y -= 15;
+            ctx.y -= 15;
 
-            // ===== RÉSUMÉ GLOBAL =====
-            ecrireSousTitre("Résumé de l'année scolaire");
-            y -= 22;
+            // ====================================================
+            // RÉSUMÉ
+            // ====================================================
 
-            y = ecrireLigne(MARGE_GAUCHE, y, "Total heures", rapport.getTotalHeures() + " h");
-            y = ecrireLigne(MARGE_GAUCHE, y, "Total montant heures", formatMontant(rapport.getTotalMontantHeures()));
-            y = ecrireLigne(MARGE_GAUCHE, y, "Total salaire de base", formatMontant(rapport.getTotalSalaireBase()));
-            y = ecrireLigne(MARGE_GAUCHE, y, "Total payé", formatMontant(rapport.getTotalPaye()));
-            y = ecrireLigne(MARGE_GAUCHE, y, "Total en attente", formatMontant(rapport.getTotalEnAttente()));
+            ecrireSousTitre(
+                    ctx,
+                    "Résumé de l'année scolaire"
+            );
 
-            y -= 15;
+            ctx.y -= 4;
 
-            // ===== TOTAL GÉNÉRAL (encadré) =====
-            encadrerMontant("Total général", rapport.getTotalMontant());
+            ctx.y = ecrireLigne(
+                    ctx,
+                    MARGE_GAUCHE,
+                    ctx.y,
+                    "Total heures",
+                    rapport.getTotalHeures() + " h"
+            );
 
-// ===== TABLEAU DES PAIEMENTS =====
-            ecrireSousTitre("Détail des paiements");
+            ctx.y = ecrireLigne(
+                    ctx,
+                    MARGE_GAUCHE,
+                    ctx.y,
+                    "Total montant heures",
+                    formatMontant(
+                            rapport.getTotalMontantHeures()
+                    )
+            );
 
-            ecrireEnteteTableau();
-            if (rapport.getPaiements() == null || rapport.getPaiements().isEmpty()) {
+            ctx.y = ecrireLigne(
+                    ctx,
+                    MARGE_GAUCHE,
+                    ctx.y,
+                    "Total salaire de base",
+                    formatMontant(
+                            rapport.getTotalSalaireBase()
+                    )
+            );
 
-                verifierSautDePage(20);
-                cs.beginText();
-                cs.setFont(fontRegular, 10);
-                cs.newLineAtOffset(MARGE_GAUCHE, y);
-                cs.showText("Aucun paiement enregistré pour cette année scolaire.");
-                cs.endText();
-                y -= 20;
+            ctx.y = ecrireLigne(
+                    ctx,
+                    MARGE_GAUCHE,
+                    ctx.y,
+                    "Total payé",
+                    formatMontant(
+                            rapport.getTotalPaye()
+                    )
+            );
+
+            ctx.y = ecrireLigne(
+                    ctx,
+                    MARGE_GAUCHE,
+                    ctx.y,
+                    "Total en attente",
+                    formatMontant(
+                            rapport.getTotalEnAttente()
+                    )
+            );
+
+            ctx.y -= 15;
+
+            // ====================================================
+            // TOTAL GÉNÉRAL
+            // ====================================================
+
+            encadrerMontant(
+                    ctx,
+                    "Total général",
+                    rapport.getTotalMontant()
+            );
+
+            // ====================================================
+            // DÉTAIL DES PAIEMENTS
+            // ====================================================
+
+            ecrireSousTitre(
+                    ctx,
+                    "Détail des paiements"
+            );
+
+            ctx.y -= 5;
+
+            ecrireEnteteTableau(ctx);
+
+            // ====================================================
+            // LIGNES
+            // ====================================================
+
+            if (
+                    rapport.getPaiements() == null
+                            || rapport.getPaiements().isEmpty()
+            ) {
+
+                verifierSautDePage(ctx, 20);
+
+                ecrireTexte(
+                        ctx,
+                        "Aucun paiement enregistré pour cette année scolaire.",
+                        MARGE_GAUCHE,
+                        ctx.y,
+                        fontRegular,
+                        10
+                );
+
+                ctx.y -= 20;
 
             } else {
 
-                for (RapportPaiementEnseignantDTO.PaiementLigneDTO ligne : rapport.getPaiements()) {
-                    ecrireLigneTableau(ligne);
+                for (
+                        RapportPaiementEnseignantDTO.PaiementLigneDTO ligne
+                        : rapport.getPaiements()
+                ) {
+
+                    ecrireLigneTableau(ctx, ligne);
                 }
             }
 
-            // ===== PIED DE PAGE =====
-            verifierSautDePage(30);
-            cs.beginText();
-            cs.setFont(fontRegular, 9);
-            cs.newLineAtOffset(MARGE_GAUCHE, MARGE_BAS - 10);
-            cs.showText("Document généré automatiquement — rapport annuel des paiements enseignant.");
-            cs.endText();
+            // ====================================================
+            // PIED DE PAGE
+            // ====================================================
 
-            cs.close();
+            ajouterPiedDePage(ctx);
 
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            // Fermer le content stream courant
+            fermerPage(ctx);
+
+            // ====================================================
+            // SAUVEGARDE
+            // ====================================================
+
+            ByteArrayOutputStream out =
+                    new ByteArrayOutputStream();
+
             document.save(out);
+
             return out.toByteArray();
 
         } catch (IOException e) {
-            throw new RuntimeException("Erreur lors de la génération du rapport PDF", e);
-        } finally {
-            try {
-                document.close();
-            } catch (IOException ignored) {
-            }
+
+            throw new RuntimeException(
+                    "Erreur lors de la génération du rapport PDF",
+                    e
+            );
+        }
+    }
+
+    // ============================================================
+    // CONTEXTE PDF
+    // ============================================================
+
+    private static class PdfContext {
+
+        private final PDDocument document;
+
+        private final PDFont fontRegular;
+
+        private final PDFont fontBold;
+
+        private PDPageContentStream cs;
+
+        private float y;
+
+        private float largeurPage;
+
+        private PdfContext(
+                PDDocument document,
+                PDFont fontRegular,
+                PDFont fontBold
+        ) {
+
+            this.document = document;
+            this.fontRegular = fontRegular;
+            this.fontBold = fontBold;
         }
     }
 
@@ -152,229 +351,556 @@ public class RapportPaiementEnseignantPdfService {
     // PAGINATION
     // ============================================================
 
-    private void nouvellePage() throws IOException {
+    private void nouvellePage(PdfContext ctx)
+            throws IOException {
 
-        if (cs != null) {
-            cs.close();
-        }
+        fermerPage(ctx);
 
-        PDPage page = new PDPage(PDRectangle.A4);
-        document.addPage(page);
+        PDPage page =
+                new PDPage(PDRectangle.A4);
 
-        largeurPage = PDRectangle.A4.getWidth();
-        y = PDRectangle.A4.getHeight() - 50;
+        ctx.document.addPage(page);
 
-        cs = new PDPageContentStream(document, page);
+        ctx.largeurPage =
+                PDRectangle.A4.getWidth();
+
+        ctx.y =
+                PDRectangle.A4.getHeight()
+                        - MARGE_HAUT;
+
+        ctx.cs =
+                new PDPageContentStream(
+                        ctx.document,
+                        page
+                );
     }
 
-    /**
-     * Passe à une nouvelle page si l'espace restant est insuffisant
-     * pour la hauteur demandée.
-     */
-    private void verifierSautDePage(float hauteurNecessaire) throws IOException {
-        if (y - hauteurNecessaire < MARGE_BAS) {
-            nouvellePage();
+    private void fermerPage(PdfContext ctx)
+            throws IOException {
+
+        if (ctx.cs != null) {
+
+            ctx.cs.close();
+
+            ctx.cs = null;
+        }
+    }
+
+    private void verifierSautDePage(
+            PdfContext ctx,
+            float hauteurNecessaire
+    ) throws IOException {
+
+        if (
+                ctx.y - hauteurNecessaire
+                        < MARGE_BAS
+        ) {
+
+            nouvellePage(ctx);
         }
     }
 
     // ============================================================
-    // HELPERS D'ÉCRITURE
+    // TITRES
     // ============================================================
 
-    private void ecrireTitre(String texte, int taille) throws IOException {
-        cs.beginText();
-        cs.setFont(fontBold, taille);
-        cs.newLineAtOffset(MARGE_GAUCHE, y);
-        cs.showText(nettoyerTexte(texte));
-        cs.endText();
+    private void ecrireTitre(
+            PdfContext ctx,
+            String texte,
+            int taille
+    ) throws IOException {
+
+        verifierSautDePage(ctx, 25);
+
+        ecrireTexte(
+                ctx,
+                texte,
+                MARGE_GAUCHE,
+                ctx.y,
+                ctx.fontBold,
+                taille
+        );
     }
 
-    private void ecrireSousTitre(String texte) throws IOException {
+    private void ecrireSousTitre(
+            PdfContext ctx,
+            String texte
+    ) throws IOException {
 
-        verifierSautDePage(30);
+        verifierSautDePage(ctx, 30);
 
-        cs.beginText();
-        cs.setFont(fontBold, 12);
-        cs.newLineAtOffset(MARGE_GAUCHE, y);
-        cs.showText(nettoyerTexte(texte));
-        cs.endText();
+        ecrireTexte(
+                ctx,
+                texte,
+                MARGE_GAUCHE,
+                ctx.y,
+                ctx.fontBold,
+                12
+        );
 
-        y -= 18;
+        ctx.y -= 18;
     }
 
-    private void ligneHorizontale() throws IOException {
-        cs.setStrokingColor(0.78f, 0.78f, 0.78f);
-        cs.moveTo(MARGE_GAUCHE, y);
-        cs.lineTo(largeurPage - MARGE_GAUCHE, y);
-        cs.stroke();
+    // ============================================================
+    // TEXTE
+    // ============================================================
+
+    private void ecrireTexte(
+            PdfContext ctx,
+            String texte,
+            float x,
+            float y,
+            PDFont font,
+            float taille
+    ) throws IOException {
+
+        ctx.cs.beginText();
+
+        ctx.cs.setFont(
+                font,
+                taille
+        );
+
+        ctx.cs.newLineAtOffset(
+                x,
+                y
+        );
+
+        ctx.cs.showText(
+                nettoyerTexte(
+                        texte != null
+                                ? texte
+                                : ""
+                )
+        );
+
+        ctx.cs.endText();
     }
 
-    private float ecrireLigne(float x, float yActuel, String label, String valeur) throws IOException {
+    // ============================================================
+    // LIGNE HORIZONTALE
+    // ============================================================
 
-        verifierSautDePage(20);
+    private void ligneHorizontale(
+            PdfContext ctx
+    ) throws IOException {
 
-        cs.beginText();
-        cs.setFont(fontRegular, 10);
-        cs.newLineAtOffset(x, y);
-        cs.showText(nettoyerTexte(label) + " :");
-        cs.endText();
+        ctx.cs.setStrokingColor(
+                0.78f,
+                0.78f,
+                0.78f
+        );
 
-        cs.beginText();
-        cs.setFont(fontBold, 10);
-        cs.newLineAtOffset(x + 160, y);
-        cs.showText(nettoyerTexte(valeur != null && !valeur.isBlank() ? valeur : "-"));
-        cs.endText();
+        ctx.cs.moveTo(
+                MARGE_GAUCHE,
+                ctx.y
+        );
 
-        y -= 18;
-        return y;
+        ctx.cs.lineTo(
+                ctx.largeurPage
+                        - MARGE_DROITE,
+                ctx.y
+        );
+
+        ctx.cs.stroke();
     }
 
-    private void encadrerMontant(String label, Double montant) throws IOException {
+    // ============================================================
+    // LIGNE INFORMATIONS
+    // ============================================================
+
+    private float ecrireLigne(
+            PdfContext ctx,
+            float x,
+            float yActuel,
+            String label,
+            String valeur
+    ) throws IOException {
+
+        verifierSautDePage(ctx, 20);
+
+        ecrireTexte(
+                ctx,
+                label + " :",
+                x,
+                ctx.y,
+                ctx.fontRegular,
+                10
+        );
+
+        ecrireTexte(
+                ctx,
+                valeur != null && !valeur.isBlank()
+                        ? valeur
+                        : "-",
+                x + 160,
+                ctx.y,
+                ctx.fontBold,
+                10
+        );
+
+        return ctx.y - 18;
+    }
+
+    // ============================================================
+    // TOTAL GÉNÉRAL
+    // ============================================================
+
+    private void encadrerMontant(
+            PdfContext ctx,
+            String label,
+            Double montant
+    ) throws IOException {
 
         final float HAUTEUR_BLOC = 45;
+
         final float ESPACE_APRES = 20;
 
-        // Vérifie que le bloc complet + l'espace après peuvent tenir
-        verifierSautDePage(HAUTEUR_BLOC + ESPACE_APRES);
+        verifierSautDePage(
+                ctx,
+                HAUTEUR_BLOC
+                        + ESPACE_APRES
+        );
 
-        cs.setStrokingColor(0.86f, 0.86f, 0.86f);
+        ctx.cs.setStrokingColor(
+                0.86f,
+                0.86f,
+                0.86f
+        );
 
-        cs.addRect(
+        ctx.cs.addRect(
                 MARGE_GAUCHE,
-                y - HAUTEUR_BLOC + 5,
-                largeurPage - 2 * MARGE_GAUCHE,
+                ctx.y - HAUTEUR_BLOC + 5,
+                ctx.largeurPage
+                        - MARGE_GAUCHE
+                        - MARGE_DROITE,
                 HAUTEUR_BLOC
         );
 
-        cs.stroke();
+        ctx.cs.stroke();
 
-        // Libellé
-        cs.beginText();
-        cs.setFont(fontRegular, 11);
-        cs.newLineAtOffset(MARGE_GAUCHE + 15, y - 12);
-        cs.showText(nettoyerTexte(label));
-        cs.endText();
+        ecrireTexte(
+                ctx,
+                label,
+                MARGE_GAUCHE + 15,
+                ctx.y - 12,
+                ctx.fontRegular,
+                11
+        );
 
-        // Montant
-        cs.beginText();
-        cs.setFont(fontBold, 18);
-        cs.newLineAtOffset(MARGE_GAUCHE + 15, y - 32);
-        cs.showText(formatMontant(montant));
-        cs.endText();
+        ecrireTexte(
+                ctx,
+                formatMontant(montant),
+                MARGE_GAUCHE + 15,
+                ctx.y - 32,
+                ctx.fontBold,
+                18
+        );
 
         // IMPORTANT :
-        // On descend le curseur après le bloc
-        y -= HAUTEUR_BLOC + ESPACE_APRES;
+        // on descend après le bloc
+        ctx.y -=
+                HAUTEUR_BLOC
+                        + ESPACE_APRES;
     }
-    // Colonnes du tableau (positions X relatives à MARGE_GAUCHE)
+
+    // ============================================================
+    // TABLEAU
+    // ============================================================
+
     private static final float COL_PERIODE = 0;
+
     private static final float COL_HEURES = 140;
+
     private static final float COL_TAUX = 180;
+
     private static final float COL_SALAIRE = 225;
+
     private static final float COL_MONTANT_H = 300;
+
     private static final float COL_MONTANT = 370;
+
     private static final float COL_STATUT = 440;
 
-    private void ecrireEnteteTableau() throws IOException {
+    private void ecrireEnteteTableau(
+            PdfContext ctx
+    ) throws IOException {
 
-        verifierSautDePage(25);
+        verifierSautDePage(ctx, 30);
 
-        cs.beginText();
-        cs.setFont(fontBold, 8.5f);
-        cs.newLineAtOffset(MARGE_GAUCHE + COL_PERIODE, y);
-        cs.showText("PERIODE");
-        cs.endText();
+        ecrireCellule(
+                ctx,
+                COL_PERIODE,
+                "PERIODE",
+                8.5f,
+                true
+        );
 
-        cs.beginText();
-        cs.setFont(fontBold, 8.5f);
-        cs.newLineAtOffset(MARGE_GAUCHE + COL_HEURES, y);
-        cs.showText("HEURES");
-        cs.endText();
+        ecrireCellule(
+                ctx,
+                COL_HEURES,
+                "HEURES",
+                8.5f,
+                true
+        );
 
-        cs.beginText();
-        cs.setFont(fontBold, 8.5f);
-        cs.newLineAtOffset(MARGE_GAUCHE + COL_TAUX, y);
-        cs.showText("TAUX");
-        cs.endText();
+        ecrireCellule(
+                ctx,
+                COL_TAUX,
+                "TAUX",
+                8.5f,
+                true
+        );
 
-        cs.beginText();
-        cs.setFont(fontBold, 8.5f);
-        cs.newLineAtOffset(MARGE_GAUCHE + COL_SALAIRE, y);
-        cs.showText("SALAIRE BASE");
-        cs.endText();
+        ecrireCellule(
+                ctx,
+                COL_SALAIRE,
+                "SALAIRE BASE",
+                8.5f,
+                true
+        );
 
-        cs.beginText();
-        cs.setFont(fontBold, 8.5f);
-        cs.newLineAtOffset(MARGE_GAUCHE + COL_MONTANT_H, y);
-        cs.showText("MONT. HEURES");
-        cs.endText();
+        ecrireCellule(
+                ctx,
+                COL_MONTANT_H,
+                "MONT. HEURES",
+                8.5f,
+                true
+        );
 
-        cs.beginText();
-        cs.setFont(fontBold, 8.5f);
-        cs.newLineAtOffset(MARGE_GAUCHE + COL_MONTANT, y);
-        cs.showText("MONTANT");
-        cs.endText();
+        ecrireCellule(
+                ctx,
+                COL_MONTANT,
+                "MONTANT",
+                8.5f,
+                true
+        );
 
-        cs.beginText();
-        cs.setFont(fontBold, 8.5f);
-        cs.newLineAtOffset(MARGE_GAUCHE + COL_STATUT, y);
-        cs.showText("STATUT");
-        cs.endText();
+        ecrireCellule(
+                ctx,
+                COL_STATUT,
+                "STATUT",
+                8.5f,
+                true
+        );
 
-        y -= 6;
-        ligneHorizontale();
-        y -= 16;
+        ctx.y -= 6;
+
+        ligneHorizontale(ctx);
+
+        ctx.y -= 16;
     }
 
-    private void ecrireLigneTableau(RapportPaiementEnseignantDTO.PaiementLigneDTO ligne) throws IOException {
+    private void ecrireLigneTableau(
+            PdfContext ctx,
+            RapportPaiementEnseignantDTO.PaiementLigneDTO ligne
+    ) throws IOException {
 
-        verifierSautDePage(20);
+        verifierSautDePage(ctx, 25);
 
-        String periode = ligne.getPeriodeDebut() != null && ligne.getPeriodeFin() != null
-                ? ligne.getPeriodeDebut().format(DATE_FORMAT) + " - " + ligne.getPeriodeFin().format(DATE_FORMAT)
-                : "-";
+        /*
+         * Si une nouvelle page vient d'être créée,
+         * on remet l'en-tête du tableau.
+         */
+        if (
+                ctx.y
+                        > PDRectangle.A4.getHeight()
+                        - MARGE_HAUT
+                        - 5
+        ) {
 
-        ecrireCellule(COL_PERIODE, periode, 9);
-        ecrireCellule(COL_HEURES, ligne.getTotalHeures() + "h", 9);
-        ecrireCellule(COL_TAUX, formatMontantCourt(ligne.getTauxHoraire()), 9);
-        ecrireCellule(COL_SALAIRE, formatMontantCourt(ligne.getSalaireBase()), 9);
-        ecrireCellule(COL_MONTANT_H, formatMontantCourt(ligne.getMontantHeures()), 9);
-        ecrireCellule(COL_MONTANT, formatMontantCourt(ligne.getMontant()), 9);
-        ecrireCellule(COL_STATUT, libelleStatut(ligne.getStatut()), 9);
+            ecrireEnteteTableau(ctx);
+        }
 
-        y -= 18;
+        String periode =
+                ligne.getPeriodeDebut() != null
+                        && ligne.getPeriodeFin() != null
+
+                        ? ligne.getPeriodeDebut()
+                        .format(DATE_FORMAT)
+                        + " - "
+                        + ligne.getPeriodeFin()
+                        .format(DATE_FORMAT)
+
+                        : "-";
+
+        ecrireCellule(
+                ctx,
+                COL_PERIODE,
+                periode,
+                8.5f,
+                false
+        );
+
+        ecrireCellule(
+                ctx,
+                COL_HEURES,
+                ligne.getTotalHeures() + "h",
+                8.5f,
+                false
+        );
+
+        ecrireCellule(
+                ctx,
+                COL_TAUX,
+                formatMontantCourt(
+                        ligne.getTauxHoraire()
+                ),
+                8.5f,
+                false
+        );
+
+        ecrireCellule(
+                ctx,
+                COL_SALAIRE,
+                formatMontantCourt(
+                        ligne.getSalaireBase()
+                ),
+                8.5f,
+                false
+        );
+
+        ecrireCellule(
+                ctx,
+                COL_MONTANT_H,
+                formatMontantCourt(
+                        ligne.getMontantHeures()
+                ),
+                8.5f,
+                false
+        );
+
+        ecrireCellule(
+                ctx,
+                COL_MONTANT,
+                formatMontantCourt(
+                        ligne.getMontant()
+                ),
+                8.5f,
+                false
+        );
+
+        ecrireCellule(
+                ctx,
+                COL_STATUT,
+                libelleStatut(
+                        ligne.getStatut()
+                ),
+                8.5f,
+                false
+        );
+
+        ctx.y -= 18;
     }
 
-    private void ecrireCellule(float colX, String texte, int taille) throws IOException {
-        cs.beginText();
-        cs.setFont(fontRegular, taille);
-        cs.newLineAtOffset(MARGE_GAUCHE + colX, y);
-        cs.showText(nettoyerTexte(texte != null ? texte : "-"));
-        cs.endText();
+    private void ecrireCellule(
+            PdfContext ctx,
+            float colX,
+            String texte,
+            float taille,
+            boolean gras
+    ) throws IOException {
+
+        ecrireTexte(
+                ctx,
+                texte,
+                MARGE_GAUCHE + colX,
+                ctx.y,
+                gras
+                        ? ctx.fontBold
+                        : ctx.fontRegular,
+                taille
+        );
+    }
+
+    // ============================================================
+    // PIED DE PAGE
+    // ============================================================
+
+    private void ajouterPiedDePage(
+            PdfContext ctx
+    ) throws IOException {
+
+        /*
+         * Le pied de page est placé en bas de la page
+         * courante.
+         */
+        ecrireTexte(
+                ctx,
+                "Document généré automatiquement — rapport annuel des paiements enseignant.",
+                MARGE_GAUCHE,
+                MARGE_BAS - 10,
+                ctx.fontRegular,
+                8
+        );
     }
 
     // ============================================================
     // FORMATAGE
     // ============================================================
 
-    private String formatMontant(Double montant) {
-        if (montant == null) return "-";
-        return String.format(Locale.FRANCE, "%,.0f FCFA", montant)
-                .replace('\u202F', ' ')
-                .replace('\u00A0', ' ')
-                .replace(",", " ");
+    private String formatMontant(
+            Double montant
+    ) {
+
+        if (montant == null) {
+            return "-";
+        }
+
+        return String.format(
+                        Locale.FRANCE,
+                        "%,.0f FCFA",
+                        montant
+                )
+                .replace(
+                        '\u202F',
+                        ' '
+                )
+                .replace(
+                        '\u00A0',
+                        ' '
+                )
+                .replace(
+                        ",",
+                        " "
+                );
     }
 
-    private String formatMontantCourt(Double montant) {
-        if (montant == null) return "-";
-        return String.format(Locale.FRANCE, "%,.0f", montant)
-                .replace('\u202F', ' ')
-                .replace('\u00A0', ' ')
-                .replace(",", " ");
+    private String formatMontantCourt(
+            Double montant
+    ) {
+
+        if (montant == null) {
+            return "-";
+        }
+
+        return String.format(
+                        Locale.FRANCE,
+                        "%,.0f",
+                        montant
+                )
+                .replace(
+                        '\u202F',
+                        ' '
+                )
+                .replace(
+                        '\u00A0',
+                        ' '
+                )
+                .replace(
+                        ",",
+                        " "
+                );
     }
 
-    private String nettoyerTexte(String texte) {
-        if (texte == null) return "";
+    private String nettoyerTexte(
+            String texte
+    ) {
+
+        if (texte == null) {
+            return "";
+        }
+
         return texte
                 .replace('\u202F', ' ')
                 .replace('\u00A0', ' ')
@@ -382,23 +908,55 @@ public class RapportPaiementEnseignantPdfService {
                 .replace('\u2009', ' ');
     }
 
-    private String libelleStatut(String statut) {
-        if (statut == null) return "-";
+    // ============================================================
+    // LIBELLÉS
+    // ============================================================
+
+    private String libelleStatut(
+            String statut
+    ) {
+
+        if (statut == null) {
+            return "-";
+        }
+
         return switch (statut) {
-            case "PAYE" -> "Payé";
-            case "EN_ATTENTE" -> "En attente";
-            default -> statut;
+
+            case "PAYE" ->
+                    "Payé";
+
+            case "EN_ATTENTE" ->
+                    "En attente";
+
+            default ->
+                    statut;
         };
     }
 
-    private String libelleContrat(String contrat) {
-        if (contrat == null) return "-";
+    private String libelleContrat(
+            String contrat
+    ) {
+
+        if (contrat == null) {
+            return "-";
+        }
+
         return switch (contrat) {
-            case "CDI" -> "CDI";
-            case "CDD" -> "CDD";
-            case "VACATAIRE" -> "Vacataire";
-            case "STAGIAIRE" -> "Stagiaire";
-            default -> contrat;
+
+            case "CDI" ->
+                    "CDI";
+
+            case "CDD" ->
+                    "CDD";
+
+            case "VACATAIRE" ->
+                    "Vacataire";
+
+            case "STAGIAIRE" ->
+                    "Stagiaire";
+
+            default ->
+                    contrat;
         };
     }
 }
