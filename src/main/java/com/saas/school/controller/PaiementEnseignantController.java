@@ -1,6 +1,7 @@
 package com.saas.school.controller;
 
 import com.saas.school.dto.PaiementEnseignantDTO;
+import com.saas.school.dto.RapportPaiementEnseignantDTO;
 import com.saas.school.service.PaiementEnseignantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,8 @@ import java.util.List;
 public class PaiementEnseignantController {
 
     private final PaiementEnseignantService paiementService;
+    private final PaiementEnseignantService paiementEnseignantService;
+
 
     @GetMapping("/previsualiser")
     public ResponseEntity<List<PaiementEnseignantDTO>> previsualiser(
@@ -41,5 +44,19 @@ public class PaiementEnseignantController {
     @GetMapping
     public ResponseEntity<List<PaiementEnseignantDTO>> lister(@RequestParam Long anneeId) {
         return ResponseEntity.ok(paiementService.listerPaiements(anneeId));
+
     }
+    @GetMapping("/rapport/enseignant/{enseignantId}")
+    public ResponseEntity<RapportPaiementEnseignantDTO> rapportEnseignant(
+            @PathVariable Long enseignantId,
+            @RequestParam Long anneeId
+    ) {
+        return ResponseEntity.ok(
+                paiementEnseignantService.rapportEnseignant(
+                        enseignantId,
+                        anneeId
+                )
+        );
+    }
+
 }

@@ -2,6 +2,7 @@ package com.saas.school.service;
 
 import com.saas.school.dto.EmargementResumeDTO;
 import com.saas.school.dto.PaiementEnseignantDTO;
+import com.saas.school.dto.RapportPaiementEnseignantDTO;
 import com.saas.school.entity.Emargement;
 import com.saas.school.entity.Enseignant;
 import com.saas.school.entity.PaiementEnseignant;
@@ -434,7 +435,98 @@ public class PaiementEnseignantService {
                 .map(this::toDTO)
                 .toList();
     }
+    public RapportPaiementEnseignantDTO rapportEnseignant(
+            Long enseignantId,
+            Long anneeId
+    ) {
 
+        Enseignant enseignant = enseignantRepo.findById(enseignantId)
+                .orElseThrow(() ->
+                        new RuntimeException("Enseignant introuvable")
+                );
+
+        List<PaiementEnseignant> paiements =
+                paiementRepo.findByEnseignant_IdAndAnneeScolaireId(
+                        enseignantId,
+                        anneeId
+                );
+
+        int totalHeures = paiements.stream()
+                .mapToInt(PaiementEnseignant::getTotalHeures)
+                .sum();
+
+        double totalMontantHeures = paiements.stream()
+                .mapToDouble(PaiementEnseignant::getMontantHeures)
+                .sum();
+
+        double totalSalaireBase = paiements.stream()
+                .mapToDouble(PaiementEnseignant::getSalaireBase)
+                .sum();
+
+        double totalMontant = paiements.stream()
+                .mapToDouble(PaiementEnseignant::getMontant)
+                .sum();
+        double totalPaye = paiements.stream()
+                .filter(p ->
+                        p.getStatut() ==
+                                PaiementEnseignant.StatutPaiement.PAYE
+                )
+                .mapToDouble(p -> p.getMontant() != null
+                        ? p.getMontant()
+                        : 0.0)
+                .sum();
+
+        double totalEnAttente = paiements.stream()
+                .filter(p ->
+                        p.getStatut() ==
+                                PaiementEnseignant.StatutPaiement.EN_ATTENTE
+                )
+                .mapToDouble(p -> p.getMontant() != null
+                        ? p.getMontant()
+                        : 0.0)
+                .sum();
+
+        List<RapportPaiementEnseignantDTO.PaiementLigneDTO> lignes =
+                paiements.stream()
+                        .map(p ->
+                                RapportPaiementEnseignantDTO.PaiementLigneDTO
+                                        .builder()
+                                        .id(p.getId())
+                                        .periodeDebut(p.getPeriodeDebut())
+                                        .periodeFin(p.getPeriodeFin())
+                                        .totalHeures(p.getTotalHeures())
+                                        .tauxHoraire(p.getTauxHoraire())
+                                        .salaireBase(p.getSalaireBase())
+                                        .montantHeures(p.getMontantHeures())
+                                        .montant(p.getMontant())
+                                        .statut(
+                                                p.getStatut() != null
+                                                        ? p.getStatut().name()
+                                                        : null
+                                        )
+                                        .datePaiement(p.getDatePaiement())
+                                        .build()
+                        )
+                        .toList();
+        return RapportPaiementEnseignantDTO.builder()
+                .enseignantId(enseignant.getId())
+                .enseignantNom(enseignant.getNom())
+                .enseignantPrenom(enseignant.getPrenom())
+                .matricule(enseignant.getMatricule())
+                .typeContrat(
+                        enseignant.getTypeContrat() != null
+                                ? enseignant.getTypeContrat().name()
+                                : null
+                )
+                .totalHeures(totalHeures)
+                .totalMontantHeures(totalMontantHeures)
+                .totalSalaireBase(totalSalaireBase)
+                .totalMontant(totalMontant)
+                .totalPaye(totalPaye)
+                .totalEnAttente(totalEnAttente)
+                .paiements(lignes)
+                .build();
+    }
     public PaiementEnseignant getById(Long id) {
         return paiementRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Paiement enseignant introuvable"));
