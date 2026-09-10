@@ -105,7 +105,6 @@ public class RapportPaiementEnseignantPdfService {
 
 // ===== TABLEAU DES PAIEMENTS =====
             ecrireSousTitre("Détail des paiements");
-            y -= 20;
 
             ecrireEnteteTableau();
             if (rapport.getPaiements() == null || rapport.getPaiements().isEmpty()) {
@@ -191,12 +190,16 @@ public class RapportPaiementEnseignantPdfService {
     }
 
     private void ecrireSousTitre(String texte) throws IOException {
+
         verifierSautDePage(30);
+
         cs.beginText();
         cs.setFont(fontBold, 12);
         cs.newLineAtOffset(MARGE_GAUCHE, y);
         cs.showText(nettoyerTexte(texte));
         cs.endText();
+
+        y -= 18;
     }
 
     private void ligneHorizontale() throws IOException {
