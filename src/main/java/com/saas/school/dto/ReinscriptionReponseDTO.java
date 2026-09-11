@@ -47,4 +47,5 @@ public class ReinscriptionReponseDTO {
     private String decision; // ADMIS / REDOUBLANT
 
     private String statutReinscription; // REINSCRIT / NON_REINSCRIT
+     private String  decisionAdministration;
 }

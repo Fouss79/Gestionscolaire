@@ -472,6 +472,11 @@ public class InscriptionService {
         nouvelleInscription.setAnneeScolaire(anneeActive);
         nouvelleInscription.setCreatedAt(LocalDateTime.now());
         nouvelleInscription.setStatut(StatutInscription.PREINSCRIT);
+        if (ancienneInscription.getClasse().getId().equals(nouvelleClasse.getId())) {
+            nouvelleInscription.setDecision(DecisionScolaire.REDOUBLANT);
+        } else {
+            nouvelleInscription.setDecision(DecisionScolaire.ADMIS);
+        }
 
         Inscription savedInscription = inscriptionRepository.save(nouvelleInscription);
         // 🔥 Génère une ligne de frais par type (INSCRIPTION, SCOLARITE, EXAMEN, UNIFORME...)
@@ -511,13 +516,32 @@ public class InscriptionService {
                     ReinscriptionReponseDTO dto;
 
                     if (inscriptionActive != null) {
-                        dto = mapReinscription(inscriptionActive);
-                        dto.setClasseNom(inscriptionPrecedente.getClasse().getNomComplet());
-                        dto.setStatutReinscription("REINSCRIT");
-                        dto.setNouvelleClasseNom(inscriptionActive.getClasse().getNomComplet());
-                    } else {
+
                         dto = mapReinscription(inscriptionPrecedente);
+
+                        dto.setClasseNom(
+                                inscriptionPrecedente.getClasse().getNomComplet()
+                        );
+
+                        dto.setStatutReinscription("REINSCRIT");
+
+                        dto.setNouvelleClasseNom(
+                                inscriptionActive.getClasse().getNomComplet()
+                        );
+
+                        dto.setDecisionAdministration(
+                                inscriptionActive.getDecision() != null
+                                        ? inscriptionActive.getDecision().name()
+                                        : null
+                        );
+
+                    } else {
+
+                        dto = mapReinscription(inscriptionPrecedente);
+
                         dto.setStatutReinscription("NON_REINSCRIT");
+
+                        dto.setDecisionAdministration(null);
                     }
 
                     Double moyenne = noteService.calculMoyenneAnnuelle(
@@ -531,6 +555,7 @@ public class InscriptionService {
                     dto.setMoyenneAnnuelle(moyenne);
                     dto.setMention(calculerMention(moyenne));
                     dto.setDecision(decisionDepuisMoyenne(moyenne));
+
 
                     return dto;
                 })

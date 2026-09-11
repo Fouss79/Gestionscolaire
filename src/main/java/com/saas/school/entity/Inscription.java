@@ -52,6 +52,8 @@ public class Inscription {
 
     @Enumerated(EnumType.STRING)
     private StatutPaiement statutPaiement;
+    @Enumerated(EnumType.STRING)
+    private DecisionScolaire decision;
 
 
     private Double montantTotal = 0.0;
