@@ -2,11 +2,13 @@ package com.saas.school.service;
 
 import com.saas.school.dto.OperationComptableDTO;
 import com.saas.school.entity.*;
+import com.saas.school.repository.AnneeScolaireRepository;
 import com.saas.school.repository.OperationComptableRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,6 +17,8 @@ import java.util.List;
 public class OperationComptableService {
 
     private final OperationComptableRepository operationComptableRepository;
+
+    private final AnneeScolaireRepository anneeScolaireRepository;
 
     // =========================================================
     // CRÉER UNE RECETTE À PARTIR D'UN PAIEMENT DE SCOLARITÉ
@@ -123,25 +127,24 @@ public class OperationComptableService {
     // non liée à un paiement d'élève)
     // =========================================================
 
-    @Transactional
     public OperationComptable creerRecette(
             Ecole ecole,
             Double montant,
             String libelle,
             String reference,
-            String modePaiement
+            String modePaiement,
+            LocalDate dateRecette
     ) {
-
         if (ecole == null) {
             throw new IllegalArgumentException("L'école est obligatoire");
         }
 
         if (montant == null || montant <= 0) {
-            throw new IllegalArgumentException("Le montant doit être supérieur à zéro");
+            throw new IllegalArgumentException("Le montant doit être supérieur à 0");
         }
 
-        if (libelle == null || libelle.isBlank()) {
-            throw new IllegalArgumentException("Le libellé de la recette est obligatoire");
+        if (libelle == null || libelle.trim().isEmpty()) {
+            throw new IllegalArgumentException("Le libellé est obligatoire");
         }
 
         OperationComptable operation = new OperationComptable();
@@ -149,14 +152,20 @@ public class OperationComptableService {
         operation.setEcole(ecole);
         operation.setNature(NatureOperation.RECETTE);
         operation.setMontant(montant);
-        operation.setDateOperation(LocalDateTime.now());
-        operation.setLibelle(libelle);
+        operation.setLibelle(libelle.trim());
         operation.setReference(reference);
         operation.setModePaiement(modePaiement);
 
+        // Date choisie dans le formulaire
+        // Si aucune date n'est fournie, on garde la date actuelle
+        operation.setDateOperation(
+                dateRecette != null
+                        ? dateRecette.atStartOfDay()
+                        : LocalDateTime.now()
+        );
+
         return operationComptableRepository.save(operation);
     }
-
     // =========================================================
     // CRÉER UNE DÉPENSE LIBRE (sans suivi d'échéancier)
     // =========================================================
@@ -410,15 +419,59 @@ public class OperationComptableService {
     // =========================================================
 
     @Transactional(readOnly = true)
-    public OperationComptableDTO genererRapport(Long ecoleId) {
+    public OperationComptableDTO genererRapport(
+            Long ecoleId,
+            Long anneeId
+    ) {
 
         if (ecoleId == null) {
             throw new IllegalArgumentException("L'école est obligatoire");
         }
 
+        if (anneeId == null) {
+            throw new IllegalArgumentException("L'année scolaire est obligatoire");
+        }
+
+        AnneeScolaire anneeScolaire =
+                anneeScolaireRepository.findById(anneeId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Année scolaire introuvable"
+                                )
+                        );
+
+        if (anneeScolaire.getEcole() == null
+                || !anneeScolaire.getEcole().getId().equals(ecoleId)) {
+
+            throw new IllegalArgumentException(
+                    "Cette année scolaire n'appartient pas à cette école"
+            );
+        }
+
+        if (anneeScolaire.getDateDebut() == null
+                || anneeScolaire.getDateFin() == null) {
+
+            throw new IllegalStateException(
+                    "Les dates de l'année scolaire sont obligatoires"
+            );
+        }
+
+        LocalDateTime debut =
+                anneeScolaire.getDateDebut().atStartOfDay();
+
+        LocalDateTime fin =
+                anneeScolaire.getDateFin()
+                        .plusDays(1)
+                        .atStartOfDay()
+                        .minusNanos(1);
+
         List<OperationComptable> operations =
                 operationComptableRepository
-                        .findByEcole_IdOrderByDateOperationDesc(ecoleId);
+                        .findByEcole_IdAndDateOperationBetweenOrderByDateOperationDesc(
+                                ecoleId,
+                                debut,
+                                fin
+                        );
 
         List<OperationComptableDTO> operationsDTO =
                 operations.stream()
@@ -470,7 +523,7 @@ public class OperationComptableService {
 
         return rapport;
     }
-    // =========================================================
+     // =========================================================
     // CONVERSION PUBLIQUE (utilisée par le contrôleur après création)
     // =========================================================
 

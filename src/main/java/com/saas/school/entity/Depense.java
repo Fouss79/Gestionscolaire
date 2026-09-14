@@ -22,11 +22,11 @@ public class Depense {
     @Column(nullable = false)
     private LocalDate dateDepense;
 
-    // Montant total de la dépense (ex : facture fournisseur de 500 000 FCFA)
+    // Montant total de la dépense
     @Column(nullable = false)
     private Double montantTotal;
 
-    // Somme de tous les PaiementDepense déjà enregistrés sur cette dépense
+    // Somme de tous les PaiementDepense déjà enregistrés
     @Column(nullable = false)
     private Double montantPaye = 0.0;
 
@@ -45,4 +45,9 @@ public class Depense {
     @ManyToOne
     @JoinColumn(name = "ecole_id", nullable = false)
     private Ecole ecole;
+
+    // Année scolaire à laquelle cette dépense est rattachée
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
 }

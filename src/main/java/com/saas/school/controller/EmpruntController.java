@@ -37,12 +37,11 @@ public class EmpruntController {
      * Récupérer tous les emprunts d'une école
      */
     @GetMapping("/ecole/{ecoleId}")
-    public ResponseEntity<List<EmpruntDTO>> getByEcole(
-            @PathVariable Long ecoleId
+    public List<EmpruntDTO> getByEcole(
+            @PathVariable Long ecoleId,
+            @RequestParam Long anneeId
     ) {
-        return ResponseEntity.ok(
-                empruntService.getByEcole(ecoleId)
-        );
+        return empruntService.findByEcole(ecoleId, anneeId);
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.saas.school.dto;
-
 import lombok.Data;
+
+import java.time.LocalDate;
 
 @Data
 public class RecetteRequestDTO {
@@ -9,4 +10,6 @@ public class RecetteRequestDTO {
     private String libelle;
     private String reference;
     private String modePaiement;
+
+    private LocalDate dateRecette;
 }

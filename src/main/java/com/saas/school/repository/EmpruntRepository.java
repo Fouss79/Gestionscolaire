@@ -4,6 +4,7 @@ import com.saas.school.entity.Emprunt;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -14,5 +15,11 @@ public interface EmpruntRepository extends JpaRepository<Emprunt, Long> {
     List<Emprunt> findByEcole_IdAndStatutPaiementOrderByDateEmpruntDesc(
             Long ecoleId,
             com.saas.school.service.StatutPaiement statutPaiement
+    );
+
+    List<Emprunt> findByEcole_IdAndDateEmpruntBetweenOrderByDateEmpruntDesc(
+            Long ecoleId,
+            LocalDateTime debut,
+            LocalDateTime fin
     );
 }

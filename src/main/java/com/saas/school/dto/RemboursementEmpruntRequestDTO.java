@@ -1,6 +1,8 @@
 package com.saas.school.dto;
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 public class RemboursementEmpruntRequestDTO {
 
@@ -18,4 +20,6 @@ public class RemboursementEmpruntRequestDTO {
      * Pour CASH, le service génère automatiquement la référence.
      */
     private String reference;
+
+    private LocalDate dateRemboursement; // <-- ajouté
 }

@@ -11,6 +11,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -32,10 +33,29 @@ public class PaiementDepenseService {
         if (dto.getMontant() == null || dto.getMontant() <= 0) {
             throw new RuntimeException("Le montant doit être supérieur à zéro.");
         }
-
         Depense depense = depenseRepository.findById(dto.getDepenseId())
                 .orElseThrow(() -> new RuntimeException("Dépense introuvable."));
 
+// ===== Détermination et validation de la date du paiement =====
+        LocalDate datePaiement = dto.getDatePaiement() != null
+                ? dto.getDatePaiement()
+                : LocalDate.now();
+
+        if (depense.getAnneeScolaire() != null) {
+            var annee = depense.getAnneeScolaire();
+
+            if (annee.getDateDebut() != null && datePaiement.isBefore(annee.getDateDebut())) {
+                throw new RuntimeException(
+                        "La date du paiement doit être postérieure au " + annee.getDateDebut()
+                );
+            }
+
+            if (annee.getDateFin() != null && datePaiement.isAfter(annee.getDateFin())) {
+                throw new RuntimeException(
+                        "La date du paiement doit être antérieure au " + annee.getDateFin()
+                );
+            }
+        }
         double montantPayeActuel = depense.getMontantPaye() != null ? depense.getMontantPaye() : 0.0;
         double montantTotal = depense.getMontantTotal() != null ? depense.getMontantTotal() : 0.0;
         double resteActuel = montantTotal - montantPayeActuel;
@@ -62,7 +82,7 @@ public class PaiementDepenseService {
             paiement.setReference(dto.getReference().trim());
         }
 
-        paiement.setDatePaiement(LocalDateTime.now());
+        paiement.setDatePaiement(datePaiement.atStartOfDay());
 
         // ===== Mise à jour de la dépense =====
         double nouveauMontantPaye = montantPayeActuel + dto.getMontant();

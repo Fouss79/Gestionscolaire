@@ -2,6 +2,8 @@ package com.saas.school.dto;
 
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 public class PaiementDepenseRequestDTO {
 
@@ -9,4 +11,5 @@ public class PaiementDepenseRequestDTO {
     private Double montant;
     private String modePaiement;
     private String reference;
+    private LocalDate datePaiement; // <-- ajouté
 }

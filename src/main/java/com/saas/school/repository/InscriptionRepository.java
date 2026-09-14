@@ -20,6 +20,19 @@ public interface InscriptionRepository extends JpaRepository<Inscription, Long> 
             Long eleveId,
             Long anneeId
     );
+    @Query("""
+        SELECT i
+        FROM Inscription i
+        JOIN FETCH i.eleve e
+        WHERE i.classe.id = :classeId
+        AND i.anneeScolaire.id = :anneeId
+        AND i.statut = com.saas.school.service.StatutInscription.VALIDE
+        ORDER BY e.nom ASC, e.prenom ASC
+        """)
+    List<Inscription> findElevesValidesPourReleve(
+            Long classeId,
+            Long anneeId
+    );
 
     List<Inscription> findByClasseIdAndAnneeScolaire_Id(Long classeId, Long anneeId);
 

@@ -11,6 +11,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -32,10 +33,20 @@ public class RemboursementEmpruntService {
         if (dto.getMontant() == null || dto.getMontant() <= 0) {
             throw new RuntimeException("Le montant doit être supérieur à zéro.");
         }
-
         Emprunt emprunt = empruntRepository.findById(dto.getEmpruntId())
                 .orElseThrow(() -> new RuntimeException("Emprunt introuvable."));
 
+// ===== Détermination et validation de la date du remboursement =====
+        LocalDate dateRemboursement = dto.getDateRemboursement() != null
+                ? dto.getDateRemboursement()
+                : LocalDate.now();
+
+        if (emprunt.getDateEmprunt() != null
+                && dateRemboursement.isBefore(emprunt.getDateEmprunt().toLocalDate())) {
+            throw new RuntimeException(
+                    "La date du remboursement ne peut pas être antérieure à la date de l'emprunt."
+            );
+        }
         double montantRembourseActuel = emprunt.getMontantRembourse() != null ? emprunt.getMontantRembourse() : 0.0;
         double montantARembourser = emprunt.getMontantARembourser() != null ? emprunt.getMontantARembourser() : 0.0;
         double resteActuel = montantARembourser - montantRembourseActuel;
@@ -62,7 +73,7 @@ public class RemboursementEmpruntService {
             remboursement.setReference(dto.getReference().trim());
         }
 
-        remboursement.setDateRemboursement(LocalDateTime.now());
+        remboursement.setDateRemboursement(dateRemboursement.atStartOfDay());
 
         // ===== Mise à jour de l'emprunt =====
         double nouveauMontantRembourse = montantRembourseActuel + dto.getMontant();

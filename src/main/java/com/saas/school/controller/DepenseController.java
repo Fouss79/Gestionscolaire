@@ -16,13 +16,19 @@ public class DepenseController {
     private final DepenseService depenseService;
 
     @PostMapping("/ecole/{ecoleId}")
-    public DepenseDTO creer(@PathVariable Long ecoleId, @RequestBody DepenseDTO dto) {
+    public DepenseDTO creer(
+            @PathVariable Long ecoleId,
+            @RequestBody DepenseDTO dto
+    ) {
         return depenseService.creer(ecoleId, dto);
     }
 
     @GetMapping("/ecole/{ecoleId}")
-    public List<DepenseDTO> getByEcole(@PathVariable Long ecoleId) {
-        return depenseService.findByEcole(ecoleId);
+    public List<DepenseDTO> getByEcole(
+            @PathVariable Long ecoleId,
+            @RequestParam Long anneeId
+    ) {
+        return depenseService.findByEcole(ecoleId, anneeId);
     }
 
     @GetMapping("/{id}")

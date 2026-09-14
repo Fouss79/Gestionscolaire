@@ -18,8 +18,14 @@ public class OperationComptableController {
     private final EcoleRepository ecoleRepository;
 
     @GetMapping("/rapport/{ecoleId}")
-    public OperationComptableDTO getRapport(@PathVariable Long ecoleId) {
-        return operationComptableService.genererRapport(ecoleId);
+    public OperationComptableDTO getRapport(
+            @PathVariable Long ecoleId,
+            @RequestParam Long anneeId
+    ) {
+        return operationComptableService.genererRapport(
+                ecoleId,
+                anneeId
+        );
     }
 
     @PostMapping("/recette/ecole/{ecoleId}")
@@ -27,7 +33,6 @@ public class OperationComptableController {
             @PathVariable Long ecoleId,
             @RequestBody RecetteRequestDTO dto
     ) {
-
         Ecole ecole = ecoleRepository.findById(ecoleId)
                 .orElseThrow(() -> new RuntimeException("École introuvable"));
 
@@ -36,7 +41,8 @@ public class OperationComptableController {
                 dto.getMontant(),
                 dto.getLibelle(),
                 dto.getReference(),
-                dto.getModePaiement()
+                dto.getModePaiement(),
+                dto.getDateRecette()
         );
 
         return operationComptableService.toDto(operation);

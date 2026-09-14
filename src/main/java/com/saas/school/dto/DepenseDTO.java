@@ -21,4 +21,5 @@ public class DepenseDTO {
 
     private Long categorieId;
     private String categorieNom;
+    private Long anneeScolaireId;
 }
