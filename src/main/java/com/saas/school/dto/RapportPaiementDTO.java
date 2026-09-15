@@ -26,9 +26,27 @@ public class RapportPaiementDTO {
 
 
     // ===============================
+    // FRAIS
+    // ===============================
+
+    /**
+     * Toutes les lignes de frais de l'inscription.
+     *
+     * Contient aussi bien les frais :
+     * - payés
+     * - partiellement payés
+     * - non payés
+     */
+    private List<LigneFraisDTO> frais = new ArrayList<>();
+
+
+    // ===============================
     // PAIEMENTS
     // ===============================
 
+    /**
+     * Historique des paiements réellement effectués.
+     */
     private List<LignePaiementDTO> paiements = new ArrayList<>();
 
 

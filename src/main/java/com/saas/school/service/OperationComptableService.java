@@ -624,6 +624,46 @@ public class OperationComptableService {
         return operationComptableRepository.save(operation);
     }
 
+    private OperationComptableDTO construireRapport(
+            List<OperationComptableDTO> operations,
+            Long anneeId
+    ) {
+        double totalRecettes = operations.stream()
+                .filter(op -> "RECETTE".equals(op.getNature()))
+                .mapToDouble(op -> op.getMontant() != null ? op.getMontant() : 0.0)
+                .sum();
+
+        double totalDepenses = operations.stream()
+                .filter(op -> "DEPENSE".equals(op.getNature()))
+                .mapToDouble(op -> op.getMontant() != null ? op.getMontant() : 0.0)
+                .sum();
+
+        double totalEmprunts = operations.stream()
+                .filter(op -> "EMPRUNT".equals(op.getNature()))
+                .mapToDouble(op -> op.getMontant() != null ? op.getMontant() : 0.0)
+                .sum();
+
+        double totalRemboursements = operations.stream()
+                .filter(op -> "REMBOURSEMENT_EMPRUNT".equals(op.getNature()))
+                .mapToDouble(op -> op.getMontant() != null ? op.getMontant() : 0.0)
+                .sum();
+
+        double solde = totalRecettes + totalEmprunts - totalDepenses - totalRemboursements;
+
+        OperationComptableDTO rapport = new OperationComptableDTO();
+        rapport.setAnneeScolaireId(anneeId);
+        rapport.setTotalRecettes(totalRecettes);
+        rapport.setTotalDepenses(totalDepenses);
+        rapport.setTotalEmprunts(totalEmprunts);
+        rapport.setTotalRemboursements(totalRemboursements);
+        rapport.setSolde(solde);
+        rapport.setNombreOperations(operations.size());
+        rapport.setOperations(operations);
+
+        return rapport;
+    }
+
+
     // ============================================================
     // RAPPORT PAR ANNÉE SCOLAIRE
     // ============================================================
@@ -756,6 +796,49 @@ public class OperationComptableService {
         );
 
         return rapport;
+    }
+    // ============================================================
+// RAPPORT PAR PLAGE DE DATES
+// ============================================================
+
+    @Transactional(readOnly = true)
+    public OperationComptableDTO genererRapportParPeriode(
+            Long ecoleId,
+            LocalDate debut,
+            LocalDate fin
+    ) {
+
+        if (ecoleId == null) {
+            throw new RuntimeException("L'école est obligatoire.");
+        }
+
+        if (debut == null || fin == null) {
+            throw new RuntimeException(
+                    "Les dates de début et de fin sont obligatoires."
+            );
+        }
+
+        if (fin.isBefore(debut)) {
+            throw new RuntimeException(
+                    "La date de fin ne peut pas être antérieure à la date de début."
+            );
+        }
+
+        LocalDateTime debutDateTime = debut.atStartOfDay();
+        LocalDateTime finDateTime = fin.atTime(23, 59, 59);
+
+        List<OperationComptableDTO> operations =
+                operationComptableRepository
+                        .findByEcole_IdAndDateOperationBetweenOrderByDateOperationDesc(
+                                ecoleId,
+                                debutDateTime,
+                                finDateTime
+                        )
+                        .stream()
+                        .map(this::mapToDTO)
+                        .toList();
+
+        return construireRapport(operations, null);
     }
     // ============================================================
     // TOUTES LES OPÉRATIONS D'UNE ÉCOLE

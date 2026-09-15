@@ -8,7 +8,9 @@ import com.saas.school.service.OperationComptableService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @RestController
 @RequestMapping("/api/operations-comptables")
@@ -35,6 +37,10 @@ public class OperationComptableController {
                 anneeId
         );
     }
+    @GetMapping("/rapport/periode/{ecoleId}")
+    public OperationComptableDTO getRapport(@PathVariable Long ecoleId,
+                                            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate debut, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fin )
+    { return operationComptableService.genererRapportParPeriode( ecoleId, debut, fin ); }
 
     // =========================================================
     // CRÉER UNE RECETTE MANUELLE

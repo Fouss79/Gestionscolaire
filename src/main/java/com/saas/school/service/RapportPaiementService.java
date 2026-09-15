@@ -1,5 +1,6 @@
 package com.saas.school.service;
 
+import com.saas.school.dto.LigneFraisDTO;
 import com.saas.school.dto.RapportPaiementDTO;
 import com.saas.school.entity.Eleve;
 import com.saas.school.entity.Inscription;
@@ -75,6 +76,17 @@ public class RapportPaiementService {
         }
 
         // =================================================
+        // MATRICULE
+        // =================================================
+
+        rapport.setMatricule(
+                eleve != null &&
+                        eleve.getMatricule() != null
+                        ? eleve.getMatricule()
+                        : "-"
+        );
+
+        // =================================================
         // CLASSE
         // =================================================
 
@@ -116,11 +128,148 @@ public class RapportPaiementService {
                 continue;
             }
 
-            if (ligne.getMontantTotal() != null) {
+            // ---------------------------------------------
+            // TOTAL À PAYER
+            // ---------------------------------------------
 
-                totalAPayer +=
-                        ligne.getMontantTotal();
+            double montantTotal =
+                    ligne.getMontantTotal() != null
+                            ? ligne.getMontantTotal()
+                            : 0.0;
+
+            totalAPayer += montantTotal;
+
+            // ---------------------------------------------
+            // DTO FRAIS
+            // ---------------------------------------------
+
+            LigneFraisDTO dto =
+                    new LigneFraisDTO();
+
+            dto.setId(
+                    ligne.getId()
+            );
+
+            dto.setInscriptionId(
+                    inscriptionId
+            );
+
+            dto.setEleveNom(
+                    eleve != null
+                            ? eleve.getNom()
+                            : "-"
+            );
+
+            dto.setElevePrenom(
+                    eleve != null
+                            ? eleve.getPrenom()
+                            : "-"
+            );
+
+            dto.setClasseNom(
+                    inscription.getClasse() != null
+                            ? inscription
+                            .getClasse()
+                            .getNomComplet()
+                            : "-"
+            );
+
+            // ---------------------------------------------
+            // TYPE DE FRAIS
+            // ---------------------------------------------
+
+            if (ligne.getTypeFrais() != null) {
+
+                dto.setTypeFraisCode(
+                        ligne
+                                .getTypeFrais()
+                                .getCode()
+                );
+
+                dto.setTypeFraisLibelle(
+                        ligne
+                                .getTypeFrais()
+                                .getLibelle()
+                );
+
+                dto.setTypeFraisFrequence(
+                        ligne
+                                .getTypeFrais()
+                                .getFrequence()
+                                != null
+                                ? ligne
+                                .getTypeFrais()
+                                .getFrequence()
+                                .name()
+                                : null
+                );
+
+            } else {
+
+                dto.setTypeFraisCode(null);
+                dto.setTypeFraisLibelle("-");
+                dto.setTypeFraisFrequence(null);
             }
+
+            // ---------------------------------------------
+            // PÉRIODE
+            // ---------------------------------------------
+
+            dto.setMois(
+                    ligne.getMois()
+            );
+
+            dto.setAnnee(
+                    ligne.getAnnee()
+            );
+
+            // ---------------------------------------------
+            // MONTANTS
+            // ---------------------------------------------
+
+            dto.setMontantTotal(
+                    montantTotal
+            );
+
+            dto.setMontantPaye(
+                    ligne.getMontantPaye() != null
+                            ? ligne.getMontantPaye()
+                            : 0.0
+            );
+
+            dto.setResteAPayer(
+                    ligne.getResteAPayer() != null
+                            ? ligne.getResteAPayer()
+                            : Math.max(
+                            0.0,
+                            montantTotal -
+                                    (ligne.getMontantPaye() != null
+                                            ? ligne.getMontantPaye()
+                                            : 0.0)
+                    )
+            );
+
+            // ---------------------------------------------
+            // STATUT
+            // ---------------------------------------------
+
+            dto.setStatutPaiement(
+                    ligne.getStatutPaiement() != null
+                            ? ligne
+                            .getStatutPaiement()
+                            .name()
+                            : "-"
+            );
+
+            // ---------------------------------------------
+            // ESTIMATIF
+            // ---------------------------------------------
+
+            dto.setEstimatif(
+                    ligne.isEstimatif()
+            );
+
+            rapport.getFrais().add(dto);
         }
 
         // =================================================
@@ -167,14 +316,18 @@ public class RapportPaiementService {
             );
 
             // ---------------------------------------------
-            // TYPE DE FRAIS
+            // LIGNE DE FRAIS
             // ---------------------------------------------
 
             LigneFrais ligneFrais =
                     paiement.getLigneFrais();
 
-            if (ligneFrais != null
-                    && ligneFrais.getTypeFrais() != null) {
+            // ---------------------------------------------
+            // TYPE DE FRAIS
+            // ---------------------------------------------
+
+            if (ligneFrais != null &&
+                    ligneFrais.getTypeFrais() != null) {
 
                 ligne.setTypeFrais(
                         ligneFrais
@@ -205,7 +358,11 @@ public class RapportPaiementService {
                             ? paiement.getMontant()
                             : 0.0;
 
-            ligne.setMontant(montant);
+            ligne.setMontant(
+                    montant
+            );
+
+            totalPaye += montant;
 
             // ---------------------------------------------
             // MODE DE PAIEMENT
@@ -216,8 +373,6 @@ public class RapportPaiementService {
                             paiement.getModePaiement()
                     )
             );
-
-            totalPaye += montant;
 
             rapport.getPaiements().add(ligne);
         }
@@ -246,14 +401,20 @@ public class RapportPaiementService {
                     );
         }
 
-        rapport.setTotalAPayer(totalAPayer);
-        rapport.setTotalPaye(totalPaye);
-        rapport.setResteAPayer(resteAPayer);
-        rapport.setPourcentagePaye(pourcentagePaye);
-        rapport.setMatricule(
-                eleve != null && eleve.getMatricule() != null
-                        ? eleve.getMatricule()
-                        : "-"
+        rapport.setTotalAPayer(
+                totalAPayer
+        );
+
+        rapport.setTotalPaye(
+                totalPaye
+        );
+
+        rapport.setResteAPayer(
+                resteAPayer
+        );
+
+        rapport.setPourcentagePaye(
+                pourcentagePaye
         );
 
         return rapport;
@@ -289,7 +450,9 @@ public class RapportPaiementService {
     // MODE DE PAIEMENT
     // =====================================================
 
-    private String libelleMode(String code) {
+    private String libelleMode(
+            String code
+    ) {
 
         if (code == null) {
             return "-";
