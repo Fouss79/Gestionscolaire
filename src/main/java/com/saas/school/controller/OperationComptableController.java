@@ -8,6 +8,8 @@ import com.saas.school.service.OperationComptableService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/operations-comptables")
 @RequiredArgsConstructor
@@ -16,6 +18,12 @@ public class OperationComptableController {
 
     private final OperationComptableService operationComptableService;
     private final EcoleRepository ecoleRepository;
+
+
+    // =========================================================
+    // RAPPORT COMPTABLE D'UNE ANNÉE SCOLAIRE
+    // =========================================================
+
 
     @GetMapping("/rapport/{ecoleId}")
     public OperationComptableDTO getRapport(
@@ -28,23 +36,42 @@ public class OperationComptableController {
         );
     }
 
+    // =========================================================
+    // CRÉER UNE RECETTE MANUELLE
+    // =========================================================
+
     @PostMapping("/recette/ecole/{ecoleId}")
     public OperationComptableDTO creerRecette(
             @PathVariable Long ecoleId,
             @RequestBody RecetteRequestDTO dto
     ) {
+
         Ecole ecole = ecoleRepository.findById(ecoleId)
-                .orElseThrow(() -> new RuntimeException("École introuvable"));
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "École introuvable"
+                        )
+                );
 
-        var operation = operationComptableService.creerRecette(
-                ecole,
-                dto.getMontant(),
-                dto.getLibelle(),
-                dto.getReference(),
-                dto.getModePaiement(),
-                dto.getDateRecette()
+        if (dto.getAnneeScolaireId() == null) {
+            throw new RuntimeException(
+                    "L'année scolaire est obligatoire"
+            );
+        }
+
+        var operation =
+                operationComptableService.creerRecette(
+                        ecole,
+                        dto.getMontant(),
+                        dto.getLibelle(),
+                        dto.getReference(),
+                        dto.getModePaiement(),
+                        dto.getDateRecette(),
+                        dto.getAnneeScolaireId()
+                );
+
+        return operationComptableService.toDto(
+                operation
         );
-
-        return operationComptableService.toDto(operation);
     }
 }

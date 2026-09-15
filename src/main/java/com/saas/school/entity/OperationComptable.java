@@ -11,6 +11,11 @@ import java.time.LocalDateTime;
         name = "operation_comptable",
         indexes = {
                 @Index(name = "idx_operation_ecole", columnList = "ecole_id"),
+                @Index(name = "idx_operation_annee", columnList = "annee_scolaire_id"),
+                @Index(
+                        name = "idx_operation_ecole_annee",
+                        columnList = "ecole_id, annee_scolaire_id"
+                ),
                 @Index(name = "idx_operation_date", columnList = "date_operation"),
                 @Index(name = "idx_operation_nature", columnList = "nature")
         }
@@ -28,6 +33,14 @@ public class OperationComptable {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ecole_id", nullable = false)
     private Ecole ecole;
+
+    // =====================================================
+    // ANNÉE SCOLAIRE
+    // =====================================================
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
 
     // =====================================================
     // NATURE
@@ -103,6 +116,12 @@ public class OperationComptable {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    // =====================================================
+    // PAIEMENT ENSEIGNANT
+    // =====================================================
+
+    private Long paiementEnseignantId;
+
     @PrePersist
     protected void onCreate() {
 
@@ -113,7 +132,5 @@ public class OperationComptable {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
-
     }
-
-    private Long paiementEnseignantId;}
+}

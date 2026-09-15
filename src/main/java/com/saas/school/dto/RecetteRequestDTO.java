@@ -1,4 +1,6 @@
-package com.saas.school.dto;
+
+        package com.saas.school.dto;
+
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -12,4 +14,8 @@ public class RecetteRequestDTO {
     private String modePaiement;
 
     private LocalDate dateRecette;
+
+    // Année scolaire concernée par la recette
+    private Long anneeScolaireId;
 }
+

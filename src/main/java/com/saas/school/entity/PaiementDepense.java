@@ -13,9 +13,27 @@ public class PaiementDepense {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    // ============================================================
+    // DÉPENSE
+    // ============================================================
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "depense_id", nullable = false)
     private Depense depense;
+
+
+    // ============================================================
+    // ANNÉE SCOLAIRE
+    // ============================================================
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
+
+
+    // ============================================================
+    // PAIEMENT
+    // ============================================================
 
     @Column(nullable = false)
     private Double montant;

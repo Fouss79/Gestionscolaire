@@ -28,6 +28,12 @@ public class Emprunt {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ecole_id", nullable = false)
     private Ecole ecole;
+    /**
+     * Année scolaire à laquelle cet emprunt est rattaché
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
 
     /**
      * Libellé de l'emprunt
@@ -110,4 +116,5 @@ public class Emprunt {
             statutPaiement = StatutPaiement.NON_PAYE;
         }
     }
+
 }

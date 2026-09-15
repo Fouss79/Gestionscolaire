@@ -7,7 +7,6 @@ import com.saas.school.entity.Emprunt;
 import com.saas.school.repository.AnneeScolaireRepository;
 import com.saas.school.repository.EcoleRepository;
 import com.saas.school.repository.EmpruntRepository;
-import com.saas.school.service.StatutPaiement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +23,7 @@ public class EmpruntService {
     private final OperationComptableService operationComptableService;
     private final AnneeScolaireRepository anneeScolaireRepository;
 
+
     // =========================================================
     // CRÉER UN EMPRUNT
     // =========================================================
@@ -37,11 +37,19 @@ public class EmpruntService {
             );
         }
 
+        if (ecoleId == null) {
+            throw new RuntimeException(
+                    "L'école est obligatoire"
+            );
+        }
+
         // =========================
         // VALIDATION
         // =========================
 
-        if (dto.getLibelle() == null || dto.getLibelle().isBlank()) {
+        if (dto.getLibelle() == null
+                || dto.getLibelle().isBlank()) {
+
             throw new RuntimeException(
                     "Le libellé est obligatoire"
             );
@@ -72,13 +80,56 @@ public class EmpruntService {
         }
 
         // =========================
+        // ANNÉE SCOLAIRE
+        // =========================
+
+        if (dto.getAnneeScolaireId() == null) {
+            throw new RuntimeException(
+                    "L'année scolaire est obligatoire"
+            );
+        }
+
+        // =========================
         // ÉCOLE
         // =========================
 
         Ecole ecole = ecoleRepository.findById(ecoleId)
                 .orElseThrow(() ->
-                        new RuntimeException("École introuvable")
+                        new RuntimeException(
+                                "École introuvable"
+                        )
                 );
+
+        // =========================
+        // ANNÉE
+        // =========================
+
+        AnneeScolaire anneeScolaire =
+                anneeScolaireRepository
+                        .findById(dto.getAnneeScolaireId())
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Année scolaire introuvable"
+                                )
+                        );
+
+        // =========================
+        // VÉRIFIER L'ÉCOLE
+        // =========================
+
+        if (anneeScolaire.getEcole() == null) {
+            throw new RuntimeException(
+                    "L'année scolaire n'est associée à aucune école"
+            );
+        }
+
+        if (!anneeScolaire.getEcole().getId()
+                .equals(ecole.getId())) {
+
+            throw new RuntimeException(
+                    "Cette année scolaire n'appartient pas à cette école"
+            );
+        }
 
         // =========================
         // ENTITY
@@ -87,6 +138,11 @@ public class EmpruntService {
         Emprunt emprunt = new Emprunt();
 
         emprunt.setEcole(ecole);
+
+        // IMPORTANT :
+        // l'année scolaire est enregistrée directement
+        // sur l'emprunt.
+        emprunt.setAnneeScolaire(anneeScolaire);
 
         emprunt.setLibelle(
                 dto.getLibelle().trim()
@@ -124,7 +180,8 @@ public class EmpruntService {
         // SAUVEGARDE
         // =========================
 
-        Emprunt saved = empruntRepository.save(emprunt);
+        Emprunt saved =
+                empruntRepository.save(emprunt);
 
         // =========================
         // OPÉRATION COMPTABLE
@@ -134,6 +191,9 @@ public class EmpruntService {
         // Mais l'emprunt n'est PAS une recette.
         //
         // Nature = EMPRUNT
+        //
+        // L'opération récupérera l'année directement
+        // depuis saved.getAnneeScolaire().
 
         operationComptableService.creerRecetteEmprunt(
                 saved,
@@ -143,14 +203,20 @@ public class EmpruntService {
         return toDTO(saved);
     }
 
+
     // =========================================================
-    // RÉCUPÉRER TOUS LES EMPRUNTS D'UNE ÉCOLE
+    // RÉCUPÉRER LES EMPRUNTS D'UNE ÉCOLE POUR UNE ANNÉE
     // =========================================================
 
-    public List<EmpruntDTO> getByEcole(Long ecoleId, Long anneeId) {
+    public List<EmpruntDTO> getByEcole(
+            Long ecoleId,
+            Long anneeId
+    ) {
 
         if (ecoleId == null) {
-            throw new IllegalArgumentException("L'école est obligatoire");
+            throw new IllegalArgumentException(
+                    "L'école est obligatoire"
+            );
         }
 
         if (anneeId == null) {
@@ -159,83 +225,99 @@ public class EmpruntService {
             );
         }
 
+        // =========================
+        // VÉRIFIER L'ANNÉE
+        // =========================
+
         AnneeScolaire anneeScolaire =
-                anneeScolaireRepository.findById(anneeId)
+                anneeScolaireRepository
+                        .findById(anneeId)
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Année scolaire introuvable"
                                 )
                         );
 
+        // =========================
+        // VÉRIFIER L'ÉCOLE
+        // =========================
+
         if (anneeScolaire.getEcole() == null
-                || !anneeScolaire.getEcole().getId().equals(ecoleId)) {
+                || !anneeScolaire.getEcole()
+                .getId()
+                .equals(ecoleId)) {
 
             throw new IllegalArgumentException(
                     "Cette année scolaire n'appartient pas à cette école"
             );
         }
 
-        if (anneeScolaire.getDateDebut() == null
-                || anneeScolaire.getDateFin() == null) {
-
-            throw new IllegalStateException(
-                    "Les dates de l'année scolaire sont obligatoires"
-            );
-        }
-
-        LocalDateTime debut =
-                anneeScolaire.getDateDebut().atStartOfDay();
-
-        LocalDateTime fin =
-                anneeScolaire.getDateFin()
-                        .plusDays(1)
-                        .atStartOfDay()
-                        .minusNanos(1);
+        // =====================================================
+        // IMPORTANT :
+        // ON NE FILTRE PLUS PAR DATE
+        // =====================================================
 
         return empruntRepository
-                .findByEcole_IdAndDateEmpruntBetweenOrderByDateEmpruntDesc(
+                .findByEcole_IdAndAnneeScolaire_IdOrderByDateEmpruntDesc(
                         ecoleId,
-                        debut,
-                        fin
+                        anneeId
                 )
                 .stream()
                 .map(this::toDTO)
                 .toList();
     }
+
+
     // =========================================================
     // ALIAS
     // =========================================================
 
-    public List<EmpruntDTO> findByEcole(Long ecoleId, Long anneeId) {
+    public List<EmpruntDTO> findByEcole(
+            Long ecoleId,
+            Long anneeId
+    ) {
         return getByEcole(ecoleId, anneeId);
     }
+
+
     // =========================================================
     // RÉCUPÉRER UN EMPRUNT
     // =========================================================
 
     public EmpruntDTO getById(Long id) {
 
-        Emprunt emprunt = empruntRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Emprunt introuvable"
-                        )
-                );
+        if (id == null) {
+            throw new IllegalArgumentException(
+                    "L'identifiant de l'emprunt est obligatoire"
+            );
+        }
+
+        Emprunt emprunt =
+                empruntRepository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Emprunt introuvable"
+                                )
+                        );
 
         return toDTO(emprunt);
     }
+
 
     // =========================================================
     // CONVERSION ENTITY -> DTO
     // =========================================================
 
-    public EmpruntDTO toDTO(Emprunt emprunt) {
+    public EmpruntDTO toDTO(
+            Emprunt emprunt
+    ) {
 
         if (emprunt == null) {
             return null;
         }
 
-        EmpruntDTO dto = new EmpruntDTO();
+        EmpruntDTO dto =
+                new EmpruntDTO();
 
         // =========================
         // ID
@@ -250,8 +332,20 @@ public class EmpruntService {
         // =========================
 
         if (emprunt.getEcole() != null) {
+
             dto.setEcoleId(
                     emprunt.getEcole().getId()
+            );
+        }
+
+        // =========================
+        // ANNÉE SCOLAIRE
+        // =========================
+
+        if (emprunt.getAnneeScolaire() != null) {
+
+            dto.setAnneeScolaireId(
+                    emprunt.getAnneeScolaire().getId()
             );
         }
 

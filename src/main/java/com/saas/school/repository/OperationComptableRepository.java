@@ -16,7 +16,15 @@ public interface OperationComptableRepository
 
     List<OperationComptable>
     findByEcole_IdAndDateOperationBetweenOrderByDateOperationDesc(
-            Long ecoleId, LocalDateTime debut, LocalDateTime fin
+            Long ecoleId,
+            LocalDateTime debut,
+            LocalDateTime fin
+    );
+
+    List<OperationComptable>
+    findByEcole_IdAndAnneeScolaire_IdOrderByDateOperationDesc(
+            Long ecoleId,
+            Long anneeId
     );
 
     boolean existsByPaiementDepense_Id(Long id);
@@ -24,4 +32,6 @@ public interface OperationComptableRepository
     boolean existsByRemboursementEmprunt_Id(Long remboursementId);
 
     boolean existsByEmprunt_Id(Long id);
+
+    boolean existsByPaiementEnseignantId(Long id);
 }

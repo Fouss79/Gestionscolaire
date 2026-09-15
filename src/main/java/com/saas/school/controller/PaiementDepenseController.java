@@ -16,18 +16,49 @@ public class PaiementDepenseController {
 
     private final PaiementDepenseService paiementDepenseService;
 
+
+    // =========================================================
+    // ENREGISTRER UN PAIEMENT
+    // =========================================================
+
     @PostMapping
-    public PaiementDepenseResponseDTO enregistrer(@RequestBody PaiementDepenseRequestDTO dto) {
-        return paiementDepenseService.enregistrerPaiement(dto);
+    public PaiementDepenseResponseDTO enregistrer(
+            @RequestBody PaiementDepenseRequestDTO dto
+    ) {
+
+        return paiementDepenseService
+                .enregistrerPaiement(dto);
     }
+
+
+    // =========================================================
+    // PAIEMENTS D'UNE DÉPENSE
+    // =========================================================
 
     @GetMapping("/depense/{depenseId}")
-    public List<PaiementDepenseResponseDTO> getByDepense(@PathVariable Long depenseId) {
-        return paiementDepenseService.getByDepense(depenseId);
+    public List<PaiementDepenseResponseDTO> getByDepense(
+            @PathVariable Long depenseId
+    ) {
+
+        return paiementDepenseService
+                .getByDepense(depenseId);
     }
 
-    @GetMapping("/ecole/{ecoleId}")
-    public List<PaiementDepenseResponseDTO> getByEcole(@PathVariable Long ecoleId) {
-        return paiementDepenseService.getByEcole(ecoleId);
+
+    // =========================================================
+    // PAIEMENTS D'UNE ÉCOLE POUR UNE ANNÉE
+    // =========================================================
+
+    @GetMapping("/ecole/{ecoleId}/annee/{anneeId}")
+    public List<PaiementDepenseResponseDTO> getByEcoleAndAnnee(
+            @PathVariable Long ecoleId,
+            @PathVariable Long anneeId
+    ) {
+
+        return paiementDepenseService
+                .getByEcoleAndAnnee(
+                        ecoleId,
+                        anneeId
+                );
     }
 }

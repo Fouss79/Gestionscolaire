@@ -56,5 +56,5 @@ public class OperationComptableDTO {
     private Double totalEmprunts;
     private Double totalRemboursements;
     private List<OperationComptableDTO> operations;
-
+    private Long anneeScolaireId;
 }

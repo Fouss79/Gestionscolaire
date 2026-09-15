@@ -4,6 +4,7 @@ import com.saas.school.entity.RemboursementEmprunt;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -15,4 +16,8 @@ public interface RemboursementEmpruntRepository
 
     List<RemboursementEmprunt>
     findByEmprunt_Ecole_IdOrderByDateRemboursementDesc(Long ecoleId);
-}
+    List<RemboursementEmprunt>
+    findByEmprunt_Ecole_IdAndEmprunt_AnneeScolaire_IdOrderByDateRemboursementDesc(
+            Long ecoleId,
+            Long anneeId
+    );}

@@ -65,4 +65,6 @@ public class EmpruntDTO {
      * NON_PAYE, PARTIEL ou PAYE
      */
     private String statutPaiement;
+
+    private Long anneeScolaireId; // <-- ajouté
 }

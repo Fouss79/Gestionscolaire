@@ -22,6 +22,17 @@ public class RemboursementEmprunt {
     private Emprunt emprunt;
 
     /**
+     * Année scolaire du remboursement.
+     *
+     * IMPORTANT :
+     * elle correspond à l'année pendant laquelle
+     * le remboursement est réellement effectué.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    private AnneeScolaire anneeScolaire;
+
+    /**
      * Montant du remboursement
      */
     @Column(nullable = false)

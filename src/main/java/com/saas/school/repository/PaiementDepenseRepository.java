@@ -3,6 +3,7 @@ package com.saas.school.repository;
 import com.saas.school.entity.PaiementDepense;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface PaiementDepenseRepository extends JpaRepository<PaiementDepense, Long> {
@@ -10,4 +11,6 @@ public interface PaiementDepenseRepository extends JpaRepository<PaiementDepense
     List<PaiementDepense> findByDepense_IdOrderByDatePaiementDesc(Long depenseId);
 
     List<PaiementDepense> findByDepense_Ecole_IdOrderByDatePaiementDesc(Long ecoleId);
+
+    Collection<PaiementDepense> findByDepense_Ecole_IdAndAnneeScolaire_IdOrderByDatePaiementDesc(Long ecoleId, Long anneeId);
 }

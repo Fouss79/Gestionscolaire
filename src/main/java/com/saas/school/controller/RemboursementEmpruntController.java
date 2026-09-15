@@ -19,7 +19,10 @@ public class RemboursementEmpruntController {
     private final RemboursementEmpruntService remboursementEmpruntService;
 
     /**
-     * Enregistrer un remboursement
+     * Enregistrer un remboursement.
+     *
+     * L'année scolaire est récupérée automatiquement
+     * depuis l'emprunt concerné.
      */
     @PostMapping
     public ResponseEntity<RemboursementEmpruntResponseDTO> enregistrerRemboursement(
@@ -34,7 +37,7 @@ public class RemboursementEmpruntController {
     }
 
     /**
-     * Récupérer les remboursements d'un emprunt
+     * Récupérer les remboursements d'un emprunt.
      */
     @GetMapping("/emprunt/{empruntId}")
     public ResponseEntity<List<RemboursementEmpruntResponseDTO>> getByEmprunt(
@@ -46,14 +49,16 @@ public class RemboursementEmpruntController {
     }
 
     /**
-     * Récupérer tous les remboursements d'une école
+     * Récupérer les remboursements d'une école
+     * pour une année scolaire donnée.
      */
-    @GetMapping("/ecole/{ecoleId}")
-    public ResponseEntity<List<RemboursementEmpruntResponseDTO>> getByEcole(
-            @PathVariable Long ecoleId
+    @GetMapping("/ecole/{ecoleId}/annee/{anneeId}")
+    public ResponseEntity<List<RemboursementEmpruntResponseDTO>> getByEcoleAndAnnee(
+            @PathVariable Long ecoleId,
+            @PathVariable Long anneeId
     ) {
         return ResponseEntity.ok(
-                remboursementEmpruntService.getByEcole(ecoleId)
+                remboursementEmpruntService.getByEcole(ecoleId, anneeId)
         );
     }
 }

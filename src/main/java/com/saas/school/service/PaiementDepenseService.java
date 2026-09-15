@@ -2,16 +2,16 @@ package com.saas.school.service;
 
 import com.saas.school.dto.PaiementDepenseRequestDTO;
 import com.saas.school.dto.PaiementDepenseResponseDTO;
+import com.saas.school.entity.AnneeScolaire;
 import com.saas.school.entity.Depense;
 import com.saas.school.entity.PaiementDepense;
-
+import com.saas.school.repository.AnneeScolaireRepository;
 import com.saas.school.repository.DepenseRepository;
 import com.saas.school.repository.PaiementDepenseRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -21,135 +21,427 @@ public class PaiementDepenseService {
 
     private final PaiementDepenseRepository paiementDepenseRepository;
     private final DepenseRepository depenseRepository;
+    private final AnneeScolaireRepository anneeScolaireRepository;
     private final OperationComptableService operationComptableService;
 
+
+    // ============================================================
+    // ENREGISTRER UN PAIEMENT
+    // ============================================================
+
     @Transactional
-    public PaiementDepenseResponseDTO enregistrerPaiement(PaiementDepenseRequestDTO dto) {
+    public PaiementDepenseResponseDTO enregistrerPaiement(
+            PaiementDepenseRequestDTO dto
+    ) {
+
+        // =========================
+        // VALIDATION
+        // =========================
+
+        if (dto == null) {
+            throw new RuntimeException("Les données du paiement sont obligatoires.");
+        }
 
         if (dto.getDepenseId() == null) {
             throw new RuntimeException("La dépense est obligatoire.");
         }
 
+        if (dto.getAnneeId() == null) {
+            throw new RuntimeException("L'année scolaire est obligatoire.");
+        }
+
         if (dto.getMontant() == null || dto.getMontant() <= 0) {
-            throw new RuntimeException("Le montant doit être supérieur à zéro.");
-        }
-        Depense depense = depenseRepository.findById(dto.getDepenseId())
-                .orElseThrow(() -> new RuntimeException("Dépense introuvable."));
-
-// ===== Détermination et validation de la date du paiement =====
-        LocalDate datePaiement = dto.getDatePaiement() != null
-                ? dto.getDatePaiement()
-                : LocalDate.now();
-
-        if (depense.getAnneeScolaire() != null) {
-            var annee = depense.getAnneeScolaire();
-
-            if (annee.getDateDebut() != null && datePaiement.isBefore(annee.getDateDebut())) {
-                throw new RuntimeException(
-                        "La date du paiement doit être postérieure au " + annee.getDateDebut()
-                );
-            }
-
-            if (annee.getDateFin() != null && datePaiement.isAfter(annee.getDateFin())) {
-                throw new RuntimeException(
-                        "La date du paiement doit être antérieure au " + annee.getDateFin()
-                );
-            }
-        }
-        double montantPayeActuel = depense.getMontantPaye() != null ? depense.getMontantPaye() : 0.0;
-        double montantTotal = depense.getMontantTotal() != null ? depense.getMontantTotal() : 0.0;
-        double resteActuel = montantTotal - montantPayeActuel;
-
-        if (dto.getMontant() > resteActuel) {
             throw new RuntimeException(
-                    "Le montant (" + dto.getMontant() + ") dépasse le reste à payer (" + resteActuel + ")."
+                    "Le montant doit être supérieur à zéro."
             );
         }
 
-        // ===== Création du versement =====
+
+        // =========================
+        // RÉCUPÉRER LA DÉPENSE
+        // =========================
+
+        Depense depense = depenseRepository.findById(dto.getDepenseId())
+                .orElseThrow(() ->
+                        new RuntimeException("Dépense introuvable.")
+                );
+
+
+        // =========================
+        // VÉRIFIER L'ÉCOLE
+        // =========================
+
+        if (depense.getEcole() == null) {
+            throw new RuntimeException(
+                    "La dépense n'est associée à aucune école."
+            );
+        }
+
+
+        // =========================
+        // RÉCUPÉRER L'ANNÉE
+        // =========================
+
+        AnneeScolaire annee = anneeScolaireRepository
+                .findById(dto.getAnneeId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Année scolaire introuvable."
+                        )
+                );
+
+
+        // =========================
+        // VÉRIFIER L'ÉCOLE DE L'ANNÉE
+        // =========================
+
+        if (annee.getEcole() == null) {
+            throw new RuntimeException(
+                    "L'année scolaire n'est associée à aucune école."
+            );
+        }
+
+        if (!annee.getEcole().getId()
+                .equals(depense.getEcole().getId())) {
+
+            throw new RuntimeException(
+                    "Cette année scolaire n'appartient pas à l'école de la dépense."
+            );
+        }
+
+
+        // ============================================================
+        // VÉRIFIER L'ANNÉE DE LA DÉPENSE
+        // ============================================================
+
+        if (depense.getAnneeScolaire() != null
+                && !depense.getAnneeScolaire().getId()
+                .equals(annee.getId())) {
+
+            throw new RuntimeException(
+                    "L'année scolaire du paiement ne correspond pas " +
+                            "à celle de la dépense."
+            );
+        }
+
+
+        // ============================================================
+        // CALCUL DU RESTE
+        // ============================================================
+
+        double montantPayeActuel =
+                depense.getMontantPaye() != null
+                        ? depense.getMontantPaye()
+                        : 0.0;
+
+        double montantTotal =
+                depense.getMontantTotal() != null
+                        ? depense.getMontantTotal()
+                        : 0.0;
+
+        double resteActuel =
+                Math.max(0.0, montantTotal - montantPayeActuel);
+
+
+        if (resteActuel <= 0) {
+            throw new RuntimeException(
+                    "Cette dépense est déjà entièrement payée."
+            );
+        }
+
+
+        if (dto.getMontant() > resteActuel) {
+            throw new RuntimeException(
+                    "Le montant (" + dto.getMontant()
+                            + ") dépasse le reste à payer ("
+                            + resteActuel + ")."
+            );
+        }
+
+
+        // ============================================================
+        // CRÉATION DU PAIEMENT
+        // ============================================================
+
         PaiementDepense paiement = new PaiementDepense();
 
         paiement.setDepense(depense);
+
+        paiement.setAnneeScolaire(annee);
+
         paiement.setMontant(dto.getMontant());
+
         paiement.setModePaiement(dto.getModePaiement());
 
+
+        // =========================
+        // RÉFÉRENCE
+        // =========================
+
         if ("CASH".equalsIgnoreCase(dto.getModePaiement())) {
-            paiement.setReference(genererReferenceCash());
+
+            paiement.setReference(
+                    genererReferenceCash()
+            );
+
         } else {
-            if (dto.getReference() == null || dto.getReference().isBlank()) {
-                throw new RuntimeException("La référence est obligatoire pour ce mode de paiement.");
+
+            if (dto.getReference() == null
+                    || dto.getReference().isBlank()) {
+
+                throw new RuntimeException(
+                        "La référence est obligatoire pour ce mode de paiement."
+                );
             }
-            paiement.setReference(dto.getReference().trim());
+
+            paiement.setReference(
+                    dto.getReference().trim()
+            );
         }
 
-        paiement.setDatePaiement(datePaiement.atStartOfDay());
 
-        // ===== Mise à jour de la dépense =====
-        double nouveauMontantPaye = montantPayeActuel + dto.getMontant();
-        double nouveauReste = montantTotal - nouveauMontantPaye;
+        paiement.setDatePaiement(
+                LocalDateTime.now()
+        );
 
-        depense.setMontantPaye(nouveauMontantPaye);
-        depense.setResteAPayer(Math.max(0.0, nouveauReste));
+
+        // ============================================================
+        // MISE À JOUR DE LA DÉPENSE
+        // ============================================================
+
+        double nouveauMontantPaye =
+                montantPayeActuel + dto.getMontant();
+
+        double nouveauReste =
+                Math.max(
+                        0.0,
+                        montantTotal - nouveauMontantPaye
+                );
+
+
+        depense.setMontantPaye(
+                nouveauMontantPaye
+        );
+
+        depense.setResteAPayer(
+                nouveauReste
+        );
+
+
+        // =========================
+        // STATUT
+        // =========================
 
         if (nouveauReste <= 0) {
-            depense.setResteAPayer(0.0);
-            depense.setStatutPaiement(StatutPaiement.PAYE);
+
+            depense.setStatutPaiement(
+                    StatutPaiement.PAYE
+            );
+
         } else if (nouveauMontantPaye > 0) {
-            depense.setStatutPaiement(StatutPaiement.PARTIEL);
+
+            depense.setStatutPaiement(
+                    StatutPaiement.PARTIEL
+            );
+
         } else {
-            depense.setStatutPaiement(StatutPaiement.NON_PAYE);
+
+            depense.setStatutPaiement(
+                    StatutPaiement.NON_PAYE
+            );
         }
+
+
+        // =========================
+        // SAUVEGARDE DÉPENSE
+        // =========================
 
         depenseRepository.save(depense);
 
-        PaiementDepense saved = paiementDepenseRepository.save(paiement);
 
-        // ===== Opération comptable (recette côté paiement scolarité,
-        //       ici une dépense) créée pour CE versement précis =====
-        operationComptableService.creerDepenseDepuisPaiement(saved, depense.getEcole());
+        // =========================
+        // SAUVEGARDE PAIEMENT
+        // =========================
+
+        PaiementDepense saved =
+                paiementDepenseRepository.save(paiement);
+
+
+        // ============================================================
+        // OPÉRATION COMPTABLE
+        // ============================================================
+
+        operationComptableService.creerDepenseDepuisPaiement(
+                saved,
+                depense.getEcole()
+        );
+
+
+        // =========================
+        // RETOUR
+        // =========================
 
         return mapToDto(saved);
     }
 
-    public List<PaiementDepenseResponseDTO> getByDepense(Long depenseId) {
+
+    // ============================================================
+    // PAIEMENTS D'UNE DÉPENSE
+    // ============================================================
+
+    public List<PaiementDepenseResponseDTO> getByDepense(
+            Long depenseId
+    ) {
+
         return paiementDepenseRepository
-                .findByDepense_IdOrderByDatePaiementDesc(depenseId)
+                .findByDepense_IdOrderByDatePaiementDesc(
+                        depenseId
+                )
                 .stream()
                 .map(this::mapToDto)
                 .toList();
     }
 
-    public List<PaiementDepenseResponseDTO> getByEcole(Long ecoleId) {
+
+    // ============================================================
+    // PAIEMENTS D'UNE ÉCOLE POUR UNE ANNÉE
+    // ============================================================
+
+    public List<PaiementDepenseResponseDTO> getByEcoleAndAnnee(
+            Long ecoleId,
+            Long anneeId
+    ) {
+
+        if (ecoleId == null) {
+            throw new RuntimeException("L'école est obligatoire.");
+        }
+
+        if (anneeId == null) {
+            throw new RuntimeException("L'année scolaire est obligatoire.");
+        }
+
+        AnneeScolaire annee = anneeScolaireRepository
+                .findById(anneeId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Année scolaire introuvable."
+                        )
+                );
+
+        if (annee.getEcole() == null
+                || !annee.getEcole().getId().equals(ecoleId)) {
+
+            throw new RuntimeException(
+                    "Cette année scolaire n'appartient pas à cette école."
+            );
+        }
+
         return paiementDepenseRepository
-                .findByDepense_Ecole_IdOrderByDatePaiementDesc(ecoleId)
+                .findByDepense_Ecole_IdAndAnneeScolaire_IdOrderByDatePaiementDesc(
+                        ecoleId,
+                        anneeId
+                )
                 .stream()
                 .map(this::mapToDto)
                 .toList();
     }
+
+
+    // ============================================================
+    // RÉFÉRENCE CASH
+    // ============================================================
 
     private String genererReferenceCash() {
+
         return "DEP-" + System.currentTimeMillis();
     }
 
-    private PaiementDepenseResponseDTO mapToDto(PaiementDepense p) {
 
-        Depense depense = p.getDepense();
+    // ============================================================
+    // MAPPING DTO
+    // ============================================================
 
-        PaiementDepenseResponseDTO dto = new PaiementDepenseResponseDTO();
+    private PaiementDepenseResponseDTO mapToDto(
+            PaiementDepense p
+    ) {
+
+        PaiementDepenseResponseDTO dto =
+                new PaiementDepenseResponseDTO();
 
         dto.setId(p.getId());
-        dto.setDepenseId(depense.getId());
-        dto.setDepenseLibelle(depense.getLibelle());
 
-        dto.setMontant(p.getMontant());
-        dto.setModePaiement(p.getModePaiement());
-        dto.setReference(p.getReference());
-        dto.setDatePaiement(p.getDatePaiement());
 
-        dto.setMontantTotal(depense.getMontantTotal());
-        dto.setMontantPayeTotal(depense.getMontantPaye());
-        dto.setResteAPayer(depense.getResteAPayer());
-        dto.setStatutPaiement(depense.getStatutPaiement() != null ? depense.getStatutPaiement().name() : null);
+        // =========================
+        // DÉPENSE
+        // =========================
+
+        if (p.getDepense() != null) {
+
+            Depense depense = p.getDepense();
+
+            dto.setDepenseId(
+                    depense.getId()
+            );
+
+            dto.setDepenseLibelle(
+                    depense.getLibelle()
+            );
+
+            dto.setMontantTotal(
+                    depense.getMontantTotal()
+            );
+
+            dto.setMontantPayeTotal(
+                    depense.getMontantPaye()
+            );
+
+            dto.setResteAPayer(
+                    depense.getResteAPayer()
+            );
+
+            dto.setStatutPaiement(
+                    depense.getStatutPaiement() != null
+                            ? depense.getStatutPaiement().name()
+                            : null
+            );
+        }
+
+
+        // =========================
+        // PAIEMENT
+        // =========================
+
+        dto.setMontant(
+                p.getMontant()
+        );
+
+        dto.setModePaiement(
+                p.getModePaiement()
+        );
+
+        dto.setReference(
+                p.getReference()
+        );
+
+        dto.setDatePaiement(
+                p.getDatePaiement()
+        );
+
+
+        // =========================
+        // ANNÉE SCOLAIRE
+        // =========================
+
+        if (p.getAnneeScolaire() != null) {
+
+            dto.setAnneeId(
+                    p.getAnneeScolaire().getId()
+            );
+
+            dto.setAnneeLibelle(
+                    p.getAnneeScolaire().getNom()
+            );
+        }
 
         return dto;
     }
