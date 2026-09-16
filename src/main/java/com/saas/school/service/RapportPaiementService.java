@@ -52,6 +52,16 @@ public class RapportPaiementService {
         // =================================================
 
         Eleve eleve = inscription.getEleve();
+        // =================================================
+// ÉTABLISSEMENT
+// =================================================
+
+        rapport.setNomEtablissement(
+                inscription.getEcole() != null
+                        && inscription.getEcole().getNom() != null
+                        ? inscription.getEcole().getNom()
+                        : "-"
+        );
 
         if (eleve != null) {
 
@@ -85,6 +95,7 @@ public class RapportPaiementService {
                         ? eleve.getMatricule()
                         : "-"
         );
+
 
         // =================================================
         // CLASSE

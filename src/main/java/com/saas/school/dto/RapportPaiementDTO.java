@@ -23,7 +23,7 @@ public class RapportPaiementDTO {
     private String classe;
 
     private String anneeScolaire;
-
+    private String nomEtablissement;
 
     // ===============================
     // FRAIS
