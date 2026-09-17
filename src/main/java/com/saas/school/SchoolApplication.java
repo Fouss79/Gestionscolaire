@@ -88,6 +88,10 @@ private final EcoleRepository ecoleRepository;
 			creerPermission(permissionRepository,
 					"GESTION_COMPTABILITES",
 					"Gestion des comptabilités");
+			creerPermission(permissionRepository,
+					"GESTION_EXAMENS",
+					"Gestion des examens");
+
 
 			// Rôles
 			Role superAdminRole = creerRole(roleRepository, "SUPER_ADMIN");
