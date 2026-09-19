@@ -1,13 +1,14 @@
 package com.saas.school.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 
-@Data
 @Entity
+@Data
 @Table(name = "examen")
 public class Examen {
 
@@ -16,23 +17,41 @@ public class Examen {
     private Long id;
 
     @Column(nullable = false)
-    private String libelle;
-
-    @Column(nullable = false)
-    private LocalDate dateExamen;
-
-    private LocalTime heureDebut;
-
-    private LocalTime heureFin;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "annee_id", nullable = false)
-    private AnneeScolaire anneeScolaire;
+    private String nom; // "Composition du 1er trimestre 2026-2027"
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ecole_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Ecole ecole;
 
-    @Column(nullable = false)
-    private boolean actif = true;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "annee_scolaire_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private AnneeScolaire anneeScolaire;
+
+    private LocalDate dateDebut;
+    private LocalDate dateFin;
+
+    @Enumerated(EnumType.STRING)
+    private StatutExamen statut = StatutExamen.PLANIFIE;
+
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public enum StatutExamen {
+        PLANIFIE, EN_COURS, TERMINE
+    }
 }

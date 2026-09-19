@@ -18,4 +18,6 @@ public class Salle {
     @ManyToOne
     @JoinColumn(name = "ecole_id", nullable = false)
     private Ecole ecole;
+    @Column(nullable=false)
+    private boolean active=true;
 }

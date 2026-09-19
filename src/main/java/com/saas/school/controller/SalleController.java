@@ -27,7 +27,13 @@ public class SalleController {
     public Salle creer(@RequestBody SalleRequest request) {
         return salleService.creer(request.getNom(), request.getCapacite(), request.getEcoleId());
     }
-
+    @PatchMapping("/{id}/active")
+    public Salle changerStatut(
+            @PathVariable Long id,
+            @RequestParam boolean active
+    ) {
+        return salleService.changerStatut(id, active);
+    }
     @GetMapping("/ecole/{ecoleId}")
     public List<Salle> getByEcole(@PathVariable Long ecoleId) {
         return salleService.getByEcole(ecoleId);

@@ -33,16 +33,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
+
+        System.out.println("🔐 JWT REQUEST: " + request.getMethod() + " " + request.getRequestURI());
+        System.out.println("🔐 AUTH HEADER PRESENT: " + (authHeader != null));
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String token = authHeader.substring(7);
+        System.out.println("🔐 TOKEN PRESENT: " + (!token.isEmpty() && !token.equals("null")));
 
         if (!token.equals("null") && !token.isEmpty()) {
             try {
                 String email = jwtService.extractEmail(token);
+                System.out.println("🔐 EMAIL JWT: " + email);
                 List<String> permissions = jwtService.extractPermissions(token);
 
                 Utilisateur user = utilisateurRepository.findByEmail(email).orElse(null);
@@ -50,7 +56,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 if (user != null) {
                     List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                     authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().getNom()));
-
+                    System.out.println("🔐 USER TROUVÉ: " + user.getEmail());
+                    System.out.println("🔐 ROLE: " + user.getRole().getNom());
                     if (permissions != null && !permissions.isEmpty()) {
                         permissions.forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
                     }

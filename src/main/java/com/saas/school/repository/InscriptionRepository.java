@@ -73,4 +73,8 @@ public interface InscriptionRepository extends JpaRepository<Inscription, Long> 
 
 
     List<Inscription> findByEcole_IdAndAnneeScolaire_ActiveTrue(Long ecoleId);
+
+    List<Inscription> findByAnneeScolaireIdAndStatutAndClasse_Niveau_IdAndClasse_Serie_Id(Long id, StatutInscription statutInscription, Long niveauId, Long serieId);
+
+    List<Inscription> findByAnneeScolaireIdAndStatutAndClasse_Niveau_Id(Long id, StatutInscription statutInscription, Long niveauId);
 }

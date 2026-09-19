@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface SalleRepository extends JpaRepository<Salle, Long> {
     List<Salle> findByEcoleId(Long ecoleId);
+
+    List<Salle> findByEcoleIdAndActiveTrueOrderByIdAsc(Long id);
 }

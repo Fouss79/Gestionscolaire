@@ -5,6 +5,7 @@ import com.saas.school.entity.Ecole;
 import com.saas.school.entity.Salle;
 import com.saas.school.repository.EcoleRepository;
 import com.saas.school.repository.SalleRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,15 @@ public class SalleService {
 
         return salleRepository.save(salle);
     }
+    @Transactional
+    public Salle changerStatut(Long id, boolean active) {
+        Salle salle = salleRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Salle introuvable"));
 
+        salle.setActive(active);
+
+        return salleRepository.save(salle);
+    }
     public List<Salle> getByEcole(Long ecoleId) {
         return salleRepository.findByEcoleId(ecoleId);
     }
