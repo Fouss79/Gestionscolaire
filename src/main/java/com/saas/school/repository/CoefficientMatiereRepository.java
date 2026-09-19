@@ -17,6 +17,30 @@ public interface CoefficientMatiereRepository extends JpaRepository<CoefficientM
     Optional<CoefficientMatiere> findByEcoleIdAndMatiereIdAndNiveauIdAndSerieIdAndAnneeScolaireId(
             Long ecoleId, Long matiereId, Long niveauId, Long serieId, Long anneeScolaireId
     );
+    @Query("""
+    SELECT DISTINCT c
+    FROM CoefficientMatiere c
+    LEFT JOIN FETCH c.matiere
+    LEFT JOIN FETCH c.niveau
+    LEFT JOIN FETCH c.serie
+    LEFT JOIN FETCH c.classe
+    LEFT JOIN FETCH c.sousGroupe
+    WHERE c.ecole.id = :ecoleId
+      AND c.anneeScolaire.id = :anneeScolaireId
+      AND c.niveau.id = :niveauId
+      AND (
+            (:serieId IS NULL AND c.serie IS NULL)
+            OR
+            (:serieId IS NOT NULL AND c.serie.id = :serieId)
+          )
+    ORDER BY c.matiere.nom ASC
+""")
+    List<CoefficientMatiere> findProgrammesPourNiveauEtSerie(
+            @Param("ecoleId") Long ecoleId,
+            @Param("anneeScolaireId") Long anneeScolaireId,
+            @Param("niveauId") Long niveauId,
+            @Param("serieId") Long serieId
+    );
 
     Optional<CoefficientMatiere> findByEcoleIdAndMatiereIdAndNiveauIdAndSerieIsNullAndAnneeScolaireId(
             Long ecoleId, Long matiereId, Long niveauId, Long anneeScolaireId

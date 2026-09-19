@@ -6,6 +6,8 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Data
@@ -17,7 +19,7 @@ public class Examen {
     private Long id;
 
     @Column(nullable = false)
-    private String nom; // "Composition du 1er trimestre 2026-2027"
+    private String nom;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ecole_id", nullable = false)
@@ -28,6 +30,14 @@ public class Examen {
     @JoinColumn(name = "annee_scolaire_id", nullable = false)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private AnneeScolaire anneeScolaire;
+
+    @ManyToMany
+    @JoinTable(
+            name = "examen_classe",
+            joinColumns = @JoinColumn(name = "examen_id"),
+            inverseJoinColumns = @JoinColumn(name = "classe_id")
+    )
+    private Set<Classe> classes = new HashSet<>();
 
     private LocalDate dateDebut;
     private LocalDate dateFin;
@@ -52,6 +62,8 @@ public class Examen {
     }
 
     public enum StatutExamen {
-        PLANIFIE, EN_COURS, TERMINE
+        PLANIFIE,
+        EN_COURS,
+        TERMINE
     }
 }

@@ -48,7 +48,20 @@ public class CoefficientMatiereController {
 
         return coefficientService.getByEcole(ecoleId);
     }
-
+    @GetMapping("/programme/niveau-serie")
+    public List<CoefficientMatiere> findProgrammesPourNiveauEtSerie(
+            @RequestParam Long ecoleId,
+            @RequestParam Long anneeScolaireId,
+            @RequestParam Long niveauId,
+            @RequestParam(required = false) Long serieId
+    ) {
+        return coefficientService.findProgrammesPourNiveauEtSerie(
+                ecoleId,
+                anneeScolaireId,
+                niveauId,
+                serieId
+        );
+    }
 
 
     @GetMapping("/ecole/{ecoleId}/annee/{anneeScolaireId}")

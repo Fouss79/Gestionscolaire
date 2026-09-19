@@ -4,6 +4,7 @@ import com.saas.school.dto.CoefficientMatiereRequest;
 import com.saas.school.dto.CoefficientMatiereResponseDTO;
 import com.saas.school.entity.*;
 import com.saas.school.repository.*;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -113,7 +114,20 @@ public class CoefficientMatiereService {
                 .map(this::mapToDto)
                 .toList();
     }
-
+    @Transactional(readOnly = true)
+    public List<CoefficientMatiere> findProgrammesPourNiveauEtSerie(
+            Long ecoleId,
+            Long anneeScolaireId,
+            Long niveauId,
+            Long serieId
+    ) {
+        return coefficientRepository.findProgrammesPourNiveauEtSerie(
+                ecoleId,
+                anneeScolaireId,
+                niveauId,
+                serieId
+        );
+    }
     public void supprimer(Long id) {
         if (!coefficientRepository.existsById(id)) {
             throw new RuntimeException("Coefficient introuvable");
