@@ -13,20 +13,26 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Répartition des élèves de l'examen dans le pool de salles sélectionné.
+ * Répartition des élèves d'un examen dans le pool de salles sélectionné.
  *
- * Architecture (voir schéma validé) :
- *   Examen
- *     ├── classes sélectionnées (Examen.classes)
- *     ├── salles sélectionnées (Examen.salles)
- *     └── répartition élève → salle (RepartitionExamen), calculée une
- *         seule fois pour tout l'examen, consultable filtrée par épreuve.
+ * Architecture :
  *
- * Les salles ne sont PAS réservées à une classe précise : c'est un pool
- * commun. L'algorithme regroupe les élèves classe par classe (pour
- * limiter le mélange) puis remplit les salles dans l'ordre, mais une
- * salle peut contenir des élèves de deux classes différentes si les
- * effectifs ne tombent pas juste sur les capacités.
+ * Examen
+ *   ├── classes sélectionnées
+ *   ├── salles sélectionnées via ExamenSalle
+ *   └── RepartitionExamen
+ *          ├── élève
+ *          └── salle
+ *
+ * Les salles constituent un pool commun.
+ *
+ * L'algorithme cherche à :
+ * - utiliser plusieurs salles lorsque nécessaire ;
+ * - ne pas attendre qu'une salle soit pleine avant d'utiliser une autre ;
+ * - mélanger les élèves provenant de plusieurs classes ;
+ * - respecter la capacité maximale de chaque salle.
+ *
+ * Classe.salle_id n'est PAS utilisé pour la répartition de l'examen.
  */
 @Service
 @RequiredArgsConstructor
@@ -41,22 +47,13 @@ public class RepartitionExamenService {
 
     // ================================================================
     // ÉLÈVES ÉLIGIBLES POUR TOUT L'EXAMEN
-    // (tous les élèves de toutes les classes de l'examen)
     // ================================================================
-
 
     @Transactional(readOnly = true)
     public List<Inscription> getElevesEligibles(Long examenId) {
 
         Examen examen = getExamen(examenId);
 
-        System.out.println("=== REPARTITION EXAMEN ===");
-        System.out.println("Examen ID = " + examen.getId());
-        System.out.println("Année ID = " +
-                (examen.getAnneeScolaire() != null
-                        ? examen.getAnneeScolaire().getId()
-                        : null));
-
         if (examen.getAnneeScolaire() == null) {
             throw new ExamenBusinessException(
                     "L'année scolaire de l'examen est introuvable"
@@ -65,59 +62,34 @@ public class RepartitionExamenService {
 
         Set<Classe> classes = examen.getClasses();
 
-        System.out.println("Nombre de classes = " +
-                (classes != null ? classes.size() : 0));
-
         if (classes == null || classes.isEmpty()) {
             throw new ExamenBusinessException(
                     "Aucune classe n'est associée à cet examen"
             );
         }
 
-        for (Classe classe : classes) {
-
-            System.out.println(
-                    "Classe ID = " + classe.getId()
-            );
-
-            List<Inscription> inscriptions =
-                    inscriptionRepository.findByClasseIdAndAnneeScolaireId(
-                            classe.getId(),
-                            examen.getAnneeScolaire().getId()
-                    );
-
-            System.out.println(
-                    "Inscriptions trouvées = " + inscriptions.size()
-            );
-
-            for (Inscription inscription : inscriptions) {
-                System.out.println(
-                        "  inscription=" + inscription.getId()
-                                + " statut=" + inscription.getStatut()
-                );
-            }
-        }
-
-        List<Inscription> result =
-                inscriptionsParClasseTriees(
-                        classes,
-                        examen.getAnneeScolaire().getId()
-                );
-
-        System.out.println(
-                "TOTAL ÉLÈVES = " + result.size()
+        return inscriptionsParClasseTriees(
+                classes,
+                examen.getAnneeScolaire().getId()
         );
-
-        return result;
     }
+
     // ================================================================
     // RÉPARTITION AUTOMATIQUE
     // ================================================================
 
     @Transactional
-    public List<RepartitionExamenResponse> repartirAutomatiquement(Long examenId) {
+    public List<RepartitionExamenResponse> repartirAutomatiquement(
+            Long examenId
+    ) {
 
         Examen examen = getExamen(examenId);
+
+        if (examen.getAnneeScolaire() == null) {
+            throw new ExamenBusinessException(
+                    "L'année scolaire de l'examen est introuvable"
+            );
+        }
 
         Set<Classe> classes = examen.getClasses();
 
@@ -127,11 +99,9 @@ public class RepartitionExamenService {
             );
         }
 
-        if (examen.getAnneeScolaire() == null) {
-            throw new ExamenBusinessException(
-                    "L'année scolaire de l'examen est introuvable"
-            );
-        }
+        // ------------------------------------------------------------
+        // Salles sélectionnées pour l'examen
+        // ------------------------------------------------------------
 
         List<ExamenSalle> affectationsSalles =
                 examenSalleRepository.findByExamenId(examenId);
@@ -144,80 +114,95 @@ public class RepartitionExamenService {
 
         List<Salle> salles = affectationsSalles.stream()
                 .map(ExamenSalle::getSalle)
+                .filter(Objects::nonNull)
                 .filter(Salle::isActive)
-                .sorted(Comparator.comparing(
-                        Salle::getNom,
-                        Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)
-                ))
+                .filter(salle ->
+                        salle.getCapacite() != null
+                                && salle.getCapacite() > 0
+                )
+                .distinct()
+                .sorted(
+                        Comparator.comparing(
+                                Salle::getNom,
+                                Comparator.nullsLast(
+                                        String.CASE_INSENSITIVE_ORDER
+                                )
+                        )
+                )
                 .toList();
 
         if (salles.isEmpty()) {
             throw new ExamenBusinessException(
-                    "Aucune salle active n'est disponible pour cet examen"
+                    "Aucune salle active avec une capacité valide " +
+                            "n'est disponible pour cet examen"
             );
         }
 
-        // Élèves groupés classe par classe (ordre stable) pour limiter
-        // le mélange entre classes dans une même salle.
-        List<Inscription> eleves =
-                inscriptionsParClasseTriees(classes, examen.getAnneeScolaire().getId());
+        // ------------------------------------------------------------
+        // Élèves concernés
+        // ------------------------------------------------------------
 
-        if (eleves.isEmpty()) {
+        Map<Long, List<Inscription>> elevesParClasse =
+                recupererElevesParClasse(
+                        classes,
+                        examen.getAnneeScolaire().getId()
+                );
+
+        if (elevesParClasse.isEmpty()) {
             throw new ExamenBusinessException(
                     "Aucun élève n'est concerné par cet examen"
             );
         }
 
+        int nombreTotalEleves = elevesParClasse.values()
+                .stream()
+                .mapToInt(List::size)
+                .sum();
+
+        // ------------------------------------------------------------
+        // Capacité totale
+        // ------------------------------------------------------------
+
         int capaciteTotale = salles.stream()
                 .map(Salle::getCapacite)
-                .filter(c -> c != null && c > 0)
+                .filter(Objects::nonNull)
+                .filter(c -> c > 0)
                 .mapToInt(Integer::intValue)
                 .sum();
 
-        if (capaciteTotale < eleves.size()) {
+        if (capaciteTotale < nombreTotalEleves) {
             throw new ExamenBusinessException(
-                    "Capacité insuffisante : " + eleves.size()
-                            + " élèves pour " + capaciteTotale
+                    "Capacité insuffisante : "
+                            + nombreTotalEleves
+                            + " élèves pour "
+                            + capaciteTotale
                             + " places disponibles"
             );
         }
 
-        List<RepartitionExamen> nouvellesRepartitions = new ArrayList<>();
+        // ------------------------------------------------------------
+        // Nouvelle répartition
+        // ------------------------------------------------------------
 
-        int indexEleve = 0;
+        List<RepartitionExamen> nouvellesRepartitions =
+                repartirElevesEquitablement(
+                        examen,
+                        elevesParClasse,
+                        salles
+                );
 
-        for (Salle salle : salles) {
-
-            if (salle.getCapacite() == null || salle.getCapacite() <= 0) {
-                continue;
-            }
-
-            int nombreAffectes = 0;
-
-            while (indexEleve < eleves.size()
-                    && nombreAffectes < salle.getCapacite()) {
-
-                Inscription inscription = eleves.get(indexEleve);
-
-                RepartitionExamen repartition = new RepartitionExamen();
-                repartition.setExamen(examen);
-                repartition.setInscription(inscription);
-                repartition.setSalle(salle);
-
-                nouvellesRepartitions.add(repartition);
-
-                indexEleve++;
-                nombreAffectes++;
-            }
-        }
-
-        if (indexEleve < eleves.size()) {
+        if (nouvellesRepartitions.size() != nombreTotalEleves) {
             throw new ExamenBusinessException(
                     "Impossible de répartir tous les élèves"
             );
         }
 
+        // ------------------------------------------------------------
+        // Remplacer l'ancienne répartition
+        // ------------------------------------------------------------
+
         repartitionRepository.deleteByExamenId(examenId);
+
         repartitionRepository.saveAll(nouvellesRepartitions);
 
         return nouvellesRepartitions.stream()
@@ -226,11 +211,153 @@ public class RepartitionExamenService {
     }
 
     // ================================================================
+    // ALGORITHME DE RÉPARTITION
+    // ================================================================
+
+    /**
+     * Répartit les élèves sur toutes les salles disponibles.
+     *
+     * Principe :
+     *
+     * 1. Les élèves sont regroupés par classe.
+     * 2. Les salles sont utilisées comme un pool commun.
+     * 3. On effectue plusieurs passages sur les classes.
+     * 4. À chaque passage, on donne un élève de chaque classe
+     *    à la salle suivante disponible.
+     * 5. On passe régulièrement d'une salle à l'autre.
+     *
+     * Ainsi, une salle n'a pas besoin d'être pleine avant que
+     * les autres salles commencent à recevoir des élèves.
+     */
+    private List<RepartitionExamen> repartirElevesEquitablement(
+            Examen examen,
+            Map<Long, List<Inscription>> elevesParClasse,
+            List<Salle> salles
+    ) {
+
+        // ------------------------------------------------------------
+        // Files d'élèves par classe
+        // ------------------------------------------------------------
+
+        List<Queue<Inscription>> files = elevesParClasse.values()
+                .stream()
+                .map(LinkedList::new)
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        List<RepartitionExamen> repartitions = new ArrayList<>();
+
+        // ------------------------------------------------------------
+        // Places restantes par salle
+        // ------------------------------------------------------------
+
+        int[] placesRestantes = new int[salles.size()];
+
+        for (int i = 0; i < salles.size(); i++) {
+            placesRestantes[i] = salles.get(i).getCapacite();
+        }
+
+        int indexSalle = 0;
+
+        // ------------------------------------------------------------
+        // Tant qu'il reste des élèves
+        // ------------------------------------------------------------
+
+        while (!toutesLesFilesVides(files)) {
+
+            boolean affectationEffectuee = false;
+
+            /*
+             * On fait un tour des classes.
+             *
+             * Pour chaque classe, on cherche une salle disponible.
+             */
+            for (Queue<Inscription> file : files) {
+
+                if (file.isEmpty()) {
+                    continue;
+                }
+
+                int salleTrouvee = trouverProchaineSalleDisponible(
+                        placesRestantes,
+                        indexSalle
+                );
+
+                if (salleTrouvee == -1) {
+                    throw new ExamenBusinessException(
+                            "Impossible de trouver une salle disponible"
+                    );
+                }
+
+                Inscription inscription = file.poll();
+
+                RepartitionExamen repartition =
+                        new RepartitionExamen();
+
+                repartition.setExamen(examen);
+                repartition.setInscription(inscription);
+                repartition.setSalle(salles.get(salleTrouvee));
+
+                repartitions.add(repartition);
+
+                placesRestantes[salleTrouvee]--;
+
+                /*
+                 * La prochaine classe commencera à chercher
+                 * à partir de la salle suivante.
+                 */
+                indexSalle = (salleTrouvee + 1) % salles.size();
+
+                affectationEffectuee = true;
+            }
+
+            if (!affectationEffectuee) {
+                break;
+            }
+        }
+
+        return repartitions;
+    }
+
+    /**
+     * Cherche une salle ayant encore de la place.
+     *
+     * On commence à partir de startIndex et on tourne
+     * dans le pool des salles.
+     */
+    private int trouverProchaineSalleDisponible(
+            int[] placesRestantes,
+            int startIndex
+    ) {
+
+        for (int i = 0; i < placesRestantes.length; i++) {
+
+            int index =
+                    (startIndex + i) % placesRestantes.length;
+
+            if (placesRestantes[index] > 0) {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private boolean toutesLesFilesVides(
+            List<Queue<Inscription>> files
+    ) {
+
+        return files.stream()
+                .allMatch(Queue::isEmpty);
+    }
+
+    // ================================================================
     // CONSULTATION
     // ================================================================
 
     @Transactional(readOnly = true)
-    public List<RepartitionExamenResponse> getRepartition(Long examenId) {
+    public List<RepartitionExamenResponse> getRepartition(
+            Long examenId
+    ) {
 
         getExamen(examenId);
 
@@ -240,13 +367,15 @@ public class RepartitionExamenService {
                 .toList();
     }
 
+    // ================================================================
+    // RÉPARTITION PAR ÉPREUVE
+    // ================================================================
+
     /**
-     * Répartition filtrée pour une épreuve donnée : ne garde que les
-     * classes de l'examen dont le niveau + série correspondent au
-     * programme de l'épreuve, puis applique le filtrage fin
-     * (sous-groupe, options...) via ProgrammeEleveService.
+     * Retourne la répartition des élèves concernés par une épreuve.
      *
-     * Utile pour générer une feuille de présence par épreuve.
+     * La salle reste celle attribuée au niveau de l'examen.
+     * On ne crée PAS une nouvelle répartition par épreuve.
      */
     @Transactional(readOnly = true)
     public List<RepartitionExamenResponse> getRepartitionParEpreuve(
@@ -256,9 +385,13 @@ public class RepartitionExamenService {
 
         Examen examen = getExamen(examenId);
 
-        EpreuveExamen epreuve = epreuveExamenRepository.findById(epreuveId)
-                .orElseThrow(() ->
-                        new ExamenBusinessException("Épreuve introuvable"));
+        EpreuveExamen epreuve =
+                epreuveExamenRepository.findById(epreuveId)
+                        .orElseThrow(() ->
+                                new ExamenBusinessException(
+                                        "Épreuve introuvable"
+                                )
+                        );
 
         if (epreuve.getExamen() == null
                 || !epreuve.getExamen().getId().equals(examenId)) {
@@ -268,7 +401,8 @@ public class RepartitionExamenService {
             );
         }
 
-        CoefficientMatiere programme = epreuve.getCoefficientMatiere();
+        CoefficientMatiere programme =
+                epreuve.getCoefficientMatiere();
 
         if (programme == null) {
             throw new ExamenBusinessException(
@@ -279,8 +413,14 @@ public class RepartitionExamenService {
         Set<Long> classeIdsConcernees =
                 examen.getClasses() == null
                         ? Set.of()
-                        : examen.getClasses().stream()
-                        .filter(c -> estCompatibleNiveauSerie(c, programme))
+                        : examen.getClasses()
+                        .stream()
+                        .filter(c ->
+                                estCompatibleNiveauSerie(
+                                        c,
+                                        programme
+                                )
+                        )
                         .map(Classe::getId)
                         .collect(Collectors.toSet());
 
@@ -288,12 +428,16 @@ public class RepartitionExamenService {
             return List.of();
         }
 
-        return repartitionRepository.findByExamenId(examenId).stream()
+        return repartitionRepository
+                .findByExamenId(examenId)
+                .stream()
                 .filter(r ->
                         r.getInscription() != null
                                 && r.getInscription().getClasse() != null
                                 && classeIdsConcernees.contains(
-                                r.getInscription().getClasse().getId()
+                                r.getInscription()
+                                        .getClasse()
+                                        .getId()
                         )
                 )
                 .filter(r ->
@@ -306,38 +450,82 @@ public class RepartitionExamenService {
                 .toList();
     }
 
+    // ================================================================
+    // RÉPARTITION GROUPÉE PAR SALLE
+    // ================================================================
+
     /**
-     * Répartition groupée par salle : une entrée par salle utilisée,
-     * avec la liste des élèves qui s'y trouvent. Pratique pour l'affichage
-     * "Salle 101 : 25 élèves" et l'impression des feuilles de salle.
+     * Retourne une liste de groupes :
+     *
+     * Salle 1
+     *   ├── élève
+     *   ├── élève
+     *   └── ...
+     *
+     * Salle 2
+     *   ├── élève
+     *   └── ...
      */
     @Transactional(readOnly = true)
-    public List<RepartitionSalleGroupResponse> getRepartitionGroupeeParSalle(
-            Long examenId
-    ) {
+    public List<RepartitionSalleGroupResponse>
+    getRepartitionGroupeeParSalle(Long examenId) {
 
         getExamen(examenId);
 
         List<RepartitionExamen> repartitions =
                 repartitionRepository.findByExamenId(examenId);
 
-        Map<Long, List<RepartitionExamen>> parSalle = repartitions.stream()
-                .collect(Collectors.groupingBy(r -> r.getSalle().getId()));
+        if (repartitions.isEmpty()) {
+            return List.of();
+        }
 
-        return parSalle.values().stream()
+        Map<Long, List<RepartitionExamen>> parSalle =
+                repartitions.stream()
+                        .filter(r -> r.getSalle() != null)
+                        .collect(
+                                Collectors.groupingBy(
+                                        r -> r.getSalle().getId(),
+                                        LinkedHashMap::new,
+                                        Collectors.toList()
+                                )
+                        );
+
+        return parSalle.values()
+                .stream()
                 .map(groupe -> {
 
                     Salle salle = groupe.get(0).getSalle();
 
-                    List<RepartitionExamenResponse> eleves = groupe.stream()
-                            .map(RepartitionExamenResponse::from)
-                            .sorted(Comparator.comparing(
-                                    r -> (r.getEleveNom() == null ? "" : r.getEleveNom())
-                                            + (r.getElevePrenom() == null ? "" : r.getElevePrenom())
-                            ))
-                            .toList();
+                    List<RepartitionExamenResponse> eleves =
+                            groupe.stream()
+                                    .map(RepartitionExamenResponse::from)
+                                    .sorted(
+                                            Comparator.comparing(
+                                                    r -> {
+                                                        String nom =
+                                                                r.getEleveNom() == null
+                                                                        ? ""
+                                                                        : r.getEleveNom();
 
-                    return RepartitionSalleGroupResponse.builder()
+                                                        String prenom =
+                                                                r.getElevePrenom() == null
+                                                                        ? ""
+                                                                        : r.getElevePrenom();
+
+                                                        return (
+                                                                nom
+                                                                        + " "
+                                                                        + prenom
+                                                        ).toLowerCase(
+                                                                Locale.ROOT
+                                                        );
+                                                    }
+                                            )
+                                    )
+                                    .toList();
+
+                    return RepartitionSalleGroupResponse
+                            .builder()
                             .salleId(salle.getId())
                             .salleNom(salle.getNom())
                             .salleCapacite(salle.getCapacite())
@@ -345,12 +533,20 @@ public class RepartitionExamenService {
                             .eleves(eleves)
                             .build();
                 })
-                .sorted(Comparator.comparing(
-                        RepartitionSalleGroupResponse::getSalleNom,
-                        Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)
-                ))
+                .sorted(
+                        Comparator.comparing(
+                                RepartitionSalleGroupResponse::getSalleNom,
+                                Comparator.nullsLast(
+                                        String.CASE_INSENSITIVE_ORDER
+                                )
+                        )
+                )
                 .toList();
     }
+
+    // ================================================================
+    // SUPPRESSION
+    // ================================================================
 
     @Transactional
     public void supprimerRepartition(Long examenId) {
@@ -361,50 +557,106 @@ public class RepartitionExamenService {
     }
 
     // ================================================================
-    // UTILITAIRES
+    // RÉCUPÉRATION DES ÉLÈVES PAR CLASSE
     // ================================================================
 
-    /**
-     * Récupère les inscriptions de toutes les classes données, groupées
-     * classe par classe (dans l'ordre des classes fourni), afin de
-     * limiter le mélange entre classes lors du remplissage des salles.
-     */
+    private Map<Long, List<Inscription>> recupererElevesParClasse(
+            Set<Classe> classes,
+            Long anneeScolaireId
+    ) {
+
+        List<Classe> classesTriees =
+                classes.stream()
+                        .sorted(
+                                Comparator.comparing(
+                                        Classe::getNomComplet,
+                                        Comparator.nullsLast(
+                                                String.CASE_INSENSITIVE_ORDER
+                                        )
+                                )
+                        )
+                        .toList();
+
+        Map<Long, List<Inscription>> resultat =
+                new LinkedHashMap<>();
+
+        for (Classe classe : classesTriees) {
+
+            List<Inscription> inscriptions =
+                    inscriptionRepository
+                            .findByClasseIdAndAnneeScolaireId(
+                                    classe.getId(),
+                                    anneeScolaireId
+                            );
+
+            if (!inscriptions.isEmpty()) {
+                resultat.put(
+                        classe.getId(),
+                        new ArrayList<>(inscriptions)
+                );
+            }
+        }
+
+        return resultat;
+    }
+
+    // ================================================================
+    // UTILITAIRE — ÉLÈVES DE TOUTES LES CLASSES
+    // ================================================================
+
     private List<Inscription> inscriptionsParClasseTriees(
             Set<Classe> classes,
             Long anneeScolaireId
     ) {
 
-        List<Classe> classesTriees = classes.stream()
-                .sorted(Comparator.comparing(
-                        Classe::getNomComplet,
-                        Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)
-                ))
-                .toList();
+        List<Classe> classesTriees =
+                classes.stream()
+                        .sorted(
+                                Comparator.comparing(
+                                        Classe::getNomComplet,
+                                        Comparator.nullsLast(
+                                                String.CASE_INSENSITIVE_ORDER
+                                        )
+                                )
+                        )
+                        .toList();
 
-        List<Inscription> toutes = new ArrayList<>();
+        List<Inscription> toutes =
+                new ArrayList<>();
 
         for (Classe classe : classesTriees) {
+
             toutes.addAll(
-                    inscriptionRepository.findByClasseIdAndAnneeScolaireId(
-                            classe.getId(),
-                            anneeScolaireId
-                    )
+                    inscriptionRepository
+                            .findByClasseIdAndAnneeScolaireId(
+                                    classe.getId(),
+                                    anneeScolaireId
+                            )
             );
         }
 
         return toutes;
     }
 
+    // ================================================================
+    // COMPATIBILITÉ PROGRAMME / CLASSE
+    // ================================================================
+
     private boolean estCompatibleNiveauSerie(
             Classe classe,
             CoefficientMatiere programme
     ) {
 
-        if (classe.getNiveau() == null || programme.getNiveau() == null) {
+        if (classe.getNiveau() == null
+                || programme.getNiveau() == null) {
+
             return false;
         }
 
-        if (!classe.getNiveau().getId().equals(programme.getNiveau().getId())) {
+        if (!classe.getNiveau()
+                .getId()
+                .equals(programme.getNiveau().getId())) {
+
             return false;
         }
 
@@ -413,13 +665,22 @@ public class RepartitionExamenService {
         }
 
         return classe.getSerie() != null
-                && classe.getSerie().getId().equals(programme.getSerie().getId());
+                && classe.getSerie()
+                .getId()
+                .equals(programme.getSerie().getId());
     }
+
+    // ================================================================
+    // EXAMEN
+    // ================================================================
 
     private Examen getExamen(Long id) {
 
         return examenRepository.findById(id)
                 .orElseThrow(() ->
-                        new ExamenBusinessException("Examen introuvable"));
+                        new ExamenBusinessException(
+                                "Examen introuvable"
+                        )
+                );
     }
 }
