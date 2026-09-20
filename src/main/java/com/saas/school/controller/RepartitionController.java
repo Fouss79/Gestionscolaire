@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/examens/{examenId}")
+@RequestMapping("/api/s/examens/{examenId}")
 @RequiredArgsConstructor
 public class RepartitionController {
 

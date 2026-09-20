@@ -7,18 +7,18 @@ import lombok.Setter;
 
 @Entity
 @Table(
-        name = "repartition_examen",
+        name = "examen_salle",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_repartition_examen_inscription",
-                        columnNames = {"examen_id", "inscription_id"}
+                        name = "uk_examen_salle",
+                        columnNames = {"examen_id", "salle_id"}
                 )
         }
 )
 @Getter
 @Setter
 @NoArgsConstructor
-public class RepartitionExamen {
+public class ExamenSalle {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,10 +27,6 @@ public class RepartitionExamen {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "examen_id", nullable = false)
     private Examen examen;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "inscription_id", nullable = false)
-    private Inscription inscription;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "salle_id", nullable = false)

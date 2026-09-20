@@ -4,40 +4,34 @@ import com.saas.school.entity.RepartitionExamen;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface RepartitionExamenRepository
         extends JpaRepository<RepartitionExamen, Long> {
 
-    List<RepartitionExamen> findByExamenIdOrderBySalleIdAscNumeroPlaceAsc(
-            Long examenId
-    );
+    /**
+     * Récupère toute la répartition d'un examen.
+     */
+    List<RepartitionExamen> findByExamenId(Long examenId);
 
-    List<RepartitionExamen> findByExamenIdAndSalleIdOrderByNumeroPlaceAsc(
-            Long examenId,
-            Long salleId
-    );
+    /**
+     * Récupère les élèves affectés à une salle.
+     */
+    List<RepartitionExamen> findBySalleId(Long salleId);
 
-    Optional<RepartitionExamen> findByExamenIdAndInscriptionId(
-            Long examenId,
-            Long inscriptionId
-    );
-
+    /**
+     * Vérifie si un élève possède déjà une salle
+     * pour cet examen.
+     */
     boolean existsByExamenIdAndInscriptionId(
             Long examenId,
             Long inscriptionId
     );
 
-    boolean existsByExamenIdAndSalleIdAndNumeroPlace(
-            Long examenId,
-            Long salleId,
-            Integer numeroPlace
-    );
-
-    long countByExamenIdAndSalleId(
-            Long examenId,
-            Long salleId
-    );
-
+    /**
+     * Supprime toute la répartition d'un examen.
+     *
+     * Utilisé avant de recalculer automatiquement
+     * la répartition.
+     */
     void deleteByExamenId(Long examenId);
 }

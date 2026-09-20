@@ -31,13 +31,6 @@ public class Examen {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private AnneeScolaire anneeScolaire;
 
-    @ManyToMany
-    @JoinTable(
-            name = "examen_classe",
-            joinColumns = @JoinColumn(name = "examen_id"),
-            inverseJoinColumns = @JoinColumn(name = "classe_id")
-    )
-    private Set<Classe> classes = new HashSet<>();
 
     private LocalDate dateDebut;
     private LocalDate dateFin;
@@ -66,4 +59,12 @@ public class Examen {
         EN_COURS,
         TERMINE
     }
+    @ManyToMany
+    @JoinTable(
+            name = "examen_classe",
+            joinColumns = @JoinColumn(name = "examen_id"),
+            inverseJoinColumns = @JoinColumn(name = "classe_id")
+    )
+    private Set<Classe> classes = new HashSet<>();
+
 }
