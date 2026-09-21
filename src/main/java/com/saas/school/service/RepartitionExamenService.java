@@ -44,6 +44,7 @@ public class RepartitionExamenService {
     private final ExamenSalleRepository examenSalleRepository;
     private final InscriptionRepository inscriptionRepository;
     private final ProgrammeEleveService programmeEleveService;
+    private final CompositionEpreuveRepository compositionEpreuveRepository;
 
     // ================================================================
     // ÉLÈVES ÉLIGIBLES POUR TOUT L'EXAMEN
@@ -428,17 +429,25 @@ public class RepartitionExamenService {
             return List.of();
         }
 
-        return repartitionRepository
-                .findByExamenId(examenId)
-                .stream()
+        List<RepartitionExamen> repartitions =
+                repartitionRepository.findByExamenId(examenId);
+
+        Map<Long, StatutComposition> statutsParInscription =
+                compositionEpreuveRepository.findByEpreuveId(epreuveId)
+                        .stream()
+                        .filter(c -> c.getInscription() != null)
+                        .collect(Collectors.toMap(
+                                c -> c.getInscription().getId(),
+                                CompositionEpreuve::getStatut
+                        ));
+
+        return repartitions.stream()
                 .filter(r ->
-                        r.getInscription() != null
-                                && r.getInscription().getClasse() != null
-                                && classeIdsConcernees.contains(
-                                r.getInscription()
-                                        .getClasse()
-                                        .getId()
-                        )
+                        r.getInscription() != null &&
+                                r.getInscription().getClasse() != null &&
+                                classeIdsConcernees.contains(
+                                        r.getInscription().getClasse().getId()
+                                )
                 )
                 .filter(r ->
                         programmeEleveService.estCompatible(
@@ -446,9 +455,21 @@ public class RepartitionExamenService {
                                 programme
                         )
                 )
-                .map(RepartitionExamenResponse::from)
-                .toList();
-    }
+                .map(r -> {
+                    Long inscriptionId = r.getInscription().getId();
+
+                    StatutComposition statut =
+                            statutsParInscription.getOrDefault(
+                                    inscriptionId,
+                                    StatutComposition.NON_CONFIRME
+                            );
+
+                    return RepartitionExamenResponse.from(
+                            r,
+                            statut
+                    );
+                })
+                .toList();}
 
     // ================================================================
     // RÉPARTITION GROUPÉE PAR SALLE
