@@ -132,118 +132,61 @@ public class BulletinService {
                 .anyMatch(sg -> sg != null && sg.getId() != null && sg.getId().equals(sousGroupeId));
     }
 
-    public byte[] generateBulletin(List<Note> notes, Eleve eleve, String periode) {
+    public byte[] generateBulletin(
+            List<Note> notes,
+            Eleve eleve,
+            String periode
+    ) {
 
         System.out.println("🚀 START PDF GENERATION");
 
         try {
+
             if (notes == null || notes.isEmpty()) {
-                throw new RuntimeException("❌ Aucune matière programmée pour cette classe");
+                throw new RuntimeException(
+                        "❌ Aucune matière programmée pour cette classe"
+                );
             }
 
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ByteArrayOutputStream out =
+                    new ByteArrayOutputStream();
 
-            Document doc = new Document(PageSize.A4);
-            PdfWriter writer = PdfWriter.getInstance(doc, out);
+            Document doc =
+                    new Document(PageSize.A4);
+
+            PdfWriter writer =
+                    PdfWriter.getInstance(doc, out);
 
             doc.open();
 
-            // ================= FONTS =================
-            Font titleFont = new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD);
-            Font headerFont = new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD);
-            Font normalFont = new Font(Font.FontFamily.HELVETICA, 11);
+            genererBulletinDansDocument(
+                    doc,
+                    notes,
+                    eleve,
+                    periode
+            );
 
-            // ================= HEADER =================
-            Paragraph title = new Paragraph("BULLETIN DE NOTES", titleFont);
-            title.setAlignment(Element.ALIGN_CENTER);
-            doc.add(title);
-
-            doc.add(new Paragraph(" "));
-
-            doc.add(new Paragraph("Élève : " + eleve.getNom() + " " + eleve.getPrenom(), normalFont));
-            doc.add(new Paragraph("Période : " + periode, normalFont));
-
-            doc.add(new Paragraph(" "));
-
-            // ================= TABLE =================
-            PdfPTable table = new PdfPTable(6);
-            table.setWidthPercentage(100);
-
-            addHeader(table, "Matière");
-            addHeader(table, "Classe");
-            addHeader(table, "Examen");
-            addHeader(table, "Moyenne");
-            addHeader(table, "Coeff");
-            addHeader(table, "Points");
-
-            double totalPoints = 0;
-            double totalCoeff = 0;
-
-            for (Note n : notes) {
-
-                if (n == null) continue;
-
-                String matiere = (n.getMatiere() != null) ? n.getMatiere().getNom() : "N/A";
-
-                double nClass = safe(n.getNClass());
-                double nExem = safe(n.getNExem());
-                Integer coeff = n.getCoeff() != null ? n.getCoeff() : 1;
-
-                double moyenne = (nClass + (nExem * 2)) / 3;
-                double points = moyenne * coeff;
-
-                totalPoints += points;
-                totalCoeff += coeff;
-
-                System.out.println("➡️ " + matiere + " | M=" + moyenne + " | Coeff=" + coeff);
-
-                table.addCell(cell(matiere));
-                table.addCell(center(String.valueOf(nClass)));
-                table.addCell(center(String.valueOf(nExem)));
-                table.addCell(center(String.format("%.2f", moyenne)));
-                table.addCell(center(String.valueOf(coeff)));
-                table.addCell(center(String.format("%.2f", points)));
-            }
-
-            doc.add(table);
-
-            // ================= MOYENNE GENERALE =================
-            double moyenneGenerale = totalCoeff == 0 ? 0 : totalPoints / totalCoeff;
-
-            doc.add(new Paragraph(" "));
-            doc.add(new Paragraph("Moyenne Générale : " + String.format("%.2f", moyenneGenerale), headerFont));
-
-            // ================= FOOTER =================
-            doc.add(new Paragraph(" "));
-            PdfPTable sign = new PdfPTable(2);
-            sign.setWidthPercentage(100);
-
-            sign.addCell(noBorder("Le Proviseur"));
-            sign.addCell(noBorder("Le Parent"));
-
-            doc.add(sign);
-
-            // ================= CLOSE =================
             doc.close();
             writer.close();
 
             byte[] pdfBytes = out.toByteArray();
 
-            System.out.println("📦 PDF SIZE = " + pdfBytes.length);
-
-            String path = System.getProperty("user.home") + "/bulletin_debug.pdf";
-            Files.write(Paths.get(path), pdfBytes);
-
-            System.out.println("💾 PDF SAVED: " + path);
+            System.out.println(
+                    "📦 PDF SIZE = " + pdfBytes.length
+            );
 
             return pdfBytes;
 
         } catch (Exception e) {
+
             e.printStackTrace();
-            throw new RuntimeException("Erreur PDF: " + e.getMessage());
+
+            throw new RuntimeException(
+                    "Erreur PDF: " + e.getMessage(),
+                    e
+            );
         }
     }
-
     private double safe(Double v) {
         return v == null ? 0.0 : v;
     }
@@ -321,5 +264,237 @@ public class BulletinService {
         return (int) moyennes.stream()
                 .filter(m -> m > eleveMoyenne)
                 .count() + 1;
+
+
     }
+
+    public byte[] generateBulletinsClasse(
+            Long classeId,
+            Long anneeScolaireId,
+            String periode
+    ) {
+
+        try {
+
+            List<Inscription> inscriptions =
+                    inscriptionRepository.findElevesValidesPourReleve(
+                            classeId,
+                            anneeScolaireId
+                    );
+
+            if (inscriptions == null || inscriptions.isEmpty()) {
+                throw new RuntimeException(
+                        "Aucun élève valide dans cette classe pour cette année scolaire"
+                );
+            }
+
+            ByteArrayOutputStream out =
+                    new ByteArrayOutputStream();
+
+            Document doc =
+                    new Document(PageSize.A4);
+
+            PdfWriter writer =
+                    PdfWriter.getInstance(doc, out);
+
+            doc.open();
+
+            boolean bulletinGenere = false;
+
+            for (Inscription inscription : inscriptions) {
+
+                if (inscription.getEleve() == null) {
+                    continue;
+                }
+
+                Eleve eleve = inscription.getEleve();
+
+                List<Note> notes =
+                        construireNotesPourBulletin(
+                                inscription,
+                                classeId,
+                                anneeScolaireId,
+                                periode
+                        );
+
+                if (notes == null || notes.isEmpty()) {
+                    continue;
+                }
+
+                if (bulletinGenere) {
+                    doc.newPage();
+                }
+
+                genererBulletinDansDocument(
+                        doc,
+                        notes,
+                        eleve,
+                        periode
+                );
+
+                bulletinGenere = true;
+            }
+
+            if (!bulletinGenere) {
+                doc.close();
+                writer.close();
+
+                throw new RuntimeException(
+                        "Aucun bulletin ne peut être généré pour cette classe"
+                );
+            }
+
+            doc.close();
+            writer.close();
+
+            return out.toByteArray();
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            throw new RuntimeException(
+                    "Erreur génération des bulletins de la classe : "
+                            + e.getMessage(),
+                    e
+            );
+        }
+    }
+        private void genererBulletinDansDocument(
+            Document doc,
+            List<Note> notes,
+            Eleve eleve,
+            String periode
+    ) throws DocumentException {
+
+        Font titleFont =
+                new Font(Font.FontFamily.HELVETICA, 18, Font.BOLD);
+
+        Font headerFont =
+                new Font(Font.FontFamily.HELVETICA, 12, Font.BOLD);
+
+        Font normalFont =
+                new Font(Font.FontFamily.HELVETICA, 11);
+
+        // ================= HEADER =================
+
+        Paragraph title =
+                new Paragraph("BULLETIN DE NOTES", titleFont);
+
+        title.setAlignment(Element.ALIGN_CENTER);
+
+        doc.add(title);
+
+        doc.add(new Paragraph(" "));
+
+        doc.add(
+                new Paragraph(
+                        "Élève : "
+                                + eleve.getNom()
+                                + " "
+                                + eleve.getPrenom(),
+                        normalFont
+                )
+        );
+
+        doc.add(
+                new Paragraph(
+                        "Période : " + periode,
+                        normalFont
+                )
+        );
+
+        doc.add(new Paragraph(" "));
+
+        // ================= TABLE =================
+
+        PdfPTable table = new PdfPTable(6);
+
+        table.setWidthPercentage(100);
+
+        addHeader(table, "Matière");
+        addHeader(table, "Classe");
+        addHeader(table, "Examen");
+        addHeader(table, "Moyenne");
+        addHeader(table, "Coeff");
+        addHeader(table, "Points");
+
+        double totalPoints = 0;
+        double totalCoeff = 0;
+
+        for (Note n : notes) {
+
+            if (n == null) {
+                continue;
+            }
+
+            String matiere =
+                    n.getMatiere() != null
+                            ? n.getMatiere().getNom()
+                            : "N/A";
+
+            double nClass = safe(n.getNClass());
+            double nExem = safe(n.getNExem());
+
+            Integer coeff =
+                    n.getCoeff() != null
+                            ? n.getCoeff()
+                            : 1;
+
+            double moyenne =
+                    (nClass + (nExem * 2)) / 3;
+
+            double points =
+                    moyenne * coeff;
+
+            totalPoints += points;
+            totalCoeff += coeff;
+
+            table.addCell(cell(matiere));
+            table.addCell(center(String.valueOf(nClass)));
+            table.addCell(center(String.valueOf(nExem)));
+            table.addCell(center(String.format("%.2f", moyenne)));
+            table.addCell(center(String.valueOf(coeff)));
+            table.addCell(center(String.format("%.2f", points)));
+        }
+
+        doc.add(table);
+
+        // ================= MOYENNE =================
+
+        double moyenneGenerale =
+                totalCoeff == 0
+                        ? 0
+                        : totalPoints / totalCoeff;
+
+        doc.add(new Paragraph(" "));
+
+        doc.add(
+                new Paragraph(
+                        "Moyenne Générale : "
+                                + String.format("%.2f", moyenneGenerale),
+                        headerFont
+                )
+        );
+
+        // ================= SIGNATURES =================
+
+        doc.add(new Paragraph(" "));
+
+        PdfPTable sign =
+                new PdfPTable(2);
+
+        sign.setWidthPercentage(100);
+
+        sign.addCell(
+                noBorder("Le Proviseur")
+        );
+
+        sign.addCell(
+                noBorder("Le Parent")
+        );
+
+        doc.add(sign);
+    }
+
 }

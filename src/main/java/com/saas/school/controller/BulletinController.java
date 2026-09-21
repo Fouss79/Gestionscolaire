@@ -83,4 +83,56 @@ public class BulletinController {
                     .body(null);
         }
     }
+    @GetMapping(
+            value = "/generate-classe",
+            produces = MediaType.APPLICATION_PDF_VALUE
+    )
+    public ResponseEntity<byte[]> generateBulletinsClasse(
+            @RequestParam Long classeId,
+            @RequestParam Long anneeId,
+            @RequestParam String periode
+    ) {
+
+        try {
+
+            byte[] pdf =
+                    bulletinService.generateBulletinsClasse(
+                            classeId,
+                            anneeId,
+                            periode
+                    );
+
+            HttpHeaders headers = new HttpHeaders();
+
+            headers.setContentType(
+                    MediaType.APPLICATION_PDF
+            );
+
+            headers.setContentDisposition(
+                    ContentDisposition.builder("attachment")
+                            .filename(
+                                    "bulletins_classe_"
+                                            + classeId
+                                            + ".pdf"
+                            )
+                            .build()
+            );
+
+            headers.setContentLength(pdf.length);
+
+            return new ResponseEntity<>(
+                    pdf,
+                    headers,
+                    HttpStatus.OK
+            );
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
 }
