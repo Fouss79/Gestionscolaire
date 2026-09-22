@@ -450,28 +450,35 @@ public class EmploiDuTempsPdfService {
         Font matiereFont =
                 new Font(
                         Font.FontFamily.HELVETICA,
-                        10,
+                        9,
                         Font.BOLD
                 );
 
         Font detailFont =
                 new Font(
                         Font.FontFamily.HELVETICA,
-                        8
+                        7
                 );
-
-        Paragraph contenu =
-                new Paragraph();
-
-
-        // =====================================================
-        // MATIÈRE
-        // =====================================================
 
         String matiere =
                 edt.getMatiere() != null
                         ? edt.getMatiere().getNom()
                         : "Matière";
+
+        String enseignant = "";
+
+        if (edt.getEnseignant() != null) {
+            enseignant =
+                    construireNomEnseignant(
+                            edt.getEnseignant()
+                    );
+        }
+
+        /*
+         * =====================================================
+         * MATIÈRE
+         * =====================================================
+         */
 
         Paragraph pMatiere =
                 new Paragraph(
@@ -483,88 +490,116 @@ public class EmploiDuTempsPdfService {
                 Element.ALIGN_CENTER
         );
 
+        pMatiere.setSpacingBefore(0);
+        pMatiere.setSpacingAfter(0);
+        pMatiere.setLeading(9);
+
+
+        /*
+         * =====================================================
+         * ENSEIGNANT
+         * =====================================================
+         */
+
+        Paragraph pEnseignant =
+                new Paragraph(
+                        enseignant,
+                        detailFont
+                );
+
+        pEnseignant.setAlignment(
+                Element.ALIGN_CENTER
+        );
+
+        pEnseignant.setSpacingBefore(0);
+        pEnseignant.setSpacingAfter(0);
+        pEnseignant.setLeading(8);
+
+
+        /*
+         * =====================================================
+         * CONTENU
+         * =====================================================
+         */
+
+        Paragraph contenu =
+                new Paragraph();
+
+        contenu.setAlignment(
+                Element.ALIGN_CENTER
+        );
+
+        contenu.setSpacingBefore(0);
+        contenu.setSpacingAfter(0);
+
         contenu.add(pMatiere);
+        contenu.add(pEnseignant);
 
 
-        // =====================================================
-        // ENSEIGNANT
-        // =====================================================
-
-        if (edt.getEnseignant() != null) {
-
-            String enseignant =
-                    construireNomEnseignant(
-                            edt.getEnseignant()
-                    );
-
-            Paragraph p =
-                    new Paragraph(
-                            enseignant,
-                            detailFont
-                    );
-
-            p.setAlignment(
-                    Element.ALIGN_CENTER
-            );
-
-            contenu.add(p);
-        }
-
-
-        // =====================================================
-        // SALLE
-        // =====================================================
+        /*
+         * =====================================================
+         * SALLE
+         * =====================================================
+         */
 
         if (edt.getSalle() != null) {
 
-            String salle =
-                    "Salle : "
-                            + edt.getSalle().getNom();
-
-            Paragraph p =
+            Paragraph salle =
                     new Paragraph(
-                            salle,
+                            "Salle : "
+                                    + edt.getSalle().getNom(),
                             detailFont
                     );
 
-            p.setAlignment(
+            salle.setAlignment(
                     Element.ALIGN_CENTER
             );
 
-            contenu.add(p);
+            salle.setSpacingBefore(0);
+            salle.setSpacingAfter(0);
+            salle.setLeading(8);
+
+            contenu.add(salle);
         }
 
 
-        // =====================================================
-        // SOUS-GROUPE
-        // =====================================================
+        /*
+         * =====================================================
+         * SOUS-GROUPE
+         * =====================================================
+         */
 
         if (edt.getSousGroupe() != null) {
 
-            String groupe =
-                    "Groupe : "
-                            + edt.getSousGroupe().getNom();
-
-            Paragraph p =
+            Paragraph groupe =
                     new Paragraph(
-                            groupe,
+                            "Groupe : "
+                                    + edt.getSousGroupe().getNom(),
                             detailFont
                     );
 
-            p.setAlignment(
+            groupe.setAlignment(
                     Element.ALIGN_CENTER
             );
 
-            contenu.add(p);
+            groupe.setSpacingBefore(0);
+            groupe.setSpacingAfter(0);
+            groupe.setLeading(8);
+
+            contenu.add(groupe);
         }
 
 
-        // =====================================================
-        // CELLULE
-        // =====================================================
+        /*
+         * =====================================================
+         * CELLULE
+         * =====================================================
+         */
 
         PdfPCell cell =
-                new PdfPCell(contenu);
+                new PdfPCell(
+                        contenu
+                );
 
         cell.setHorizontalAlignment(
                 Element.ALIGN_CENTER
@@ -574,9 +609,9 @@ public class EmploiDuTempsPdfService {
                 Element.ALIGN_MIDDLE
         );
 
-        cell.setMinimumHeight(42);
+        cell.setPadding(3);
 
-        cell.setPadding(4);
+        cell.setMinimumHeight(42);
 
         return cell;
     }
