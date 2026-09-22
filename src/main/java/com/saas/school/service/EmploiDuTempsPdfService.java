@@ -474,53 +474,9 @@ public class EmploiDuTempsPdfService {
                     );
         }
 
-        /*
-         * =====================================================
-         * MATIÈRE
-         * =====================================================
-         */
-
-        Paragraph pMatiere =
-                new Paragraph(
-                        matiere,
-                        matiereFont
-                );
-
-        pMatiere.setAlignment(
-                Element.ALIGN_CENTER
-        );
-
-        pMatiere.setSpacingBefore(0);
-        pMatiere.setSpacingAfter(0);
-        pMatiere.setLeading(9);
-
-
-        /*
-         * =====================================================
-         * ENSEIGNANT
-         * =====================================================
-         */
-
-        Paragraph pEnseignant =
-                new Paragraph(
-                        enseignant,
-                        detailFont
-                );
-
-        pEnseignant.setAlignment(
-                Element.ALIGN_CENTER
-        );
-
-        pEnseignant.setSpacingBefore(0);
-        pEnseignant.setSpacingAfter(0);
-        pEnseignant.setLeading(8);
-
-
-        /*
-         * =====================================================
-         * CONTENU
-         * =====================================================
-         */
+        // =====================================================
+        // CONTENU UNIQUE
+        // =====================================================
 
         Paragraph contenu =
                 new Paragraph();
@@ -529,72 +485,67 @@ public class EmploiDuTempsPdfService {
                 Element.ALIGN_CENTER
         );
 
-        contenu.setSpacingBefore(0);
-        contenu.setSpacingAfter(0);
+        // Très peu d'espace entre les lignes
+        contenu.setLeading(8);
 
-        contenu.add(pMatiere);
-        contenu.add(pEnseignant);
+        // MATIÈRE
+        contenu.add(
+                new Chunk(
+                        matiere,
+                        matiereFont
+                )
+        );
 
+        // ENSEIGNANT juste en dessous
+        if (!enseignant.isBlank()) {
 
-        /*
-         * =====================================================
-         * SALLE
-         * =====================================================
-         */
+            contenu.add(
+                    Chunk.NEWLINE
+            );
 
+            contenu.add(
+                    new Chunk(
+                            enseignant,
+                            detailFont
+                    )
+            );
+        }
+
+        // SALLE
         if (edt.getSalle() != null) {
 
-            Paragraph salle =
-                    new Paragraph(
+            contenu.add(
+                    Chunk.NEWLINE
+            );
+
+            contenu.add(
+                    new Chunk(
                             "Salle : "
                                     + edt.getSalle().getNom(),
                             detailFont
-                    );
-
-            salle.setAlignment(
-                    Element.ALIGN_CENTER
+                    )
             );
-
-            salle.setSpacingBefore(0);
-            salle.setSpacingAfter(0);
-            salle.setLeading(8);
-
-            contenu.add(salle);
         }
 
-
-        /*
-         * =====================================================
-         * SOUS-GROUPE
-         * =====================================================
-         */
-
+        // SOUS-GROUPE
         if (edt.getSousGroupe() != null) {
 
-            Paragraph groupe =
-                    new Paragraph(
+            contenu.add(
+                    Chunk.NEWLINE
+            );
+
+            contenu.add(
+                    new Chunk(
                             "Groupe : "
                                     + edt.getSousGroupe().getNom(),
                             detailFont
-                    );
-
-            groupe.setAlignment(
-                    Element.ALIGN_CENTER
+                    )
             );
-
-            groupe.setSpacingBefore(0);
-            groupe.setSpacingAfter(0);
-            groupe.setLeading(8);
-
-            contenu.add(groupe);
         }
 
-
-        /*
-         * =====================================================
-         * CELLULE
-         * =====================================================
-         */
+        // =====================================================
+        // CELLULE
+        // =====================================================
 
         PdfPCell cell =
                 new PdfPCell(
@@ -615,8 +566,6 @@ public class EmploiDuTempsPdfService {
 
         return cell;
     }
-
-
     // =========================================================
     // 👨‍🏫 ENSEIGNANT
     // =========================================================
