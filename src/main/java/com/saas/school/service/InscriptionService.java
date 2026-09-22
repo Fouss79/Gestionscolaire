@@ -294,9 +294,12 @@ public class InscriptionService {
         dto.setLienParente(e.getLienParente());
         dto.setTelephoneTuteur(e.getTelephoneTuteur());
         dto.setEmailTuteur(e.getEmailTuteur());
-
+        dto.setClasseId(i.getClasse().getId());
         dto.setClasseNom(i.getClasse().getNomComplet());
+
+        dto.setAnneeId(i.getAnneeScolaire().getId());
         dto.setAnnee(i.getAnneeScolaire().getNom());
+
         dto.setDateInscription(i.getCreatedAt());
         dto.setStatut(i.getStatut().name());
 

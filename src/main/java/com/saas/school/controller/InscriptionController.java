@@ -7,9 +7,10 @@ import com.saas.school.repository.ClasseRepository;
 import com.saas.school.repository.EleveRepository;
 import com.saas.school.repository.InscriptionRepository;
 import com.saas.school.service.InscriptionService;
+import com.saas.school.service.ListeElevesClassePdfService;
 import com.saas.school.service.NiveauService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -26,6 +27,8 @@ public class InscriptionController {
     private final InscriptionRepository inscriptionRepository;
     private final EleveRepository eleveRepository;
     private final ClasseRepository classeRepository;
+    private final ListeElevesClassePdfService listeElevesClassePdfService;
+
     //@PostMapping
     //public ResponseEntity<Inscription> inscrire(@RequestBody InscriptionRequest request) {
       //  return ResponseEntity.ok(inscriptionService.inscrireEleve(request));
@@ -77,7 +80,56 @@ public class InscriptionController {
                 })
                 .toList();
     }
+    @GetMapping(
+            value = "/classe/{classeId}/{anneeId}/pdf",
+            produces = MediaType.APPLICATION_PDF_VALUE
+    )
+    public ResponseEntity<byte[]> pdfListeElevesClasse(
+            @PathVariable Long classeId,
+            @PathVariable Long anneeId
+    ) {
 
+        try {
+
+            byte[] pdf =
+                    listeElevesClassePdfService.genererPdf(
+                            classeId,
+                            anneeId
+                    );
+
+            HttpHeaders headers = new HttpHeaders();
+
+            headers.setContentType(
+                    MediaType.APPLICATION_PDF
+            );
+
+            headers.setContentDisposition(
+                    ContentDisposition.builder("attachment")
+                            .filename(
+                                    "liste-eleves-classe-"
+                                            + classeId
+                                            + ".pdf"
+                            )
+                            .build()
+            );
+
+            headers.setContentLength(pdf.length);
+
+            return new ResponseEntity<>(
+                    pdf,
+                    headers,
+                    HttpStatus.OK
+            );
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
 
     @GetMapping
     public ResponseEntity<List<EleveResponseDTO>> getEleves() {
