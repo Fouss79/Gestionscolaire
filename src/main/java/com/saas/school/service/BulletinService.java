@@ -304,6 +304,52 @@ public class BulletinService {
     }
 
     // =====================================================================
+    // GÉNÉRATION PDF — bulletin unique, PRÊT À ENVOYER PAR EMAIL
+    //
+    // Réutilise exactement la même logique que generateBulletinsClasse
+    // (mêmes notes, même calcul de moyennes pour le Rang / "Moyenne du
+    // 1er"), mais ne génère qu'un seul bulletin au lieu de toute la classe.
+    // =====================================================================
+
+    public byte[] genererBulletinPourEnvoi(
+            Long inscriptionId,
+            Long classeId,
+            Long anneeScolaireId,
+            String periode
+    ) {
+
+        Inscription inscription = inscriptionRepository.findById(inscriptionId)
+                .orElseThrow(() -> new RuntimeException("Inscription introuvable"));
+
+        if (inscription.getEleve() == null) {
+            throw new RuntimeException("Aucun élève associé à cette inscription");
+        }
+
+        List<Inscription> inscriptionsClasse =
+                inscriptionRepository.findElevesValidesPourReleve(classeId, anneeScolaireId);
+
+        List<Double> moyennesDeLaClasse = new ArrayList<>();
+
+        for (Inscription i : inscriptionsClasse) {
+            if (i.getEleve() == null) continue;
+
+            List<Note> notesI = construireNotesPourBulletin(i, classeId, anneeScolaireId, periode);
+            moyennesDeLaClasse.add(calculerMoyenneGenerale(notesI));
+        }
+
+        List<Note> notes = construireNotesPourBulletin(
+                inscription, classeId, anneeScolaireId, periode);
+
+        return generateBulletin(
+                notes,
+                inscription.getEleve(),
+                periode,
+                inscription,
+                moyennesDeLaClasse
+        );
+    }
+
+    // =====================================================================
     // GÉNÉRATION PDF — bulletins de toute une classe (un par page)
     // =====================================================================
 
