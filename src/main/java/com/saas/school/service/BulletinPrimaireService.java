@@ -60,24 +60,49 @@ public class BulletinPrimaireService {
                         niveau.getId(),
                         classeId
                 );
+        System.out.println(
+                "PRIMAIRE | classeId=" + classeId
+                        + " | anneeId=" + anneeId
+                        + " | mois=" + mois
+                        + " | nombre matières=" + programme.size()
+        );
 
         List<BulletinDtos> bruts = new ArrayList<>();
 
         for (Inscription ins : inscriptions) {
 
-            Map<Long, Note> notes =
+            // 1. Récupérer les notes de l'élève pour ce mois
+            List<Note> notesTrouvees =
                     noteRepo.findNotesBulletinPrimaire(
-                                    ins.getId(),
-                                    anneeId,
-                                    mois
-                            )
-                            .stream()
+                            ins.getId(),
+                            anneeId,
+                            mois
+                    );
+
+            // 2. Vérifier combien de notes ont été récupérées
+            System.out.println(
+                    "PRIMAIRE | inscriptionId=" + ins.getId()
+                            + " | mois=" + mois
+                            + " | nombre notes=" + notesTrouvees.size()
+            );
+
+            // 3. Afficher les valeurs enregistrées
+            for (Note n : notesTrouvees) {
+                System.out.println(
+                        "NOTE | coefficientMatiereId="
+                                + n.getCoefficientMatiere().getId()
+                                + " | nClass=" + n.getNClass()
+                );
+            }
+
+            // 4. Transformer les notes en Map comme auparavant
+            Map<Long, Note> notes =
+                    notesTrouvees.stream()
                             .collect(Collectors.toMap(
                                     n -> n.getCoefficientMatiere().getId(),
                                     n -> n,
                                     (a, b) -> a
                             ));
-
             List<LigneBulletinDto> lignes = new ArrayList<>();
 
             BigDecimal total = BigDecimal.ZERO;
@@ -86,6 +111,10 @@ public class BulletinPrimaireService {
             for (CoefficientMatiere cm : programme) {
 
                 Note n = notes.get(cm.getId());
+                System.out.println(
+                        "MATIERE | coefficientMatiereId=" + cm.getId()
+                                + " | note trouvée=" + (n != null)
+                );
 
                 BigDecimal valeur =
                         n == null ? null : bd(n.getNClass());
