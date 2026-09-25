@@ -60,106 +60,192 @@ public class BulletinPrimaireService {
                         niveau.getId(),
                         classeId
                 );
-        System.out.println(
-                "PRIMAIRE | classeId=" + classeId
-                        + " | anneeId=" + anneeId
-                        + " | mois=" + mois
-                        + " | nombre matières=" + programme.size()
-        );
+
+        System.out.println("==============================================");
+        System.out.println("PRIMAIRE | CONSTRUCTION BULLETIN");
+        System.out.println("classeId = " + classeId);
+        System.out.println("anneeId = " + anneeId);
+        System.out.println("mois = " + mois);
+        System.out.println("nombre matières = " + programme.size());
+        System.out.println("==============================================");
 
         List<BulletinDtos> bruts = new ArrayList<>();
 
         for (Inscription ins : inscriptions) {
 
-            // 1. Récupérer les notes de l'élève pour ce mois
-            List<Note> notesTrouvees =
-                    noteRepo.findNotesBulletinPrimaire(
-                            ins.getId(),
-                            anneeId,
-                            mois
-                    );
+            // =========================================================
+            // 🔎 DIAGNOSTIC : TOUTES LES NOTES DE L'INSCRIPTION
+            // =========================================================
+
             List<Note> toutesNotesInscription =
                     noteRepo.findByInscriptionIdAndInscription_AnneeScolaireId(
                             ins.getId(),
                             anneeId
                     );
 
+            System.out.println("----------------------------------------------");
+            System.out.println("🔎 DIAGNOSTIC NOTES PRIMAIRE");
+            System.out.println("inscriptionId = " + ins.getId());
+            System.out.println("élève = "
+                    + ins.getEleve().getNom()
+                    + " "
+                    + ins.getEleve().getPrenom());
+            System.out.println("anneeId = " + anneeId);
+            System.out.println("mois recherché = " + mois);
             System.out.println(
-                    "DIAGNOSTIC | inscriptionId=" + ins.getId()
-                            + " | anneeId=" + anneeId
-                            + " | TOUTES LES NOTES=" + toutesNotesInscription.size()
+                    "NOMBRE TOTAL DE NOTES = "
+                            + toutesNotesInscription.size()
             );
 
+            // Afficher toutes les périodes réellement enregistrées
+            System.out.println(
+                    "PERIODES ENREGISTREES = "
+                            + toutesNotesInscription.stream()
+                            .map(Note::getPeriode)
+                            .filter(Objects::nonNull)
+                            .distinct()
+                            .toList()
+            );
+
+            // Afficher le détail de chaque note
             for (Note n : toutesNotesInscription) {
+
                 System.out.println(
                         "DIAGNOSTIC NOTE"
                                 + " | id=" + n.getId()
                                 + " | periode=" + n.getPeriode()
                                 + " | nClass=" + n.getNClass()
                                 + " | nExem=" + n.getNExem()
+                                + " | coeff=" + n.getCoeff()
                                 + " | coefficientMatiereId="
-                                + (n.getCoefficientMatiere() != null
-                                ? n.getCoefficientMatiere().getId()
-                                : null)
+                                + (
+                                n.getCoefficientMatiere() != null
+                                        ? n.getCoefficientMatiere().getId()
+                                        : null
+                        )
+                                + " | matiere="
+                                + (
+                                n.getMatiere() != null
+                                        ? n.getMatiere().getNom()
+                                        : null
+                        )
                                 + " | anneeNote="
-                                + (n.getAnneeScolaire() != null
-                                ? n.getAnneeScolaire().getId()
-                                : null)
+                                + (
+                                n.getAnneeScolaire() != null
+                                        ? n.getAnneeScolaire().getId()
+                                        : null
+                        )
                                 + " | anneeInscription="
-                                + (n.getInscription() != null
-                                && n.getInscription().getAnneeScolaire() != null
-                                ? n.getInscription().getAnneeScolaire().getId()
-                                : null)
+                                + (
+                                n.getInscription() != null
+                                        && n.getInscription().getAnneeScolaire() != null
+                                        ? n.getInscription()
+                                        .getAnneeScolaire()
+                                        .getId()
+                                        : null
+                        )
                 );
             }
 
-            // 2. Vérifier combien de notes ont été récupérées
+            System.out.println("----------------------------------------------");
+
+            // =========================================================
+            // 📚 RÉCUPÉRATION DES NOTES POUR LE MOIS
+            // =========================================================
+
+            List<Note> notesTrouvees =
+                    noteRepo.findNotesBulletinPrimaire(
+                            ins.getId(),
+                            anneeId,
+                            mois
+                    );
+
             System.out.println(
                     "PRIMAIRE | inscriptionId=" + ins.getId()
                             + " | mois=" + mois
-                            + " | nombre notes=" + notesTrouvees.size()
+                            + " | nombre notes="
+                            + notesTrouvees.size()
             );
 
-            // 3. Afficher les valeurs enregistrées
+            // =========================================================
+            // 📝 AFFICHER LES NOTES TROUVÉES POUR CE MOIS
+            // =========================================================
+
             for (Note n : notesTrouvees) {
+
                 System.out.println(
-                        "NOTE | coefficientMatiereId="
-                                + n.getCoefficientMatiere().getId()
+                        "NOTE TROUVEE"
+                                + " | id=" + n.getId()
+                                + " | periode=" + n.getPeriode()
+                                + " | coefficientMatiereId="
+                                + (
+                                n.getCoefficientMatiere() != null
+                                        ? n.getCoefficientMatiere().getId()
+                                        : null
+                        )
+                                + " | matiere="
+                                + (
+                                n.getMatiere() != null
+                                        ? n.getMatiere().getNom()
+                                        : null
+                        )
                                 + " | nClass=" + n.getNClass()
+                                + " | nExem=" + n.getNExem()
                 );
             }
 
-            // 4. Transformer les notes en Map comme auparavant
+            // =========================================================
+            // 📊 TRANSFORMATION EN MAP
+            // =========================================================
+
             Map<Long, Note> notes =
                     notesTrouvees.stream()
+                            .filter(n -> n.getCoefficientMatiere() != null)
                             .collect(Collectors.toMap(
                                     n -> n.getCoefficientMatiere().getId(),
                                     n -> n,
                                     (a, b) -> a
                             ));
+
             List<LigneBulletinDto> lignes = new ArrayList<>();
 
             BigDecimal total = BigDecimal.ZERO;
             BigDecimal sommeCoefs = BigDecimal.ZERO;
 
+            // =========================================================
+            // 📚 PARCOURIR LE PROGRAMME
+            // =========================================================
+
             for (CoefficientMatiere cm : programme) {
 
                 Note n = notes.get(cm.getId());
+
                 System.out.println(
-                        "MATIERE | coefficientMatiereId=" + cm.getId()
+                        "MATIERE"
+                                + " | coefficientMatiereId=" + cm.getId()
+                                + " | matiere="
+                                + (
+                                cm.getMatiere() != null
+                                        ? cm.getMatiere().getNom()
+                                        : null
+                        )
                                 + " | note trouvée=" + (n != null)
                 );
 
                 BigDecimal valeur =
-                        n == null ? null : bd(n.getNClass());
+                        n == null
+                                ? null
+                                : bd(n.getNClass());
 
-                BigDecimal coef = bd(cm.getCoefficient());
+                BigDecimal coef =
+                        bd(cm.getCoefficient());
 
                 if (coef == null) {
                     coef = BigDecimal.ONE;
                 }
 
                 if (valeur != null) {
+
                     total = total.add(
                             valeur.multiply(coef)
                     );
@@ -171,14 +257,17 @@ public class BulletinPrimaireService {
                         cm.getMatiere().getNom(),
                         valeur,
                         coef,
-                        Appreciation.de(valeur, noteMax)
+                        Appreciation.de(
+                                valeur,
+                                noteMax
+                        )
                 ));
             }
 
-            /*
-             * Une absence de notes est différente
-             * d'une véritable moyenne de 0/10.
-             */
+            // =========================================================
+            // 📊 MOYENNE MENSUELLE
+            // =========================================================
+
             BigDecimal moyenne =
                     sommeCoefs.signum() == 0
                             ? null
@@ -188,16 +277,29 @@ public class BulletinPrimaireService {
                             RoundingMode.HALF_UP
                     );
 
+            System.out.println(
+                    "MOYENNE PRIMAIRE"
+                            + " | inscriptionId=" + ins.getId()
+                            + " | mois=" + mois
+                            + " | total=" + total
+                            + " | sommeCoefs=" + sommeCoefs
+                            + " | moyenne=" + moyenne
+            );
+
+            // =========================================================
+            // 📝 INFORMATIONS BULLETIN
+            // =========================================================
+
             BulletinMensuelInfo info =
                     infoRepo.findByInscriptionIdAndMois(
                             ins.getId(),
                             mois
                     ).orElse(null);
 
-            /*
-             * CORRECTION 1 :
-             * On conserve l'identifiant de l'inscription.
-             */
+            // =========================================================
+            // 📄 CONSTRUCTION DU BULLETIN
+            // =========================================================
+
             bruts.add(new BulletinDtos(
                     ins.getId(),
                     ins.getEleve().getNom()
@@ -205,7 +307,9 @@ public class BulletinPrimaireService {
                             + ins.getEleve().getPrenom(),
                     ins.getClasse().getNomComplet(),
                     mois,
-                    info != null ? info.getAbsences() : 0,
+                    info != null
+                            ? info.getAbsences()
+                            : 0,
                     lignes,
                     total.setScale(
                             2,
@@ -223,20 +327,19 @@ public class BulletinPrimaireService {
             ));
         }
 
-        /*
-         * Classement uniquement des élèves
-         * ayant une moyenne mensuelle.
-         *
-         * Les élèves sans notes n'ont pas de rang.
-         */
-        List<BulletinDtos> tries = bruts.stream()
-                .filter(b -> b.moyenne() != null)
-                .sorted(
-                        Comparator.comparing(
-                                BulletinDtos::moyenne
-                        ).reversed()
-                )
-                .toList();
+        // =========================================================
+        // 🏆 CLASSEMENT
+        // =========================================================
+
+        List<BulletinDtos> tries =
+                bruts.stream()
+                        .filter(b -> b.moyenne() != null)
+                        .sorted(
+                                Comparator.comparing(
+                                        BulletinDtos::moyenne
+                                ).reversed()
+                        )
+                        .toList();
 
         BigDecimal premier =
                 tries.isEmpty()
@@ -255,19 +358,21 @@ public class BulletinPrimaireService {
 
             if (precedente == null
                     || b.moyenne().compareTo(precedente) != 0) {
+
                 rang = i + 1;
             }
 
             precedente = b.moyenne();
+
             rangs.put(b, rang);
         }
 
         int effectif = bruts.size();
 
-        /*
-         * CORRECTION 2 :
-         * On conserve inscriptionId après le classement.
-         */
+        // =========================================================
+        // 🔄 RETOUR FINAL
+        // =========================================================
+
         return bruts.stream()
                 .map(b -> new BulletinDtos(
                         b.inscriptionId(),
@@ -291,6 +396,7 @@ public class BulletinPrimaireService {
      * Conversion BigDecimal, Double, Integer...
      */
     private static BigDecimal bd(Number n) {
+
         return n == null
                 ? null
                 : new BigDecimal(n.toString());
