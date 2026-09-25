@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Résultats de fin d'année</title>
+    <style>
+        @page {
+            size: A5;
+            margin: 14mm 10mm;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #000000;
+            margin: 0;
+        }
+
+        .page {
+            width: 100%;
+        }
+
+        .saut-page {
+            page-break-before: always;
+        }
+
+        .cadre-exterieur {
+            border: 5px double #000000;
+            padding: 6px;
+        }
+
+        .cadre-interieur {
+            border: 1.4px solid #000000;
+            padding: 16px 18px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 16pt;
+            margin: 0 0 8px 0;
+        }
+
+        .annee {
+            text-align: center;
+            font-size: 12pt;
+            font-weight: bold;
+            margin: 0 0 14px 0;
+        }
+
+        .champ {
+            font-size: 11pt;
+            margin: 0 0 8px 0;
+        }
+
+        .champ .label {
+            font-weight: bold;
+        }
+
+        h2.decision-titre {
+            font-size: 13pt;
+            margin: 10px 0 8px 0;
+        }
+
+        table.decision {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        table.decision td {
+            border: 1px solid #000000;
+            padding: 6px 8px;
+            font-size: 11pt;
+        }
+
+        table.decision td.case {
+            width: 15%;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .date-lieu {
+            font-size: 12pt;
+            margin: 18px 0 30px 0;
+        }
+
+        table.signatures {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table.signatures td {
+            font-size: 12pt;
+            font-weight: bold;
+            vertical-align: top;
+        }
+
+        table.signatures td.droite {
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+<!--
+    "resultats" : List<ResultatFinAnneeDto> — un seul élément pour un
+    téléchargement individuel, plusieurs pour un export groupé par classe
+    (chaque élève démarre alors sur une nouvelle page).
+    "toutesDecisions" : List<DecisionConseil> (DecisionConseil.values())
+-->
+<div class="page" th:each="dto, iter : ${resultats}"
+     th:classappend="${iter.index > 0} ? 'saut-page' : ''">
+
+    <div class="cadre-exterieur">
+        <div class="cadre-interieur">
+
+            <h1>Résultats de fin d'année</h1>
+
+            <p class="annee">
+                Année Scolaire
+                <span th:text="${dto.anneeDebut}">2025</span> /
+                <span th:text="${dto.anneeFin}">2026</span>
+            </p>
+
+            <p class="champ">
+                <span class="label">Nom (s) et Prénom : </span>
+                <span th:text="${dto.nomEtPrenom}">Nom Prénom</span>
+            </p>
+
+            <p class="champ">
+                <span class="label">Matricule : </span>
+                <span th:text="${dto.matricule}">000000</span>
+                &#160;&#160;&#160;
+                <span class="label">Classe </span>
+                <span th:text="${dto.classeNom}">6ème A</span>
+                &#160;&#160;&#160;
+                <span class="label">Effectif </span>
+                <span th:text="${dto.effectifClasse}">30</span> Elèves
+            </p>
+
+            <p class="champ">
+                <span class="label">Moyenne annuelle : </span>
+                <span th:text="${dto.moyenneFormatee}">14.50</span>
+                &#160;&#160;&#160;
+                <span class="label">Rang dans la classe : </span>
+                <span th:text="${dto.rangFormate}">3e / 30</span>
+            </p>
+
+            <h2 class="decision-titre">DECISION DU CONSEIL DES MAITRES</h2>
+
+            <table class="decision">
+                <tr th:each="option : ${toutesDecisions}">
+                    <td th:text="${option.libelle}">Admission en classe supérieure</td>
+                    <td class="case" th:text="${dto.isDecisionCochee(option)} ? 'X' : ''"></td>
+                    <td class="case"></td>
+                </tr>
+            </table>
+
+            <p class="date-lieu">
+                <span th:text="${dto.lieu}">Bamako</span>, le
+                <span th:text="${dto.dateFormatee}">15 juin 2026</span>
+            </p>
+
+            <table class="signatures">
+                <tr>
+                    <td>Maître<br/>(sse)</td>
+                    <td class="droite">Le Directeur</td>
+                </tr>
+            </table>
+
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

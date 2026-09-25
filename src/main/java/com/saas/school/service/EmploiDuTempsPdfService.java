@@ -2,6 +2,7 @@ package com.saas.school.service;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
+import com.saas.school.dto.ConfigurationCreneauxDto;
 import com.saas.school.entity.*;
 import com.saas.school.repository.AnneeScolaireRepository;
 import com.saas.school.repository.ClasseRepository;
@@ -10,9 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,8 @@ public class EmploiDuTempsPdfService {
     private final EmploiDuTempsRepository edtRepo;
     private final ClasseRepository classeRepo;
     private final AnneeScolaireRepository anneeRepo;
+
+    private final ConfigurationCreneauxService configurationCreneauxService;
 
     // =========================================================
     // 📅 JOURS
@@ -36,18 +39,22 @@ public class EmploiDuTempsPdfService {
     };
 
     // =========================================================
-    // ⏰ HORAIRES
+    // ⏰ CRÉNEAUX PAR DÉFAUT
     // =========================================================
 
-    private static final int HEURE_DEBUT = 8;
-    private static final int HEURE_FIN = 18;
+    private static final int DEFAULT_DEBUT = 8 * 60;
+    private static final int DEFAULT_FIN = 18 * 60;
+    private static final int DEFAULT_PAS = 60;
 
 
     // =========================================================
     // 📄 PDF D'UNE CLASSE
     // =========================================================
 
-    public byte[] genererPdf(Long classeId, Long anneeId) {
+    public byte[] genererPdf(
+            Long classeId,
+            Long anneeId
+    ) {
 
         try {
 
@@ -55,21 +62,25 @@ public class EmploiDuTempsPdfService {
             // CLASSE
             // =====================================================
 
-            Classe classe = classeRepo.findById(classeId)
-                    .orElseThrow(() ->
-                            new RuntimeException("Classe introuvable")
-                    );
+            Classe classe =
+                    classeRepo.findById(classeId)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Classe introuvable"
+                                    )
+                            );
 
             // =====================================================
             // ANNÉE SCOLAIRE
             // =====================================================
 
-            AnneeScolaire annee = anneeRepo.findById(anneeId)
-                    .orElseThrow(() ->
-                            new RuntimeException(
-                                    "Année scolaire introuvable"
-                            )
-                    );
+            AnneeScolaire annee =
+                    anneeRepo.findById(anneeId)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Année scolaire introuvable"
+                                    )
+                            );
 
             // =====================================================
             // EMPLOI DU TEMPS
@@ -82,6 +93,13 @@ public class EmploiDuTempsPdfService {
                     );
 
             // =====================================================
+            // CONFIGURATION DES CRÉNEAUX
+            // =====================================================
+
+            List<CreneauPdf> creneaux =
+                    obtenirCreneauxPourClasse(classe);
+
+            // =====================================================
             // OUTPUT
             // =====================================================
 
@@ -92,13 +110,14 @@ public class EmploiDuTempsPdfService {
             // DOCUMENT A4 PAYSAGE
             // =====================================================
 
-            Document document = new Document(
-                    PageSize.A4.rotate(),
-                    25,
-                    25,
-                    25,
-                    25
-            );
+            Document document =
+                    new Document(
+                            PageSize.A4.rotate(),
+                            25,
+                            25,
+                            25,
+                            25
+                    );
 
             PdfWriter.getInstance(
                     document,
@@ -123,7 +142,8 @@ public class EmploiDuTempsPdfService {
 
             genererTableau(
                     document,
-                    emplois
+                    emplois,
+                    creneaux
             );
 
             // =====================================================
@@ -143,6 +163,114 @@ public class EmploiDuTempsPdfService {
                     e
             );
         }
+    }
+
+
+    // =========================================================
+    // ⏰ RÉCUPÉRER LES CRÉNEAUX DE LA CLASSE
+    // =========================================================
+
+    private List<CreneauPdf> obtenirCreneauxPourClasse(
+            Classe classe
+    ) {
+
+        if (classe.getNiveau() == null
+                || classe.getNiveau().getCycle() == null) {
+
+            return genererCreneauxParDefaut();
+        }
+
+        Long cycleId =
+                classe.getNiveau()
+                        .getCycle()
+                        .getId();
+
+        Long ecoleId =
+                classe.getEcole()
+                        .getId();
+
+        try {
+
+            ConfigurationCreneauxDto config =
+                    configurationCreneauxService.obtenir(
+                            ecoleId,
+                            cycleId
+                    );
+
+            if (config == null
+                    || config.creneaux() == null
+                    || config.creneaux().isEmpty()) {
+
+                return genererCreneauxParDefaut();
+            }
+
+            return config.creneaux()
+                    .stream()
+                    .map(c ->
+                            new CreneauPdf(
+                                    c.jour(),
+                                    c.heureDebut(),
+                                    c.heureFin(),
+                                    c.ordre()
+                            )
+                    )
+                    .sorted(
+                            Comparator
+                                    .comparing(
+                                            CreneauPdf::jourOrdre
+                                    )
+                                    .thenComparingInt(
+                                            CreneauPdf::heureDebut
+                                    )
+                    )
+                    .toList();
+
+        } catch (Exception e) {
+
+            /*
+             * Si aucune configuration personnalisée
+             * n'existe encore, on utilise les horaires
+             * standards.
+             */
+            return genererCreneauxParDefaut();
+        }
+    }
+
+
+    // =========================================================
+    // ⏰ CRÉNEAUX PAR DÉFAUT
+    // =========================================================
+
+    private List<CreneauPdf> genererCreneauxParDefaut() {
+
+        List<CreneauPdf> result =
+                new ArrayList<>();
+
+        for (String jour : JOURS) {
+
+            int ordre = 1;
+
+            for (
+                    int minute = DEFAULT_DEBUT;
+                    minute < DEFAULT_FIN;
+                    minute += DEFAULT_PAS
+            ) {
+
+                result.add(
+                        new CreneauPdf(
+                                jour,
+                                minute,
+                                Math.min(
+                                        minute + DEFAULT_PAS,
+                                        DEFAULT_FIN
+                                ),
+                                ordre++
+                        )
+                );
+            }
+        }
+
+        return result;
     }
 
 
@@ -176,17 +304,15 @@ public class EmploiDuTempsPdfService {
                         11
                 );
 
-        // =====================================================
-        // NOM DE L'ÉTABLISSEMENT
-        // =====================================================
-
-        String nomEcole = "ÉTABLISSEMENT";
+        String nomEcole =
+                "ÉTABLISSEMENT";
 
         if (classe.getEcole() != null
                 && classe.getEcole().getNom() != null
                 && !classe.getEcole().getNom().isBlank()) {
 
-            nomEcole = classe.getEcole().getNom();
+            nomEcole =
+                    classe.getEcole().getNom();
         }
 
         Paragraph ecole =
@@ -201,11 +327,6 @@ public class EmploiDuTempsPdfService {
 
         document.add(ecole);
 
-
-        // =====================================================
-        // TITRE
-        // =====================================================
-
         Paragraph titre =
                 new Paragraph(
                         "EMPLOI DU TEMPS",
@@ -217,11 +338,6 @@ public class EmploiDuTempsPdfService {
         );
 
         document.add(titre);
-
-
-        // =====================================================
-        // CLASSE
-        // =====================================================
 
         Paragraph classeInfo =
                 new Paragraph(
@@ -235,11 +351,6 @@ public class EmploiDuTempsPdfService {
         );
 
         document.add(classeInfo);
-
-
-        // =====================================================
-        // ANNÉE SCOLAIRE
-        // =====================================================
 
         Paragraph anneeInfo =
                 new Paragraph(
@@ -266,16 +377,18 @@ public class EmploiDuTempsPdfService {
 
     private void genererTableau(
             Document document,
-            List<EmploiDuTemps> emplois
+            List<EmploiDuTemps> emplois,
+            List<CreneauPdf> creneaux
     ) throws DocumentException {
 
-        PdfPTable table = new PdfPTable(7);
+        PdfPTable table =
+                new PdfPTable(7);
 
         table.setWidthPercentage(100);
 
         table.setWidths(
                 new float[]{
-                        1.2f,
+                        1.4f,
                         2.1f,
                         2.1f,
                         2.1f,
@@ -285,43 +398,66 @@ public class EmploiDuTempsPdfService {
                 }
         );
 
-        // En-tête
-        addHeader(table, "HORAIRE");
+        // =====================================================
+        // HEADER
+        // =====================================================
+
+        addHeader(
+                table,
+                "HORAIRE"
+        );
 
         for (String jour : JOURS) {
-            addHeader(table, jour);
+
+            addHeader(
+                    table,
+                    jour
+            );
         }
 
-        /*
-         * Indique pour chaque jour combien de lignes
-         * sont encore occupées par un rowspan.
-         *
-         * Exemple :
-         * Mathématiques 08h-11h
-         *
-         * LUNDI = 2 lignes restantes après la ligne 08h.
-         */
-        Map<String, Integer> lignesOccupees = new HashMap<>();
+        // =====================================================
+        // GROUPEMENT DES CRÉNEAUX PAR HORAIRE
+        // =====================================================
+
+        List<CreneauPdf> bornes =
+                construireLignesGlobales(creneaux);
+
+        // =====================================================
+        // ROWSPAN
+        // =====================================================
+
+        Map<String, Integer> lignesOccupees =
+                new HashMap<>();
 
         for (String jour : JOURS) {
-            lignesOccupees.put(jour, 0);
+
+            lignesOccupees.put(
+                    jour,
+                    0
+            );
         }
 
-        for (
-                int heure = HEURE_DEBUT;
-                heure < HEURE_FIN;
-                heure++
-        ) {
+        // =====================================================
+        // GÉNÉRATION
+        // =====================================================
 
-            // Colonne horaire
+        for (CreneauPdf ligne : bornes) {
+
+            // =================================================
+            // HORAIRE
+            // =================================================
+
             addHoraire(
                     table,
-                    String.format(
-                            "%02dh - %02dh",
-                            heure,
-                            heure + 1
+                    formaterPlageHoraire(
+                            ligne.heureDebut(),
+                            ligne.heureFin()
                     )
             );
+
+            // =================================================
+            // JOURS
+            // =================================================
 
             for (String jour : JOURS) {
 
@@ -331,11 +467,6 @@ public class EmploiDuTempsPdfService {
                                 0
                         );
 
-                /*
-                 * Si une cellule rowspan précédente
-                 * couvre cette ligne, on ne crée PAS
-                 * de nouvelle cellule.
-                 */
                 if (occupees > 0) {
 
                     lignesOccupees.put(
@@ -350,7 +481,8 @@ public class EmploiDuTempsPdfService {
                         trouverCours(
                                 emplois,
                                 jour,
-                                heure
+                                ligne.heureDebut(),
+                                ligne.heureFin()
                         );
 
                 if (edt == null) {
@@ -359,53 +491,89 @@ public class EmploiDuTempsPdfService {
                             celluleVide()
                     );
 
-                } else {
+                    continue;
+                }
 
-                    /*
-                     * Nombre d'heures du cours.
-                     *
-                     * Exemple :
-                     * 08 -> 10 = 2 lignes
-                     * 08 -> 11 = 3 lignes
-                     */
-                    int rowSpan =
-                            edt.getHeureFin()
-                                    - edt.getHeureDebut();
+                // =================================================
+                // ROWSPAN BASÉ SUR LES CRÉNEAUX RÉELS
+                // =================================================
 
-                    /*
-                     * On ne dépasse jamais 18h.
-                     */
-                    rowSpan =
-                            Math.min(
-                                    rowSpan,
-                                    HEURE_FIN
-                                            - heure
-                            );
-
-                    PdfPCell cellule =
-                            celluleCours(edt);
-
-                    cellule.setRowspan(rowSpan);
-
-                    table.addCell(cellule);
-
-                    /*
-                     * Les lignes suivantes seront
-                     * couvertes par cette cellule.
-                     */
-                    if (rowSpan > 1) {
-
-                        lignesOccupees.put(
+                int rowSpan =
+                        calculerRowSpan(
+                                creneaux,
                                 jour,
-                                rowSpan - 1
+                                edt,
+                                bornes
                         );
-                    }
+
+                PdfPCell cellule =
+                        celluleCours(edt);
+
+                cellule.setRowspan(
+                        Math.max(
+                                1,
+                                rowSpan
+                        )
+                );
+
+                table.addCell(
+                        cellule
+                );
+
+                if (rowSpan > 1) {
+
+                    lignesOccupees.put(
+                            jour,
+                            rowSpan - 1
+                    );
                 }
             }
         }
 
         document.add(table);
     }
+
+
+    // =========================================================
+    // 🔎 CONSTRUIRE LES LIGNES DU TABLEAU
+    // =========================================================
+
+    private List<CreneauPdf> construireLignesGlobales(
+            List<CreneauPdf> creneaux
+    ) {
+
+        Set<String> dejaVu =
+                new HashSet<>();
+
+        List<CreneauPdf> result =
+                new ArrayList<>();
+
+        for (CreneauPdf c : creneaux) {
+
+            String cle =
+                    c.heureDebut()
+                            + "-"
+                            + c.heureFin();
+
+            if (dejaVu.add(cle)) {
+
+                result.add(c);
+            }
+        }
+
+        return result.stream()
+                .sorted(
+                        Comparator
+                                .comparingInt(
+                                        CreneauPdf::heureDebut
+                                )
+                                .thenComparingInt(
+                                        CreneauPdf::heureFin
+                                )
+                )
+                .toList();
+    }
+
 
     // =========================================================
     // 🔎 RECHERCHE DU COURS
@@ -414,7 +582,8 @@ public class EmploiDuTempsPdfService {
     private EmploiDuTemps trouverCours(
             List<EmploiDuTemps> emplois,
             String jour,
-            int heure
+            int debut,
+            int fin
     ) {
 
         for (EmploiDuTemps edt : emplois) {
@@ -426,9 +595,9 @@ public class EmploiDuTempsPdfService {
             }
 
             if (
-                    heure >= edt.getHeureDebut()
+                    edt.getHeureDebut() <= debut
                             &&
-                            heure < edt.getHeureFin()
+                            edt.getHeureFin() >= fin
             ) {
 
                 return edt;
@@ -436,6 +605,56 @@ public class EmploiDuTempsPdfService {
         }
 
         return null;
+    }
+
+
+    // =========================================================
+    // 🔢 ROWSPAN
+    // =========================================================
+
+    private int calculerRowSpan(
+            List<CreneauPdf> creneaux,
+            String jour,
+            EmploiDuTemps edt,
+            List<CreneauPdf> lignes
+    ) {
+
+        int rowspan = 0;
+
+        for (CreneauPdf ligne : lignes) {
+
+            if (
+                    ligne.heureDebut()
+                            >= edt.getHeureDebut()
+                            &&
+                            ligne.heureFin()
+                                    <= edt.getHeureFin()
+            ) {
+
+                boolean existeCeJour =
+                        creneaux.stream()
+                                .anyMatch(c ->
+                                        c.jour()
+                                                .equalsIgnoreCase(jour)
+                                                &&
+                                                c.heureDebut()
+                                                        == ligne.heureDebut()
+                                                &&
+                                                c.heureFin()
+                                                        == ligne.heureFin()
+                                );
+
+                if (existeCeJour) {
+
+                    rowspan++;
+                }
+            }
+        }
+
+        return Math.max(
+                1,
+                rowspan
+        );
     }
 
 
@@ -468,15 +687,12 @@ public class EmploiDuTempsPdfService {
         String enseignant = "";
 
         if (edt.getEnseignant() != null) {
+
             enseignant =
                     construireNomEnseignant(
                             edt.getEnseignant()
                     );
         }
-
-        // =====================================================
-        // CONTENU UNIQUE
-        // =====================================================
 
         Paragraph contenu =
                 new Paragraph();
@@ -485,10 +701,8 @@ public class EmploiDuTempsPdfService {
                 Element.ALIGN_CENTER
         );
 
-        // Très peu d'espace entre les lignes
         contenu.setLeading(8);
 
-        // MATIÈRE
         contenu.add(
                 new Chunk(
                         matiere,
@@ -496,7 +710,6 @@ public class EmploiDuTempsPdfService {
                 )
         );
 
-        // ENSEIGNANT juste en dessous
         if (!enseignant.isBlank()) {
 
             contenu.add(
@@ -511,7 +724,6 @@ public class EmploiDuTempsPdfService {
             );
         }
 
-        // SALLE
         if (edt.getSalle() != null) {
 
             contenu.add(
@@ -527,7 +739,6 @@ public class EmploiDuTempsPdfService {
             );
         }
 
-        // SOUS-GROUPE
         if (edt.getSousGroupe() != null) {
 
             contenu.add(
@@ -542,10 +753,6 @@ public class EmploiDuTempsPdfService {
                     )
             );
         }
-
-        // =====================================================
-        // CELLULE
-        // =====================================================
 
         PdfPCell cell =
                 new PdfPCell(
@@ -562,10 +769,12 @@ public class EmploiDuTempsPdfService {
 
         cell.setPadding(3);
 
-        cell.setMinimumHeight(42);
+        cell.setMinimumHeight(30);
 
         return cell;
     }
+
+
     // =========================================================
     // 👨‍🏫 ENSEIGNANT
     // =========================================================
@@ -602,7 +811,7 @@ public class EmploiDuTempsPdfService {
 
 
     // =========================================================
-    // 🏷️ HEADER DU TABLEAU
+    // 🏷️ HEADER
     // =========================================================
 
     private void addHeader(
@@ -651,7 +860,7 @@ public class EmploiDuTempsPdfService {
         Font font =
                 new Font(
                         Font.FontFamily.HELVETICA,
-                        8,
+                        7,
                         Font.BOLD
                 );
 
@@ -671,9 +880,52 @@ public class EmploiDuTempsPdfService {
                 Element.ALIGN_MIDDLE
         );
 
-        cell.setPadding(5);
+        cell.setPadding(3);
+
+        cell.setMinimumHeight(30);
 
         table.addCell(cell);
+    }
+
+
+    // =========================================================
+    // ⏰ FORMAT HEURE
+    // =========================================================
+
+    private String formaterPlageHoraire(
+            int debut,
+            int fin
+    ) {
+
+        return formaterHeure(debut)
+                + " - "
+                + formaterHeure(fin);
+    }
+
+
+    private String formaterHeure(
+            int minutes
+    ) {
+
+        int heures =
+                minutes / 60;
+
+        int minutesRestantes =
+                minutes % 60;
+
+        if (minutesRestantes == 0) {
+
+            return String.format(
+                    "%02dh",
+                    heures
+            );
+        }
+
+        return String.format(
+                "%02dh%02d",
+                heures,
+                minutesRestantes
+        );
     }
 
 
@@ -688,12 +940,39 @@ public class EmploiDuTempsPdfService {
                         new Phrase("")
                 );
 
-        cell.setMinimumHeight(42);
+        cell.setMinimumHeight(30);
 
         cell.setVerticalAlignment(
                 Element.ALIGN_MIDDLE
         );
 
         return cell;
+    }
+
+
+    // =========================================================
+    // 📦 OBJET INTERNE PDF
+    // =========================================================
+
+    private record CreneauPdf(
+            String jour,
+            int heureDebut,
+            int heureFin,
+            int ordre
+    ) {
+
+        private int jourOrdre() {
+
+            for (int i = 0; i < JOURS.length; i++) {
+
+                if (JOURS[i]
+                        .equalsIgnoreCase(jour)) {
+
+                    return i;
+                }
+            }
+
+            return 99;
+        }
     }
 }

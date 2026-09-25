@@ -157,4 +157,6 @@ public interface CoefficientMatiereRepository extends JpaRepository<CoefficientM
             @Param("niveauId") Long niveauId,
             @Param("classeId") Long classeId
     );
+
+    List<CoefficientMatiere> findByNiveauIdOrderByOrdreAffichageAscIdAsc(Long id);
 }

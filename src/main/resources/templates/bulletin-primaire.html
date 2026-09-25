@@ -1,0 +1,297 @@
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+
+    <style>
+        @page {
+            size: A5 portrait;
+            margin: 7mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Times New Roman", serif;
+            font-size: 9px;
+            color: #000;
+        }
+
+        .bulletin {
+            width: 100%;
+            border: 1.5px solid #000;
+            padding: 7px;
+            page-break-after: always;
+        }
+
+        .bulletin:last-child {
+            page-break-after: auto;
+        }
+
+        .header {
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .student-info {
+            width: 100%;
+            margin-bottom: 5px;
+            font-size: 9px;
+        }
+
+        .student-info td {
+            padding: 2px 0;
+        }
+
+        .notes {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .notes th,
+        .notes td {
+            border: 1px solid #000;
+            padding: 2px 3px;
+            line-height: 1.1;
+        }
+
+        .notes th {
+            font-style: italic;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .matiere {
+            width: 43%;
+            text-align: center;
+            font-weight: bold;
+            font-style: italic;
+        }
+
+        .note {
+            width: 21%;
+            text-align: center;
+        }
+
+        .appreciation {
+            width: 36%;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .results {
+            margin-top: 7px;
+            width: 100%;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .results td {
+            padding: 4px 1px;
+        }
+
+        .value-box {
+            display: inline-block;
+            min-width: 52px;
+            padding: 3px;
+            border: 1px solid #000;
+            text-align: center;
+        }
+
+        .signatures {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+        }
+
+        .signatures td {
+            width: 50%;
+            height: 25px;
+            vertical-align: top;
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        .teacher-box {
+            border: 1px solid #000;
+            text-align: center;
+            height: 65px;
+            padding: 4px;
+        }
+
+        .observation {
+            margin-top: 5px;
+            font-size: 9px;
+        }
+
+        .bottom-signatures {
+            width: 100%;
+            margin-top: 12px;
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        .bottom-signatures td {
+            width: 50%;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="bulletin" th:each="b : ${bulletins}">
+
+    <div class="header"
+         th:text="${'COMPOSITION DU MOIS DE ' + b.mois}">
+        COMPOSITION DU MOIS D'OCTOBRE
+    </div>
+
+    <table class="student-info">
+        <tr>
+            <td>
+                <strong>Élève :</strong>
+                <span th:text="${b.eleve}">Nom Prénom</span>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Classe :</strong>
+                <span th:text="${b.classe}">Classe</span>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Nombre d'absences :</strong>
+                <span th:text="${b.absences != null ? b.absences : 0}">
+                    0
+                </span>
+            </td>
+        </tr>
+    </table>
+
+    <table class="notes">
+        <thead>
+        <tr>
+            <th class="matiere">Matières</th>
+            <th class="note">Notes /10</th>
+            <th class="appreciation">Appréciations</th>
+        </tr>
+        </thead>
+
+        <tbody>
+        <tr th:each="ligne : ${b.lignes}">
+            <td class="matiere"
+                th:text="${ligne.matiere}">
+                Dictée
+            </td>
+
+            <td class="note"
+                th:text="${ligne.note != null ? ligne.note : ''}">
+            </td>
+
+            <td class="appreciation"
+                th:text="${ligne.appreciation != null ? ligne.appreciation : ''}">
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <table class="results">
+        <tr>
+            <td style="width: 70%;">
+                TOTAL ..................................
+            </td>
+            <td>
+                <span class="value-box"
+                      th:text="${b.total}">
+                    0
+                </span>
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                Moyenne obtenue ........................
+            </td>
+            <td>
+                <span class="value-box"
+                      th:text="${b.moyenne + ' / ' + b.noteMax}">
+                    0 / 10
+                </span>
+            </td>
+        </tr>
+
+        <tr>
+            <td colspan="2">
+                Rang :
+                <span th:text="${b.rang != null ? b.rang : '—'}">
+                    1
+                </span>
+
+                &#160;&#160; Sur
+
+                <span th:text="${b.effectif != null ? b.effectif : 0}">
+    30
+</span>
+
+                &#160; élèves classés
+
+            </td>
+        </tr>
+
+        <tr>
+            <td colspan="2">
+                Moyenne du premier :
+                <span th:text="${b.moyennePremier != null
+                    ? b.moyennePremier + ' / ' + b.noteMax
+                    : '—'}">
+                    9 / 10
+                </span>
+            </td>
+        </tr>
+    </table>
+
+    <table class="signatures">
+        <tr>
+            <td>
+                <div class="observation">
+                    <strong>Observation du maître :</strong>
+                    <div th:text="${b.observationMaitre != null
+                        ? b.observationMaitre
+                        : ''}">
+                    </div>
+                </div>
+            </td>
+
+            <td>
+                <div class="teacher-box">
+                    Le Maître
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="bottom-signatures">
+        <tr>
+            <td style="text-align: left;">
+                <u>Le Directeur</u>
+            </td>
+
+            <td style="text-align: right;">
+                <u>Les parents</u>
+            </td>
+        </tr>
+    </table>
+
+</div>
+
+</body>
+</html>

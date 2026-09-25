@@ -53,6 +53,8 @@ public class CoefficientMatiere {
     @ManyToOne
     @JoinColumn(name = "classe_id")
     private Classe classe;
+    @Column(name = "ordre_affichage")
+    private Integer ordreAffichage;
 
     @ManyToOne
     @JoinColumn(name = "sous_groupe_id")

@@ -457,6 +457,33 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
             @Param("coefficientMatiereId") Long coefficientMatiereId,
             @Param("periode") String periode
     );
+    @Query("""
+    SELECT n
+    FROM Note n
+    JOIN FETCH n.coefficientMatiere cm
+    WHERE n.inscription.id = :inscriptionId
+      AND n.anneeScolaire.id = :anneeId
+      AND n.periode = :periode
+""")
+    List<Note> findNotesBulletinPrimaire(
+            @Param("inscriptionId") Long inscriptionId,
+            @Param("anneeId") Long anneeId,
+            @Param("periode") String periode
+    );
+    @Query("""
+    SELECT n
+    FROM Note n
+    JOIN FETCH n.coefficientMatiere cm
+    WHERE n.inscription.id IN :inscriptionIds
+      AND n.anneeScolaire.id = :anneeId
+      AND n.periode = :periode
+      AND n.sousGroupe IS NULL
+""")
+    List<Note> findNotesPrimaire(
+            @Param("inscriptionIds") List<Long> inscriptionIds,
+            @Param("anneeId") Long anneeId,
+            @Param("periode") String periode
+    );
 
 
 }

@@ -27,6 +27,7 @@ public class AuthService {
     private final PermissionRepository permissionRepository;
     private final TypeFraisRepository typeFraisRepository;
     private final JwtService jwtService;
+    private final CycleRepository cycleRepository;
 
     @Transactional
     public void register(RegisterRequest request) {
@@ -69,6 +70,7 @@ public class AuthService {
         ecole.setActive(true);
 
         ecoleRepository.save(ecole);
+        creerCyclesParDefaut(ecole);
 
         // ============================================================
         // 2. ASSIGNER PLAN BASIC
@@ -316,5 +318,37 @@ public class AuthService {
         role.setPermissions(perms);
 
         roleRepository.save(role);
+
     }
+// ============================================================
+// CYCLES PAR DÉFAUT
+// ============================================================
+
+    private void creerCyclesParDefaut(Ecole ecole) {
+
+        List<String> cycles = List.of(
+                "PREMIER CYCLE",
+                "SECOND CYCLE",
+                "LYCEE"
+        );
+
+        for (String nomCycle : cycles) {
+
+            boolean existe = cycleRepository
+                    .findByNomAndEcole(nomCycle, ecole)
+                    .isPresent();
+
+            if (!existe) {
+
+                Cycle cycle = new Cycle();
+
+                cycle.setNom(nomCycle);
+                cycle.setEcole(ecole);
+
+                cycleRepository.save(cycle);
+            }
+        }
+    }
+
+
 }

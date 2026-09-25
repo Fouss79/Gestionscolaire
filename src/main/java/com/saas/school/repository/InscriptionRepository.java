@@ -5,6 +5,7 @@ import com.saas.school.entity.Inscription;
 import com.saas.school.service.StatutInscription;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -77,4 +78,21 @@ public interface InscriptionRepository extends JpaRepository<Inscription, Long> 
     List<Inscription> findByAnneeScolaireIdAndStatutAndClasse_Niveau_IdAndClasse_Serie_Id(Long id, StatutInscription statutInscription, Long niveauId, Long serieId);
 
     List<Inscription> findByAnneeScolaireIdAndStatutAndClasse_Niveau_Id(Long id, StatutInscription statutInscription, Long niveauId);
+
+    @Query("""
+    SELECT i
+    FROM Inscription i
+    JOIN FETCH i.eleve e
+    WHERE i.classe.id = :classeId
+      AND i.anneeScolaire.id = :anneeId
+      AND i.statut = :statut
+    ORDER BY e.nom ASC, e.prenom ASC
+""")
+    List<Inscription> findActifsByClasseAndAnnee(
+            @Param("classeId") Long classeId,
+            @Param("anneeId") Long anneeId,
+            @Param("statut") StatutInscription statut
+    );
+
+
 }
