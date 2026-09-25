@@ -464,7 +464,7 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
     JOIN n.inscription i
     WHERE i.id = :inscriptionId
       AND i.anneeScolaire.id = :anneeId
-      AND n.periode = :periode
+      AND UPPER(n.periode) = UPPER(:periode)
 """)
     List<Note> findNotesBulletinPrimaire(
             @Param("inscriptionId") Long inscriptionId,
