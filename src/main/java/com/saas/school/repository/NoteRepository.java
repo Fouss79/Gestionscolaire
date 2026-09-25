@@ -461,8 +461,9 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
     SELECT n
     FROM Note n
     JOIN FETCH n.coefficientMatiere cm
-    WHERE n.inscription.id = :inscriptionId
-      AND n.anneeScolaire.id = :anneeId
+    JOIN n.inscription i
+    WHERE i.id = :inscriptionId
+      AND i.anneeScolaire.id = :anneeId
       AND n.periode = :periode
 """)
     List<Note> findNotesBulletinPrimaire(
