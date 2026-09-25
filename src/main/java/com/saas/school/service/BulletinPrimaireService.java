@@ -78,6 +78,40 @@ public class BulletinPrimaireService {
                             anneeId,
                             mois
                     );
+            List<Note> toutesNotesInscription =
+                    noteRepo.findByInscriptionIdAndInscription_AnneeScolaireId(
+                            ins.getId(),
+                            anneeId
+                    );
+
+            System.out.println(
+                    "DIAGNOSTIC | inscriptionId=" + ins.getId()
+                            + " | anneeId=" + anneeId
+                            + " | TOUTES LES NOTES=" + toutesNotesInscription.size()
+            );
+
+            for (Note n : toutesNotesInscription) {
+                System.out.println(
+                        "DIAGNOSTIC NOTE"
+                                + " | id=" + n.getId()
+                                + " | periode=" + n.getPeriode()
+                                + " | nClass=" + n.getNClass()
+                                + " | nExem=" + n.getNExem()
+                                + " | coefficientMatiereId="
+                                + (n.getCoefficientMatiere() != null
+                                ? n.getCoefficientMatiere().getId()
+                                : null)
+                                + " | anneeNote="
+                                + (n.getAnneeScolaire() != null
+                                ? n.getAnneeScolaire().getId()
+                                : null)
+                                + " | anneeInscription="
+                                + (n.getInscription() != null
+                                && n.getInscription().getAnneeScolaire() != null
+                                ? n.getInscription().getAnneeScolaire().getId()
+                                : null)
+                );
+            }
 
             // 2. Vérifier combien de notes ont été récupérées
             System.out.println(
