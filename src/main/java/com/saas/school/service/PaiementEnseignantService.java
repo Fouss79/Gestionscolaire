@@ -30,6 +30,12 @@ public class PaiementEnseignantService {
     private final EmargementService emargementService;
     private final OperationComptableService operationComptableService;
 
+    // Emargement::getDuree est exprimé en MINUTES, alors que tauxHoraire
+    // est un taux PAR HEURE. On convertit donc les minutes en heures
+    // (division par 60) avant de multiplier par le taux, partout où ce
+    // calcul est fait.
+    private static final double MINUTES_PAR_HEURE = 60.0;
+
 
     // ============================================================
     // PRÉVISUALISATION
@@ -102,6 +108,8 @@ public class PaiementEnseignantService {
             boolean estVacataire =
                     ens.getTypeContrat() == Enseignant.TypeContrat.VACATAIRE;
 
+            // totalHeures reste le total brut en MINUTES (nom conservé
+            // pour ne pas casser le DTO / l'entité existants).
             int totalHeures = nouveauxEmargements.stream()
                     .mapToInt(Emargement::getDuree)
                     .sum();
@@ -116,8 +124,11 @@ public class PaiementEnseignantService {
                             ? ens.getSalaireBase()
                             : 0.0;
 
+            // Conversion minutes -> heures avant application du taux horaire.
             double montantHeures =
-                    estVacataire ? totalHeures * taux : 0.0;
+                    estVacataire
+                            ? (totalHeures / MINUTES_PAR_HEURE) * taux
+                            : 0.0;
 
             double montantTotal = salaireBase + montantHeures;
 
@@ -266,6 +277,8 @@ public class PaiementEnseignantService {
             // CALCUL HEURES + SALAIRE
             // ----------------------------------------------------
 
+            // totalHeures reste le total brut en MINUTES (nom conservé
+            // pour ne pas casser le DTO / l'entité existants).
             int totalHeures =
                     nouveauxEmargements.stream()
                             .mapToInt(Emargement::getDuree)
@@ -278,8 +291,11 @@ public class PaiementEnseignantService {
                             : 0.0;
 
 
+            // Conversion minutes -> heures avant application du taux horaire.
             double montantHeures =
-                    estVacataire ? totalHeures * taux : 0.0;
+                    estVacataire
+                            ? (totalHeures / MINUTES_PAR_HEURE) * taux
+                            : 0.0;
 
             double montantTotal = salaireBase + montantHeures;
 
@@ -292,7 +308,8 @@ public class PaiementEnseignantService {
             System.out.println("Type contrat : " + ens.getTypeContrat());
             System.out.println("Est vacataire : " + estVacataire);
             System.out.println("Nombre émargements : " + nouveauxEmargements.size());
-            System.out.println("Total heures : " + totalHeures);
+            System.out.println("Total minutes : " + totalHeures);
+            System.out.println("Total heures (converti) : " + (totalHeures / MINUTES_PAR_HEURE));
             System.out.println("Taux horaire : " + taux);
             System.out.println("Montant heures : " + montantHeures);
             System.out.println("=====================================");

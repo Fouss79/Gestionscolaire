@@ -487,8 +487,11 @@ public class NoteService {
         double sommePoints = notes.stream()
                 .mapToDouble(n -> calculerMoyenneNote(n) * n.getCoefficientMatiere().getCoefficient())
                 .sum();
+        System.out.println(sommePoints);
 
         return sommePoints / sommeCoeff;
+
+
     }
 
     /**

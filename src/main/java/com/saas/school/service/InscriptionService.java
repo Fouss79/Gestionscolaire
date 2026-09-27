@@ -378,6 +378,28 @@ public class InscriptionService {
         dto.setAnnee(i.getAnneeScolaire().getNom());
         dto.setDateInscription(i.getCreatedAt());
 
+        if (i.getClasse() != null) {
+
+            dto.setClasseId(
+                    i.getClasse().getId()
+            );
+
+            dto.setClasseNom(
+                    i.getClasse().getNomComplet()
+            );
+
+            if (i.getClasse().getNiveau() != null
+                    && i.getClasse().getNiveau().getCycle() != null) {
+
+                Cycle cycle = i.getClasse()
+                        .getNiveau()
+                        .getCycle();
+
+                dto.setCycleId(cycle.getId());
+                dto.setCycleNom(cycle.getNom());
+            }
+        }
+
         dto.setStatut(i.getStatut().name());
 
         MontantsAgreges montants = agregerMontants(i.getId());
@@ -488,11 +510,15 @@ public class InscriptionService {
 
     }
 
-    public List<ReinscriptionReponseDTO> getElevesPourReinscription(Long ecoleId) {
 
+    @Transactional
+    public List<ReinscriptionReponseDTO> getElevesPourReinscription(
+            Long ecoleId
+    ) {
         AnneeScolaire anneeActive = anneeScolaireRepository
                 .findByEcoleIdAndActiveTrue(ecoleId)
-                .orElseThrow(() -> new RuntimeException("Aucune année active"));
+                .orElseThrow(() ->
+                        new RuntimeException("Aucune année active"));
 
         AnneeScolaire anneePrecedente = anneeScolaireRepository
                 .findTopByEcoleIdAndDateFinBeforeOrderByDateFinDesc(
@@ -506,59 +532,42 @@ public class InscriptionService {
         }
 
         return inscriptionRepository
-                .findByEcoleIdAndAnneeScolaireId(ecoleId, anneePrecedente.getId())
+                .findByEcoleIdAndAnneeScolaireId(
+                        ecoleId,
+                        anneePrecedente.getId()
+                )
                 .stream()
-                .map(inscriptionPrecedente -> {
+                .filter(i ->
+                        i.getStatut() == StatutInscription.VALIDE
+                )
+                .map(ancienne -> {
 
-                    Long eleveId = inscriptionPrecedente.getEleve().getId();
+                    ReinscriptionReponseDTO dto =
+                            mapReinscription(ancienne);
 
-                    Inscription inscriptionActive = inscriptionRepository
-                            .findByEleveIdAndAnneeScolaireId(eleveId, anneeActive.getId())
+                    Inscription nouvelle = inscriptionRepository
+                            .findByEleveIdAndAnneeScolaireId(
+                                    ancienne.getEleve().getId(),
+                                    anneeActive.getId()
+                            )
                             .orElse(null);
 
-                    ReinscriptionReponseDTO dto;
-
-                    if (inscriptionActive != null) {
-
-                        dto = mapReinscription(inscriptionPrecedente);
-
-                        dto.setClasseNom(
-                                inscriptionPrecedente.getClasse().getNomComplet()
-                        );
-
+                    if (nouvelle != null) {
                         dto.setStatutReinscription("REINSCRIT");
 
                         dto.setNouvelleClasseNom(
-                                inscriptionActive.getClasse().getNomComplet()
+                                nouvelle.getClasse().getNomComplet()
                         );
 
                         dto.setDecisionAdministration(
-                                inscriptionActive.getDecision() != null
-                                        ? inscriptionActive.getDecision().name()
+                                nouvelle.getDecision() != null
+                                        ? nouvelle.getDecision().name()
                                         : null
                         );
-
                     } else {
-
-                        dto = mapReinscription(inscriptionPrecedente);
-
                         dto.setStatutReinscription("NON_REINSCRIT");
-
                         dto.setDecisionAdministration(null);
                     }
-
-                    Double moyenne = noteService.calculMoyenneAnnuelle(
-                            eleveId,
-
-                            anneePrecedente.getId()
-
-                    );
-                    System.out.println(moyenne);
-
-                    dto.setMoyenneAnnuelle(moyenne);
-                    dto.setMention(calculerMention(moyenne));
-                    dto.setDecision(decisionDepuisMoyenne(moyenne));
-
 
                     return dto;
                 })

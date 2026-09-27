@@ -188,7 +188,7 @@ public class BulletinSalaireService {
                             margeGauche,
                             y,
                             "Heures emargees",
-                            paiement.getTotalHeures() + " h"
+                            paiement.getTotalHeures()/60 + " h"
                     );
 
                     y = ecrireLigne(

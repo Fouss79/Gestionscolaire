@@ -37,12 +37,18 @@ public class InscriptionResponseDTO {
     private String telephoneTuteur;
     private String emailTuteur;
 
+
     // --- Scolarité ---
     private Long classeId;
     private String classeNom;
 
+    // Cycle de la classe
+    private Long cycleId;
+    private String cycleNom;
+
     private Long anneeId;
     private String annee;
+
 
     private LocalDateTime dateInscription;
     private String statut;

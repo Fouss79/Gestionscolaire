@@ -18,12 +18,23 @@ public class ReinscriptionReponseDTO {
     private String prenom;
     private String matricule;
 
+
+
+    // --- Scolarité ---
+    private Long classeId;
     private String classeNom;
+
+    // Cycle de la classe
+    private Long cycleId;
+    private String cycleNom;
+
+    private Long anneeId;
+    private String annee;
 
     private LocalDate dateNaissance;
     private String sexe;
 
-    private String annee;
+
 
     private String statutPaiement;
 
@@ -48,4 +59,6 @@ public class ReinscriptionReponseDTO {
 
     private String statutReinscription; // REINSCRIT / NON_REINSCRIT
      private String  decisionAdministration;
+
+
 }
