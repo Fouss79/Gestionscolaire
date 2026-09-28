@@ -93,6 +93,15 @@ public interface InscriptionRepository extends JpaRepository<Inscription, Long> 
             @Param("anneeId") Long anneeId,
             @Param("statut") StatutInscription statut
     );
-
-
-}
+    @Query("""
+    SELECT i
+    FROM Inscription i
+    WHERE i.ecole.id = :ecoleId
+      AND i.anneeScolaire.id = :anneeId
+      AND i.statut = :statut
+""")
+    List<Inscription> findActifsParEcoleEtAnnee(
+            @Param("ecoleId") Long ecoleId,
+            @Param("anneeId") Long anneeId,
+            @Param("statut") StatutInscription statut
+    );}

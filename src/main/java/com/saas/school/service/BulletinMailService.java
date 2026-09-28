@@ -19,6 +19,7 @@ public class BulletinMailService {
     private final InscriptionRepository inscriptionRepository;
     private final BulletinService bulletinService;
     private final JavaMailSender mailSender;
+    private final BulletinPrimairePdfService bulletinPrimairePdfService;
 
     // =========================================================
     // 📧 ENVOI POUR UN SEUL ÉLÈVE
@@ -182,4 +183,125 @@ public class BulletinMailService {
             );
         }
     }
+// =========================================================
+// 📧 ENVOI BULLETIN PRIMAIRE - UN ÉLÈVE
+// =========================================================
+
+    public void envoyerBulletinParentPrimaire(
+            Long inscriptionId,
+            Long classeId,
+            Long anneeScolaireId,
+            String mois
+    ) {
+
+        Inscription inscription = inscriptionRepository
+                .findById(inscriptionId)
+                .orElseThrow(() ->
+                        new RuntimeException("Inscription introuvable")
+                );
+
+        String emailTuteur = inscription.getEleve().getEmailTuteur();
+
+        if (emailTuteur == null || emailTuteur.isBlank()) {
+            throw new RuntimeException(
+                    "Aucune adresse email de tuteur enregistrée pour cet élève."
+            );
+        }
+
+        // Génère exactement le même PDF que le bouton
+        // "Télécharger le bulletin" du primaire.
+        byte[] pdf = bulletinPrimairePdfService.genererEleve(
+                inscriptionId,
+                classeId,
+                anneeScolaireId,
+                mois
+        );
+
+        String nomEleve =
+                inscription.getEleve().getPrenom()
+                        + " "
+                        + inscription.getEleve().getNom();
+
+        envoyerEmailAvecPieceJointe(
+                emailTuteur,
+                "Bulletin scolaire - " + nomEleve + " - " + mois,
+                "Bonjour,\n\n"
+                        + "Veuillez trouver ci-joint le bulletin scolaire de "
+                        + nomEleve
+                        + " pour le mois de "
+                        + mois
+                        + ".\n\n"
+                        + "Cordialement.",
+                pdf,
+                "bulletin-"
+                        + inscription.getEleve().getNom()
+                        + "-"
+                        + mois.toLowerCase()
+                        + ".pdf"
+        );
+    }
+
+
+// =========================================================
+// 📧 ENVOI BULLETINS PRIMAIRE - TOUTE UNE CLASSE
+// =========================================================
+
+    public void envoyerBulletinsClassePrimaire(
+            Long classeId,
+            Long anneeScolaireId,
+            String mois
+    ) {
+
+        List<Inscription> inscriptions =
+                inscriptionRepository.findElevesValidesPourReleve(
+                        classeId,
+                        anneeScolaireId
+                );
+
+        if (inscriptions == null || inscriptions.isEmpty()) {
+            throw new RuntimeException(
+                    "Aucun élève valide dans cette classe pour cette année scolaire."
+            );
+        }
+
+        int envoyes = 0;
+        int echoues = 0;
+
+        for (Inscription inscription : inscriptions) {
+
+            try {
+
+                envoyerBulletinParentPrimaire(
+                        inscription.getId(),
+                        classeId,
+                        anneeScolaireId,
+                        mois
+                );
+
+                envoyes++;
+
+            } catch (Exception e) {
+
+                echoues++;
+
+                System.out.println(
+                        "⚠️ Échec envoi bulletin primaire inscription #"
+                                + inscription.getId()
+                                + " : "
+                                + e.getMessage()
+                );
+            }
+        }
+
+        if (envoyes == 0) {
+            throw new RuntimeException(
+                    "Aucun bulletin primaire n'a pu être envoyé ("
+                            + echoues
+                            + " échec(s))."
+            );
+        }
+    }
+
+
+
 }

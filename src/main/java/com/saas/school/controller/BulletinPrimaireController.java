@@ -1,6 +1,5 @@
 package com.saas.school.controller;
 
-
 import com.saas.school.service.BulletinPrimairePdfService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
@@ -17,10 +16,12 @@ public class BulletinPrimaireController {
     private final BulletinPrimairePdfService bulletinPrimairePdfService;
 
     /**
-     * Génère les bulletins mensuels de tous les élèves
-     * actifs d'une classe pour un mois donné.
+     * ============================================================
+     * PDF DE TOUS LES ÉLÈVES D'UNE CLASSE
+     * ============================================================
      *
      * Exemple :
+     *
      * GET /api/bulletins-mensuels/39/40/pdf?mois=SEPTEMBRE
      */
     @GetMapping("/{classeId}/{anneeId}/pdf")
@@ -30,21 +31,76 @@ public class BulletinPrimaireController {
             @RequestParam String mois
     ) {
 
-        byte[] pdf = bulletinPrimairePdfService.genererClasse(
-                classeId,
-                anneeId,
-                mois
-        );
+        byte[] pdf =
+                bulletinPrimairePdfService.genererClasse(
+                        classeId,
+                        anneeId,
+                        mois
+                );
 
         String filename =
-                "bulletins-" + mois.toLowerCase() + ".pdf";
+                "bulletins-" +
+                        mois.toLowerCase() +
+                        ".pdf";
+
+        return buildPdfResponse(pdf, filename);
+    }
+
+    /**
+     * ============================================================
+     * PDF INDIVIDUEL D'UN ÉLÈVE
+     * ============================================================
+     *
+     * Exemple :
+     *
+     * GET
+     * /api/bulletins-mensuels/39/40/eleve/125/pdf?mois=SEPTEMBRE
+     */
+    @GetMapping("/{classeId}/{anneeId}/eleve/{inscriptionId}/pdf")
+    public ResponseEntity<byte[]> genererBulletinEleve(
+            @PathVariable Long classeId,
+            @PathVariable Long anneeId,
+            @PathVariable Long inscriptionId,
+            @RequestParam String mois
+    ) {
+
+        byte[] pdf =
+                bulletinPrimairePdfService.genererEleve(
+                        inscriptionId,
+                        classeId,
+                        anneeId,
+                        mois
+                );
+
+        String filename =
+                "bulletin-" +
+                        inscriptionId +
+                        "-" +
+                        mois.toLowerCase() +
+                        ".pdf";
+
+        return buildPdfResponse(pdf, filename);
+    }
+
+    /**
+     * ============================================================
+     * RÉPONSE PDF COMMUNE
+     * ============================================================
+     */
+    private ResponseEntity<byte[]> buildPdfResponse(
+            byte[] pdf,
+            String filename
+    ) {
 
         HttpHeaders headers = new HttpHeaders();
 
-        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentType(
+                MediaType.APPLICATION_PDF
+        );
 
         headers.setContentDisposition(
-                ContentDisposition.attachment()
+                ContentDisposition
+                        .attachment()
                         .filename(filename)
                         .build()
         );

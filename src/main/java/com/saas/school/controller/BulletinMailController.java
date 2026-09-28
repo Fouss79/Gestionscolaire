@@ -79,4 +79,65 @@ public class BulletinMailController {
                     ));
         }
     }
+
+    @PostMapping("/envoyer-parent-classe-primaire")
+    public ResponseEntity<?> envoyerALaClassePrimaire(
+            @RequestParam Long classeId,
+            @RequestParam Long anneeId,
+            @RequestParam String mois
+    ) {
+
+        try {
+
+            bulletinMailService.envoyerBulletinsClassePrimaire(
+                    classeId,
+                    anneeId,
+                    mois
+            );
+
+            return ResponseEntity.ok().build();
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(java.util.Map.of(
+                            "message", e.getMessage()
+                    ));
+        }
+    }
+    @PostMapping("/envoyer-parent-primaire")
+    public ResponseEntity<?> envoyerAuParentPrimaire(
+            @RequestParam Long inscriptionId,
+            @RequestParam Long classeId,
+            @RequestParam Long anneeId,
+            @RequestParam String mois
+    ) {
+
+        try {
+
+            bulletinMailService.envoyerBulletinParentPrimaire(
+                    inscriptionId,
+                    classeId,
+                    anneeId,
+                    mois
+            );
+
+            return ResponseEntity.ok().build();
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .badRequest()
+                    .body(java.util.Map.of(
+                            "message", e.getMessage()
+                    ));
+        }
+    }
+
+
 }
