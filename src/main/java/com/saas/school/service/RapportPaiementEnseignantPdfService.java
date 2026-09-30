@@ -36,10 +36,30 @@ public class RapportPaiementEnseignantPdfService {
     private static final float MARGE_BAS = 50;
 
     // ============================================================
+    // LARGEUR UTILE DU TABLEAU
+    // ============================================================
+
+    /*
+     * A4 = 595 pt
+     *
+     * 595 - 45 - 45 = 505 pt
+     *
+     * Toutes les colonnes utilisent cette largeur.
+     */
+    private static final float LARGEUR_TABLEAU =
+            PDRectangle.A4.getWidth()
+                    - MARGE_GAUCHE
+                    - MARGE_DROITE;
+
+
+    // ============================================================
     // GÉNÉRATION DU PDF
     // ============================================================
 
-    public byte[] genererRapportPdf(Long enseignantId, Long anneeId) {
+    public byte[] genererRapportPdf(
+            Long enseignantId,
+            Long anneeId
+    ) {
 
         RapportPaiementEnseignantDTO rapport =
                 paiementEnseignantService.rapportEnseignant(
@@ -47,17 +67,26 @@ public class RapportPaiementEnseignantPdfService {
                         anneeId
                 );
 
-        Enseignant enseignant = enseignantRepo.findById(enseignantId)
-                .orElseThrow(() ->
-                        new RuntimeException("Enseignant introuvable"));
+        Enseignant enseignant =
+                enseignantRepo.findById(enseignantId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Enseignant introuvable"
+                                ));
 
         Ecole ecole = enseignant.getEcole();
 
         /*
-         * IMPORTANT :
-         * Toutes les variables PDFBox sont locales à cette génération.
-         * Rien n'est partagé entre deux téléchargements.
+         * Seuls les vacataires utilisent :
+         * - heures
+         * - taux horaire
+         * - montant des heures
          */
+        boolean estVacataire =
+                "VACATAIRE".equalsIgnoreCase(
+                        rapport.getTypeContrat()
+                );
+
         try (PDDocument document = new PDDocument()) {
 
             PDFont fontRegular;
@@ -80,21 +109,28 @@ public class RapportPaiementEnseignantPdfService {
             ) {
 
                 fontRegular =
-                        PDType0Font.load(document, regularStream);
+                        PDType0Font.load(
+                                document,
+                                regularStream
+                        );
 
                 fontBold =
-                        PDType0Font.load(document, boldStream);
+                        PDType0Font.load(
+                                document,
+                                boldStream
+                        );
             }
 
             // ====================================================
-            // ÉTAT LOCAL DE LA GÉNÉRATION
+            // CONTEXTE
             // ====================================================
 
-            PdfContext ctx = new PdfContext(
-                    document,
-                    fontRegular,
-                    fontBold
-            );
+            PdfContext ctx =
+                    new PdfContext(
+                            document,
+                            fontRegular,
+                            fontBold
+                    );
 
             // ====================================================
             // PREMIÈRE PAGE
@@ -111,7 +147,11 @@ public class RapportPaiementEnseignantPdfService {
                             ? nettoyerTexte(ecole.getNom())
                             : "École";
 
-            ecrireTitre(ctx, nomEcole, 16);
+            ecrireTitre(
+                    ctx,
+                    nomEcole,
+                    16
+            );
 
             ctx.y -= 26;
 
@@ -182,33 +222,48 @@ public class RapportPaiementEnseignantPdfService {
 
             ctx.y -= 4;
 
-            ctx.y = ecrireLigne(
-                    ctx,
-                    MARGE_GAUCHE,
-                    ctx.y,
-                    "Total heures",
-                    rapport.getTotalHeures() + " h"
-            );
+            /*
+             * Les heures et le montant des heures
+             * concernent uniquement les vacataires.
+             */
+            if (estVacataire) {
 
-            ctx.y = ecrireLigne(
-                    ctx,
-                    MARGE_GAUCHE,
-                    ctx.y,
-                    "Total montant heures",
-                    formatMontant(
-                            rapport.getTotalMontantHeures()
-                    )
-            );
+                ctx.y = ecrireLigne(
+                        ctx,
+                        MARGE_GAUCHE,
+                        ctx.y,
+                        "Total heures",
+                        formaterMinutes(
+                                rapport.getTotalHeures()
+                        )
+                );
 
-            ctx.y = ecrireLigne(
-                    ctx,
-                    MARGE_GAUCHE,
-                    ctx.y,
-                    "Total salaire de base",
-                    formatMontant(
-                            rapport.getTotalSalaireBase()
-                    )
-            );
+                ctx.y = ecrireLigne(
+                        ctx,
+                        MARGE_GAUCHE,
+                        ctx.y,
+                        "Total montant heures",
+                        formatMontant(
+                                rapport.getTotalMontantHeures()
+                        )
+                );
+            }
+
+            /*
+             * Le salaire de base concerne les contrats fixes.
+             */
+            if (!estVacataire) {
+
+                ctx.y = ecrireLigne(
+                        ctx,
+                        MARGE_GAUCHE,
+                        ctx.y,
+                        "Total salaire de base",
+                        formatMontant(
+                                rapport.getTotalSalaireBase()
+                        )
+                );
+            }
 
             ctx.y = ecrireLigne(
                     ctx,
@@ -253,7 +308,10 @@ public class RapportPaiementEnseignantPdfService {
 
             ctx.y -= 5;
 
-            ecrireEnteteTableau(ctx);
+            ecrireEnteteTableau(
+                    ctx,
+                    estVacataire
+            );
 
             // ====================================================
             // LIGNES
@@ -264,7 +322,10 @@ public class RapportPaiementEnseignantPdfService {
                             || rapport.getPaiements().isEmpty()
             ) {
 
-                verifierSautDePage(ctx, 20);
+                verifierSautDePage(
+                        ctx,
+                        20
+                );
 
                 ecrireTexte(
                         ctx,
@@ -284,7 +345,11 @@ public class RapportPaiementEnseignantPdfService {
                         : rapport.getPaiements()
                 ) {
 
-                    ecrireLigneTableau(ctx, ligne);
+                    ecrireLigneTableau(
+                            ctx,
+                            ligne,
+                            estVacataire
+                    );
                 }
             }
 
@@ -294,7 +359,6 @@ public class RapportPaiementEnseignantPdfService {
 
             ajouterPiedDePage(ctx);
 
-            // Fermer le content stream courant
             fermerPage(ctx);
 
             // ====================================================
@@ -317,6 +381,7 @@ public class RapportPaiementEnseignantPdfService {
         }
     }
 
+
     // ============================================================
     // CONTEXTE PDF
     // ============================================================
@@ -324,15 +389,12 @@ public class RapportPaiementEnseignantPdfService {
     private static class PdfContext {
 
         private final PDDocument document;
-
         private final PDFont fontRegular;
-
         private final PDFont fontBold;
 
         private PDPageContentStream cs;
 
         private float y;
-
         private float largeurPage;
 
         private PdfContext(
@@ -340,19 +402,20 @@ public class RapportPaiementEnseignantPdfService {
                 PDFont fontRegular,
                 PDFont fontBold
         ) {
-
             this.document = document;
             this.fontRegular = fontRegular;
             this.fontBold = fontBold;
         }
     }
 
+
     // ============================================================
     // PAGINATION
     // ============================================================
 
-    private void nouvellePage(PdfContext ctx)
-            throws IOException {
+    private void nouvellePage(
+            PdfContext ctx
+    ) throws IOException {
 
         fermerPage(ctx);
 
@@ -375,16 +438,18 @@ public class RapportPaiementEnseignantPdfService {
                 );
     }
 
-    private void fermerPage(PdfContext ctx)
-            throws IOException {
+
+    private void fermerPage(
+            PdfContext ctx
+    ) throws IOException {
 
         if (ctx.cs != null) {
 
             ctx.cs.close();
-
             ctx.cs = null;
         }
     }
+
 
     private void verifierSautDePage(
             PdfContext ctx,
@@ -400,6 +465,7 @@ public class RapportPaiementEnseignantPdfService {
         }
     }
 
+
     // ============================================================
     // TITRES
     // ============================================================
@@ -410,7 +476,10 @@ public class RapportPaiementEnseignantPdfService {
             int taille
     ) throws IOException {
 
-        verifierSautDePage(ctx, 25);
+        verifierSautDePage(
+                ctx,
+                25
+        );
 
         ecrireTexte(
                 ctx,
@@ -422,12 +491,16 @@ public class RapportPaiementEnseignantPdfService {
         );
     }
 
+
     private void ecrireSousTitre(
             PdfContext ctx,
             String texte
     ) throws IOException {
 
-        verifierSautDePage(ctx, 30);
+        verifierSautDePage(
+                ctx,
+                30
+        );
 
         ecrireTexte(
                 ctx,
@@ -440,6 +513,7 @@ public class RapportPaiementEnseignantPdfService {
 
         ctx.y -= 18;
     }
+
 
     // ============================================================
     // TEXTE
@@ -477,6 +551,7 @@ public class RapportPaiementEnseignantPdfService {
         ctx.cs.endText();
     }
 
+
     // ============================================================
     // LIGNE HORIZONTALE
     // ============================================================
@@ -505,8 +580,9 @@ public class RapportPaiementEnseignantPdfService {
         ctx.cs.stroke();
     }
 
+
     // ============================================================
-    // LIGNE INFORMATIONS
+    // LIGNE INFORMATION
     // ============================================================
 
     private float ecrireLigne(
@@ -517,7 +593,10 @@ public class RapportPaiementEnseignantPdfService {
             String valeur
     ) throws IOException {
 
-        verifierSautDePage(ctx, 20);
+        verifierSautDePage(
+                ctx,
+                20
+        );
 
         ecrireTexte(
                 ctx,
@@ -542,6 +621,7 @@ public class RapportPaiementEnseignantPdfService {
         return ctx.y - 18;
     }
 
+
     // ============================================================
     // TOTAL GÉNÉRAL
     // ============================================================
@@ -553,7 +633,6 @@ public class RapportPaiementEnseignantPdfService {
     ) throws IOException {
 
         final float HAUTEUR_BLOC = 45;
-
         final float ESPACE_APRES = 20;
 
         verifierSautDePage(
@@ -597,92 +676,190 @@ public class RapportPaiementEnseignantPdfService {
                 18
         );
 
-        // IMPORTANT :
-        // on descend après le bloc
         ctx.y -=
                 HAUTEUR_BLOC
                         + ESPACE_APRES;
     }
 
+
     // ============================================================
-    // TABLEAU
+    // COLONNES VACATAIRE
     // ============================================================
 
-    private static final float COL_PERIODE = 0;
+    /*
+     * Largeur totale = 505 pt
+     *
+     * PERIODE       = 150
+     * HEURES        = 55
+     * TAUX          = 55
+     * SALAIRE BASE  = 80
+     * MONT. HEURES  = 85
+     * MONTANT       = 80
+     * STATUT        = 0 -> largeur restante
+     *
+     * Total positions :
+     *
+     * 0
+     * 150
+     * 205
+     * 260
+     * 340
+     * 425
+     * 505
+     */
+    private static final float COL_PERIODE_VACATAIRE = 0;
 
-    private static final float COL_HEURES = 140;
+    private static final float COL_HEURES_VACATAIRE = 150;
 
-    private static final float COL_TAUX = 180;
+    private static final float COL_TAUX_VACATAIRE = 205;
 
-    private static final float COL_SALAIRE = 225;
+    private static final float COL_SALAIRE_VACATAIRE = 260;
 
-    private static final float COL_MONTANT_H = 300;
+    private static final float COL_MONTANT_H_VACATAIRE = 340;
 
-    private static final float COL_MONTANT = 370;
+    private static final float COL_MONTANT_VACATAIRE = 425;
 
-    private static final float COL_STATUT = 440;
+    private static final float COL_STATUT_VACATAIRE = 470;
+
+
+    // ============================================================
+    // COLONNES CONTRATS FIXES
+    // CDD / CDI / STAGIAIRE
+    // ============================================================
+
+    /*
+     * Largeur totale = 505 pt
+     *
+     * PERIODE       = 210
+     * SALAIRE BASE  = 105
+     * MONTANT       = 100
+     * STATUT        = 90
+     *
+     * Total = 505
+     */
+    private static final float COL_PERIODE_FIXE = 0;
+
+    private static final float COL_SALAIRE_FIXE = 210;
+
+    private static final float COL_MONTANT_FIXE = 315;
+
+    private static final float COL_STATUT_FIXE = 415;
+
+
+    // ============================================================
+    // EN-TÊTE TABLEAU
+    // ============================================================
 
     private void ecrireEnteteTableau(
-            PdfContext ctx
+            PdfContext ctx,
+            boolean estVacataire
     ) throws IOException {
 
-        verifierSautDePage(ctx, 30);
-
-        ecrireCellule(
+        verifierSautDePage(
                 ctx,
-                COL_PERIODE,
-                "PERIODE",
-                8.5f,
-                true
+                30
         );
 
-        ecrireCellule(
-                ctx,
-                COL_HEURES,
-                "HEURES",
-                8.5f,
-                true
-        );
+        if (estVacataire) {
 
-        ecrireCellule(
-                ctx,
-                COL_TAUX,
-                "TAUX",
-                8.5f,
-                true
-        );
+            // ----------------------------------------------------
+            // VACATAIRE
+            // ----------------------------------------------------
 
-        ecrireCellule(
-                ctx,
-                COL_SALAIRE,
-                "SALAIRE BASE",
-                8.5f,
-                true
-        );
+            ecrireCellule(
+                    ctx,
+                    COL_PERIODE_VACATAIRE,
+                    "PERIODE",
+                    8.5f,
+                    true
+            );
 
-        ecrireCellule(
-                ctx,
-                COL_MONTANT_H,
-                "MONT. HEURES",
-                8.5f,
-                true
-        );
+            ecrireCellule(
+                    ctx,
+                    COL_HEURES_VACATAIRE,
+                    "HEURES",
+                    8.5f,
+                    true
+            );
 
-        ecrireCellule(
-                ctx,
-                COL_MONTANT,
-                "MONTANT",
-                8.5f,
-                true
-        );
+            ecrireCellule(
+                    ctx,
+                    COL_TAUX_VACATAIRE,
+                    "TAUX",
+                    8.5f,
+                    true
+            );
 
-        ecrireCellule(
-                ctx,
-                COL_STATUT,
-                "STATUT",
-                8.5f,
-                true
-        );
+            ecrireCellule(
+                    ctx,
+                    COL_SALAIRE_VACATAIRE,
+                    "SALAIRE BASE",
+                    8.5f,
+                    true
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_MONTANT_H_VACATAIRE,
+                    "MONT. HEURES",
+                    8.5f,
+                    true
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_MONTANT_VACATAIRE,
+                    "MONTANT",
+                    8.5f,
+                    true
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_STATUT_VACATAIRE,
+                    "STATUT",
+                    8.5f,
+                    true
+            );
+
+        } else {
+
+            // ----------------------------------------------------
+            // CDI / CDD / STAGIAIRE
+            // ----------------------------------------------------
+
+            ecrireCellule(
+                    ctx,
+                    COL_PERIODE_FIXE,
+                    "PERIODE",
+                    8.5f,
+                    true
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_SALAIRE_FIXE,
+                    "SALAIRE BASE",
+                    8.5f,
+                    true
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_MONTANT_FIXE,
+                    "MONTANT",
+                    8.5f,
+                    true
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_STATUT_FIXE,
+                    "STATUT",
+                    8.5f,
+                    true
+            );
+        }
 
         ctx.y -= 6;
 
@@ -691,16 +868,25 @@ public class RapportPaiementEnseignantPdfService {
         ctx.y -= 16;
     }
 
+
+    // ============================================================
+    // LIGNE TABLEAU
+    // ============================================================
+
     private void ecrireLigneTableau(
             PdfContext ctx,
-            RapportPaiementEnseignantDTO.PaiementLigneDTO ligne
+            RapportPaiementEnseignantDTO.PaiementLigneDTO ligne,
+            boolean estVacataire
     ) throws IOException {
 
-        verifierSautDePage(ctx, 25);
+        verifierSautDePage(
+                ctx,
+                25
+        );
 
         /*
          * Si une nouvelle page vient d'être créée,
-         * on remet l'en-tête du tableau.
+         * remettre l'en-tête correspondant au contrat.
          */
         if (
                 ctx.y
@@ -709,7 +895,10 @@ public class RapportPaiementEnseignantPdfService {
                         - 5
         ) {
 
-            ecrireEnteteTableau(ctx);
+            ecrireEnteteTableau(
+                    ctx,
+                    estVacataire
+            );
         }
 
         String periode =
@@ -724,74 +913,132 @@ public class RapportPaiementEnseignantPdfService {
 
                         : "-";
 
-        ecrireCellule(
-                ctx,
-                COL_PERIODE,
-                periode,
-                8.5f,
-                false
-        );
+        if (estVacataire) {
 
-        ecrireCellule(
-                ctx,
-                COL_HEURES,
-                ligne.getTotalHeures() + "h",
-                8.5f,
-                false
-        );
+            // ----------------------------------------------------
+            // VACATAIRE
+            // ----------------------------------------------------
 
-        ecrireCellule(
-                ctx,
-                COL_TAUX,
-                formatMontantCourt(
-                        ligne.getTauxHoraire()
-                ),
-                8.5f,
-                false
-        );
+            ecrireCellule(
+                    ctx,
+                    COL_PERIODE_VACATAIRE,
+                    periode,
+                    8.5f,
+                    false
+            );
 
-        ecrireCellule(
-                ctx,
-                COL_SALAIRE,
-                formatMontantCourt(
-                        ligne.getSalaireBase()
-                ),
-                8.5f,
-                false
-        );
+            ecrireCellule(
+                    ctx,
+                    COL_HEURES_VACATAIRE,
+                    formaterMinutes(
+                            ligne.getTotalHeures()
+                    ),
+                    8.5f,
+                    false
+            );
 
-        ecrireCellule(
-                ctx,
-                COL_MONTANT_H,
-                formatMontantCourt(
-                        ligne.getMontantHeures()
-                ),
-                8.5f,
-                false
-        );
+            ecrireCellule(
+                    ctx,
+                    COL_TAUX_VACATAIRE,
+                    formatMontantCourt(
+                            ligne.getTauxHoraire()
+                    ),
+                    8.5f,
+                    false
+            );
 
-        ecrireCellule(
-                ctx,
-                COL_MONTANT,
-                formatMontantCourt(
-                        ligne.getMontant()
-                ),
-                8.5f,
-                false
-        );
+            ecrireCellule(
+                    ctx,
+                    COL_SALAIRE_VACATAIRE,
+                    formatMontantCourt(
+                            ligne.getSalaireBase()
+                    ),
+                    8.5f,
+                    false
+            );
 
-        ecrireCellule(
-                ctx,
-                COL_STATUT,
-                libelleStatut(
-                        ligne.getStatut()
-                ),
-                8.5f,
-                false
-        );
+            ecrireCellule(
+                    ctx,
+                    COL_MONTANT_H_VACATAIRE,
+                    formatMontantCourt(
+                            ligne.getMontantHeures()
+                    ),
+                    8.5f,
+                    false
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_MONTANT_VACATAIRE,
+                    formatMontantCourt(
+                            ligne.getMontant()
+                    ),
+                    8.5f,
+                    false
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_STATUT_VACATAIRE,
+                    libelleStatut(
+                            ligne.getStatut()
+                    ),
+                    8.5f,
+                    false
+            );
+
+        } else {
+
+            // ----------------------------------------------------
+            // CDI / CDD / STAGIAIRE
+            // ----------------------------------------------------
+
+            ecrireCellule(
+                    ctx,
+                    COL_PERIODE_FIXE,
+                    periode,
+                    8.5f,
+                    false
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_SALAIRE_FIXE,
+                    formatMontantCourt(
+                            ligne.getSalaireBase()
+                    ),
+                    8.5f,
+                    false
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_MONTANT_FIXE,
+                    formatMontantCourt(
+                            ligne.getMontant()
+                    ),
+                    8.5f,
+                    false
+            );
+
+            ecrireCellule(
+                    ctx,
+                    COL_STATUT_FIXE,
+                    libelleStatut(
+                            ligne.getStatut()
+                    ),
+                    8.5f,
+                    false
+            );
+        }
 
         ctx.y -= 18;
     }
+
+
+    // ============================================================
+    // CELLULE
+    // ============================================================
 
     private void ecrireCellule(
             PdfContext ctx,
@@ -813,6 +1060,7 @@ public class RapportPaiementEnseignantPdfService {
         );
     }
 
+
     // ============================================================
     // PIED DE PAGE
     // ============================================================
@@ -821,10 +1069,6 @@ public class RapportPaiementEnseignantPdfService {
             PdfContext ctx
     ) throws IOException {
 
-        /*
-         * Le pied de page est placé en bas de la page
-         * courante.
-         */
         ecrireTexte(
                 ctx,
                 "Document généré automatiquement — rapport annuel des paiements enseignant.",
@@ -835,8 +1079,9 @@ public class RapportPaiementEnseignantPdfService {
         );
     }
 
+
     // ============================================================
-    // FORMATAGE
+    // FORMATAGE MONTANT
     // ============================================================
 
     private String formatMontant(
@@ -852,19 +1097,11 @@ public class RapportPaiementEnseignantPdfService {
                         "%,.0f FCFA",
                         montant
                 )
-                .replace(
-                        '\u202F',
-                        ' '
-                )
-                .replace(
-                        '\u00A0',
-                        ' '
-                )
-                .replace(
-                        ",",
-                        " "
-                );
+                .replace('\u202F', ' ')
+                .replace('\u00A0', ' ')
+                .replace(",", " ");
     }
+
 
     private String formatMontantCourt(
             Double montant
@@ -879,19 +1116,42 @@ public class RapportPaiementEnseignantPdfService {
                         "%,.0f",
                         montant
                 )
-                .replace(
-                        '\u202F',
-                        ' '
-                )
-                .replace(
-                        '\u00A0',
-                        ' '
-                )
-                .replace(
-                        ",",
-                        " "
-                );
+                .replace('\u202F', ' ')
+                .replace('\u00A0', ' ')
+                .replace(",", " ");
     }
+
+
+    // ============================================================
+    // MINUTES -> AFFICHAGE HEURES
+    // ============================================================
+
+    private String formaterMinutes(
+            Integer minutes
+    ) {
+
+        if (minutes == null || minutes <= 0) {
+            return "0h";
+        }
+
+        int heures = minutes / 60;
+        int resteMinutes = minutes % 60;
+
+        if (resteMinutes == 0) {
+            return heures + "h";
+        }
+
+        if (heures == 0) {
+            return resteMinutes + "min";
+        }
+
+        return heures + "h" + resteMinutes;
+    }
+
+
+    // ============================================================
+    // NETTOYAGE TEXTE
+    // ============================================================
 
     private String nettoyerTexte(
             String texte
@@ -908,8 +1168,9 @@ public class RapportPaiementEnseignantPdfService {
                 .replace('\u2009', ' ');
     }
 
+
     // ============================================================
-    // LIBELLÉS
+    // STATUT
     // ============================================================
 
     private String libelleStatut(
@@ -932,6 +1193,11 @@ public class RapportPaiementEnseignantPdfService {
                     statut;
         };
     }
+
+
+    // ============================================================
+    // CONTRAT
+    // ============================================================
 
     private String libelleContrat(
             String contrat

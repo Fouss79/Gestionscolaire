@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface EmargementRepository extends JpaRepository<Emargement, Long> {
 
@@ -36,4 +37,20 @@ public interface EmargementRepository extends JpaRepository<Emargement, Long> {
 
     List<Emargement> findByEmploiDuTemps_Enseignant_IdAndDateHeureBetweenAndEmploiDuTemps_AnneeScolaireId(
             Long enseignantId, LocalDate debut, LocalDate fin, Long anneeId);
+
+    List<Emargement> findByEnseignant_IdAndAnneeScolaire_IdAndDateHeureBetweenOrderByDateHeureAsc(
+            Long enseignantId,
+            Long anneeId,
+            LocalDate debut,
+            LocalDate fin
+    );
+
+
+    Optional<Emargement>
+    findFirstByEnseignant_IdAndEmploiDuTemps_IdAndDateHeure(
+            Long enseignantId,
+            Long emploiDuTempsId,
+            LocalDate date
+    );
+
 }
