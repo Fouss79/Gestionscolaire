@@ -42,51 +42,114 @@ public class PaiementEnseignantService {
     // ============================================================
 
     public List<PaiementEnseignantDTO> previsualiserTous(
+            Long ecoleId,
             LocalDate debut,
             LocalDate fin,
             Long anneeId) {
 
-        List<EmargementResumeDTO> resumes =
-                emargementService.getResumeTousEnseignants(
-                        debut,
-                        fin,
-                        anneeId
-                );
+        // =========================================================
+        // RÉCUPÉRER TOUS LES ENSEIGNANTS ACTIFS DE L'ÉCOLE
+        // =========================================================
+
+        List<Enseignant> enseignants =
+                enseignantRepo.findByEcoleIdAndActifTrue(ecoleId);
 
         List<PaiementEnseignantDTO> resultats = new ArrayList<>();
 
-        for (EmargementResumeDTO r : resumes) {
+        for (Enseignant ens : enseignants) {
 
-            Enseignant ens = enseignantRepo.findById(r.getEnseignantId())
-                    .orElseThrow(() ->
-                            new RuntimeException("Enseignant introuvable"));
+            if (ens.getId() == null || ens.getTypeContrat() == null) {
+                continue;
+            }
 
-            // ----------------------------------------------------
-            // ÉMARGEMENTS DE LA PÉRIODE
-            // ----------------------------------------------------
+            boolean estVacataire =
+                    ens.getTypeContrat() == Enseignant.TypeContrat.VACATAIRE;
+
+            // =====================================================
+            // SALAIRE FIXE : CDI / CDD / STAGIAIRE
+            // =====================================================
+
+            if (!estVacataire) {
+
+                double salaireBase =
+                        ens.getSalaireBase() != null
+                                ? ens.getSalaireBase()
+                                : 0.0;
+
+                boolean salaireNonConfigure = salaireBase <= 0;
+
+                boolean salaireFixeDejaGenere =
+                        !salaireNonConfigure &&
+                                paiementRepo.existsChevauchementSalaireFixe(
+                                        ens.getId(),
+                                        anneeId,
+                                        debut,
+                                        fin
+                                );
+
+                resultats.add(
+                        PaiementEnseignantDTO.builder()
+                                .enseignantId(ens.getId())
+                                .enseignantNom(ens.getNom())
+                                .enseignantPrenom(ens.getPrenom())
+                                .periodeDebut(debut)
+                                .periodeFin(fin)
+
+                                // Pas d'émargement pour CDI / CDD / STAGIAIRE
+                                .totalHeures(0)
+
+                                .tauxHoraire(
+                                        ens.getTauxHoraire() != null
+                                                ? ens.getTauxHoraire()
+                                                : 0.0
+                                )
+
+                                .salaireBase(salaireBase)
+                                .montantHeures(0.0)
+                                .montant(salaireBase)
+
+                                .statut(
+                                        salaireNonConfigure
+                                                ? "SALAIRE_NON_CONFIGURE"
+                                                : salaireFixeDejaGenere
+                                                ? "DEJA_GENERE"
+                                                : "NON_GENERE"
+                                )
+                                .build()
+                );
+
+
+
+                // On passe à l'enseignant suivant
+                continue;
+            }
+
+            // =====================================================
+            // VACATAIRE : PAIEMENT SELON LES ÉMARGEMENTS
+            // =====================================================
 
             List<Emargement> emargements =
                     emargementRepo
                             .findByEmploiDuTemps_Enseignant_IdAndDateHeureBetweenAndEmploiDuTemps_AnneeScolaireId(
-                                    r.getEnseignantId(),
+                                    ens.getId(),
                                     debut,
                                     fin,
                                     anneeId
                             );
 
-            // ----------------------------------------------------
+            // =====================================================
             // ÉMARGEMENTS DÉJÀ PAYÉS / GÉNÉRÉS
-            // ----------------------------------------------------
+            // =====================================================
 
             Set<Long> emargementsDejaUtilises =
                     getEmargementIdsDejaUtilises(
-                            r.getEnseignantId(),
+                            ens.getId(),
                             anneeId
                     );
 
-            // ----------------------------------------------------
-            // GARDER UNIQUEMENT LES NOUVEAUX
-            // ----------------------------------------------------
+            // =====================================================
+            // GARDER UNIQUEMENT LES NOUVEAUX ÉMARGEMENTS
+            // =====================================================
 
             List<Emargement> nouveauxEmargements =
                     emargements.stream()
@@ -98,63 +161,57 @@ public class PaiementEnseignantService {
                             )
                             .toList();
 
-            // ----------------------------------------------------
-            // CALCUL DU SALAIRE — selon le type de contrat :
-            //   - VACATAIRE  : payé uniquement aux heures émargées
-            //   - CDI/CDD/STAGIAIRE : salaire fixe (salaireBase), les
-            //     heures émargées ne sont pas payées à l'heure ici
-            // ----------------------------------------------------
+            // Un vacataire sans nouvel émargement
+            // ne doit pas apparaître comme paiement à générer.
+            if (nouveauxEmargements.isEmpty()) {
+                continue;
+            }
 
-            boolean estVacataire =
-                    ens.getTypeContrat() == Enseignant.TypeContrat.VACATAIRE;
+            // =====================================================
+            // CALCUL DES MINUTES
+            // =====================================================
 
-            // totalHeures reste le total brut en MINUTES (nom conservé
-            // pour ne pas casser le DTO / l'entité existants).
-            int totalHeures = nouveauxEmargements.stream()
-                    .mapToInt(Emargement::getDuree)
-                    .sum();
+            int totalHeures =
+                    nouveauxEmargements.stream()
+                            .mapToInt(Emargement::getDuree)
+                            .sum();
 
             double taux =
                     ens.getTauxHoraire() != null
                             ? ens.getTauxHoraire()
                             : 0.0;
 
-            double salaireBase =
-                    !estVacataire && ens.getSalaireBase() != null
-                            ? ens.getSalaireBase()
-                            : 0.0;
+            // =====================================================
+            // MINUTES -> HEURES -> MONTANT
+            // =====================================================
 
-            // Conversion minutes -> heures avant application du taux horaire.
             double montantHeures =
-                    estVacataire
-                            ? (totalHeures / MINUTES_PAR_HEURE) * taux
-                            : 0.0;
+                    (totalHeures / MINUTES_PAR_HEURE) * taux;
 
-            double montantTotal = salaireBase + montantHeures;
+            double montantTotal = montantHeures;
 
-            boolean salaireFixeDejaGenere =
-                    !estVacataire && salaireBase > 0
-                            && paiementRepo.existsChevauchementSalaireFixe(
-                            r.getEnseignantId(), anneeId, debut, fin
-                    );
-
-            // ----------------------------------------------------
-            // DTO
-            // ----------------------------------------------------
+            // =====================================================
+            // DTO VACATAIRE
+            // =====================================================
 
             resultats.add(
                     PaiementEnseignantDTO.builder()
-                            .enseignantId(r.getEnseignantId())
-                            .enseignantNom(r.getEnseignantNom())
-                            .enseignantPrenom(r.getEnseignantPrenom())
+                            .enseignantId(ens.getId())
+                            .enseignantNom(ens.getNom())
+                            .enseignantPrenom(ens.getPrenom())
                             .periodeDebut(debut)
                             .periodeFin(fin)
+
+                            // Attention : cette propriété contient
+                            // toujours des MINUTES malgré son nom.
                             .totalHeures(totalHeures)
+
                             .tauxHoraire(taux)
-                            .salaireBase(salaireBase)
+                            .salaireBase(0.0)
                             .montantHeures(montantHeures)
                             .montant(montantTotal)
-                            .statut(salaireFixeDejaGenere ? "DEJA_GENERE" : "NON_GENERE")
+
+                            .statut("NON_GENERE")
                             .build()
             );
         }
@@ -162,66 +219,118 @@ public class PaiementEnseignantService {
         return resultats;
     }
 
-
     // ============================================================
     // GÉNÉRATION
     // ============================================================
 
     @Transactional
     public List<PaiementEnseignantDTO> genererPaiements(
+            Long ecoleId,
             LocalDate debut,
             LocalDate fin,
             Long anneeId) {
 
-        List<EmargementResumeDTO> resumes =
-                emargementService.getResumeTousEnseignants(
-                        debut,
-                        fin,
-                        anneeId
-                );
+        List<Enseignant> enseignants =
+                enseignantRepo.findByEcoleIdAndActifTrue(ecoleId);
 
-        List<PaiementEnseignantDTO> resultats =
-                new ArrayList<>();
+        List<PaiementEnseignantDTO> resultats = new ArrayList<>();
 
+        for (Enseignant ens : enseignants) {
 
-        for (EmargementResumeDTO r : resumes) {
+            if (ens.getTypeContrat() == null) {
+                continue;
+            }
 
-            Enseignant ens = enseignantRepo.findById(
-                    r.getEnseignantId()
-            ).orElseThrow(() ->
-                    new RuntimeException("Enseignant introuvable")
-            );
+            boolean estVacataire =
+                    ens.getTypeContrat() == Enseignant.TypeContrat.VACATAIRE;
 
+            // ============================================================
+            // 1. ENSEIGNANT À SALAIRE FIXE
+            // CDI / CDD / STAGIAIRE
+            // ============================================================
 
-            // ----------------------------------------------------
-            // ÉMARGEMENTS DE LA PÉRIODE
-            // ----------------------------------------------------
+            if (!estVacataire) {
+
+                Double salaireBase = ens.getSalaireBase();
+
+                if (salaireBase == null || salaireBase <= 0) {
+                    continue;
+                }
+
+                // Protection contre le double paiement
+                boolean dejaGenere =
+                        paiementRepo.existsChevauchementSalaireFixe(
+                                ens.getId(),
+                                anneeId,
+                                debut,
+                                fin
+                        );
+
+                if (dejaGenere) {
+                    continue;
+                }
+
+                PaiementEnseignant paiement =
+                        PaiementEnseignant.builder()
+                                .enseignant(ens)
+                                .periodeDebut(debut)
+                                .periodeFin(fin)
+
+                                // Pas d'émargement
+                                .totalHeures(0)
+
+                                .tauxHoraire(
+                                        ens.getTauxHoraire() != null
+                                                ? ens.getTauxHoraire()
+                                                : 0.0
+                                )
+
+                                .salaireBase(salaireBase)
+
+                                .montantHeures(0.0)
+
+                                .montant(salaireBase)
+
+                                .statut(
+                                        PaiementEnseignant.StatutPaiement
+                                                .EN_ATTENTE
+                                )
+
+                                .anneeScolaireId(anneeId)
+
+                                .emargements(new ArrayList<>())
+
+                                .build();
+
+                paiementRepo.save(paiement);
+
+                resultats.add(toDTO(paiement));
+
+                continue;
+            }
+
+            // ============================================================
+            // 2. VACATAIRE
+            // Paiement uniquement selon les émargements
+            // ============================================================
 
             List<Emargement> emargements =
                     emargementRepo
                             .findByEmploiDuTemps_Enseignant_IdAndDateHeureBetweenAndEmploiDuTemps_AnneeScolaireId(
-                                    r.getEnseignantId(),
+                                    ens.getId(),
                                     debut,
                                     fin,
                                     anneeId
                             );
 
-
-            // ----------------------------------------------------
-            // ÉMARGEMENTS DÉJÀ UTILISÉS
-            // ----------------------------------------------------
-
+            // Émargements déjà utilisés dans des paiements précédents
             Set<Long> emargementsDejaUtilises =
                     getEmargementIdsDejaUtilises(
-                            r.getEnseignantId(),
+                            ens.getId(),
                             anneeId
                     );
 
-
-            // ----------------------------------------------------
-            // NOUVEAUX ÉMARGEMENTS
-            // ----------------------------------------------------
-
+            // Seulement les nouvelles heures
             List<Emargement> nouveauxEmargements =
                     emargements.stream()
                             .filter(em ->
@@ -232,124 +341,51 @@ public class PaiementEnseignantService {
                             )
                             .toList();
 
-
-            // ----------------------------------------------------
-            // AUCUNE NOUVELLE HEURE — pour un VACATAIRE, pas d'heure
-            // émargée = rien à payer, on saute. Pour un CDI/CDD/
-            // STAGIAIRE, le salaire fixe est dû indépendamment des
-            // émargements : on ne saute que s'il n'y a ni heures ni
-            // salaire de base.
-            // ----------------------------------------------------
-
-            boolean estVacataire =
-                    ens.getTypeContrat() == Enseignant.TypeContrat.VACATAIRE;
-
-            double salaireBase =
-                    !estVacataire && ens.getSalaireBase() != null
-                            ? ens.getSalaireBase()
-                            : 0.0;
-
-            if (estVacataire && nouveauxEmargements.isEmpty()) {
+            // Aucun émargement = aucun paiement vacataire
+            if (nouveauxEmargements.isEmpty()) {
                 continue;
             }
 
-            if (!estVacataire && salaireBase <= 0) {
-                continue;
-            }
-
-            // ----------------------------------------------------
-            // PROTECTION ANTI-DOUBLON — un salaire fixe ne doit être
-            // généré qu'une seule fois pour une même période exacte
-            // (contrairement aux heures de vacataire, déjà protégées
-            // par emargementsDejaUtilises). Sans ce garde-fou, relancer
-            // genererPaiements deux fois sur la même période créerait
-            // deux paiements du même salaire fixe.
-            // ----------------------------------------------------
-
-            if (!estVacataire && paiementRepo.existsChevauchementSalaireFixe(
-                    r.getEnseignantId(), anneeId, debut, fin
-            )) {
-                continue;
-            }
-
-
-            // ----------------------------------------------------
-            // CALCUL HEURES + SALAIRE
-            // ----------------------------------------------------
-
-            // totalHeures reste le total brut en MINUTES (nom conservé
-            // pour ne pas casser le DTO / l'entité existants).
-            int totalHeures =
+            int totalMinutes =
                     nouveauxEmargements.stream()
                             .mapToInt(Emargement::getDuree)
                             .sum();
-
 
             double taux =
                     ens.getTauxHoraire() != null
                             ? ens.getTauxHoraire()
                             : 0.0;
 
-
-            // Conversion minutes -> heures avant application du taux horaire.
             double montantHeures =
-                    estVacataire
-                            ? (totalHeures / MINUTES_PAR_HEURE) * taux
-                            : 0.0;
-
-            double montantTotal = salaireBase + montantHeures;
-
-
-
-
-
-            System.out.println("========== CALCUL PAIEMENT ==========");
-            System.out.println("Enseignant : " + ens.getPrenom() + " " + ens.getNom());
-            System.out.println("Type contrat : " + ens.getTypeContrat());
-            System.out.println("Est vacataire : " + estVacataire);
-            System.out.println("Nombre émargements : " + nouveauxEmargements.size());
-            System.out.println("Total minutes : " + totalHeures);
-            System.out.println("Total heures (converti) : " + (totalHeures / MINUTES_PAR_HEURE));
-            System.out.println("Taux horaire : " + taux);
-            System.out.println("Montant heures : " + montantHeures);
-            System.out.println("=====================================");
-            // ----------------------------------------------------
-            // CRÉATION DU PAIEMENT
-            // ----------------------------------------------------
+                    (totalMinutes / MINUTES_PAR_HEURE) * taux;
 
             PaiementEnseignant paiement =
                     PaiementEnseignant.builder()
                             .enseignant(ens)
                             .periodeDebut(debut)
                             .periodeFin(fin)
-                            .totalHeures(totalHeures)
+                            .totalHeures(totalMinutes)
                             .tauxHoraire(taux)
-                            .salaireBase(salaireBase)
+                            .salaireBase(0.0)
                             .montantHeures(montantHeures)
-                            .montant(montantTotal)
+                            .montant(montantHeures)
                             .statut(
                                     PaiementEnseignant.StatutPaiement
                                             .EN_ATTENTE
                             )
                             .anneeScolaireId(anneeId)
                             .emargements(
-                                    new ArrayList<>(
-                                            nouveauxEmargements
-                                    )
+                                    new ArrayList<>(nouveauxEmargements)
                             )
                             .build();
 
-
             paiementRepo.save(paiement);
 
-            resultats.add(
-                    toDTO(paiement)
-            );
+            resultats.add(toDTO(paiement));
         }
 
         return resultats;
     }
-
 
     // ============================================================
     // RÉCUPÉRER LES ÉMARGEMENTS DÉJÀ UTILISÉS

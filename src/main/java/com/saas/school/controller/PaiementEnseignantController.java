@@ -17,46 +17,90 @@ import java.util.List;
 public class PaiementEnseignantController {
 
     private final PaiementEnseignantService paiementService;
-    private final PaiementEnseignantService paiementEnseignantService;
 
+    // ============================================================
+    // PRÉVISUALISATION
+    // ============================================================
 
     @GetMapping("/previsualiser")
     public ResponseEntity<List<PaiementEnseignantDTO>> previsualiser(
+            @RequestParam Long ecoleId,
             @RequestParam LocalDate debut,
             @RequestParam LocalDate fin,
             @RequestParam Long anneeId) {
-        return ResponseEntity.ok(paiementService.previsualiserTous(debut, fin, anneeId));
-    }
 
-    @PostMapping("/generer")
-    public ResponseEntity<List<PaiementEnseignantDTO>> generer(
-            @RequestParam LocalDate debut,
-            @RequestParam LocalDate fin,
-            @RequestParam Long anneeId) {
-        return ResponseEntity.ok(paiementService.genererPaiements(debut, fin, anneeId));
-    }
-
-    @PutMapping("/{id}/payer")
-    public ResponseEntity<PaiementEnseignantDTO> payer(@PathVariable Long id) {
-        return ResponseEntity.ok(paiementService.marquerPaye(id));
-    }
-
-    @GetMapping
-    public ResponseEntity<List<PaiementEnseignantDTO>> lister(@RequestParam Long anneeId) {
-        return ResponseEntity.ok(paiementService.listerPaiements(anneeId));
-
-    }
-    @GetMapping("/rapport/enseignant/{enseignantId}")
-    public ResponseEntity<RapportPaiementEnseignantDTO> rapportEnseignant(
-            @PathVariable Long enseignantId,
-            @RequestParam Long anneeId
-    ) {
         return ResponseEntity.ok(
-                paiementEnseignantService.rapportEnseignant(
-                        enseignantId,
+                paiementService.previsualiserTous(
+                        ecoleId,
+                        debut,
+                        fin,
                         anneeId
                 )
         );
     }
 
+    // ============================================================
+    // GÉNÉRATION DES PAIEMENTS
+    // ============================================================
+
+    @PostMapping("/generer")
+    public ResponseEntity<List<PaiementEnseignantDTO>> generer(
+            @RequestParam Long ecoleId,
+            @RequestParam LocalDate debut,
+            @RequestParam LocalDate fin,
+            @RequestParam Long anneeId) {
+
+        return ResponseEntity.ok(
+                paiementService.genererPaiements(
+                        ecoleId,
+                        debut,
+                        fin,
+                        anneeId
+                )
+        );
+    }
+
+    // ============================================================
+    // MARQUER UN PAIEMENT COMME PAYÉ
+    // ============================================================
+
+    @PutMapping("/{id}/payer")
+    public ResponseEntity<PaiementEnseignantDTO> payer(
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                paiementService.marquerPaye(id)
+        );
+    }
+
+    // ============================================================
+    // LISTE DES PAIEMENTS
+    // ============================================================
+
+    @GetMapping
+    public ResponseEntity<List<PaiementEnseignantDTO>> lister(
+            @RequestParam Long anneeId) {
+
+        return ResponseEntity.ok(
+                paiementService.listerPaiements(anneeId)
+        );
+    }
+
+    // ============================================================
+    // RAPPORT D'UN ENSEIGNANT
+    // ============================================================
+
+    @GetMapping("/rapport/enseignant/{enseignantId}")
+    public ResponseEntity<RapportPaiementEnseignantDTO> rapportEnseignant(
+            @PathVariable Long enseignantId,
+            @RequestParam Long anneeId) {
+
+        return ResponseEntity.ok(
+                paiementService.rapportEnseignant(
+                        enseignantId,
+                        anneeId
+                )
+        );
+    }
 }
+
