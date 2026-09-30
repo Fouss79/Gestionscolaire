@@ -106,6 +106,21 @@ public class CarteScolairePdfService {
         Eleve eleve = inscription.getEleve();
         Ecole ecole = inscription.getEcole();
         AnneeScolaire annee = inscription.getAnneeScolaire();
+        String initiales = "EL";
+
+        if (eleve != null) {
+            String prenomInitiale =
+                    eleve.getPrenom() != null && !eleve.getPrenom().isBlank()
+                            ? eleve.getPrenom().trim().substring(0, 1)
+                            : "";
+
+            String nomInitiale =
+                    eleve.getNom() != null && !eleve.getNom().isBlank()
+                            ? eleve.getNom().trim().substring(0, 1)
+                            : "";
+
+            initiales = (prenomInitiale + nomInitiale).toUpperCase(Locale.FRENCH);
+        }
 
         String dateNaissanceFormatee = null;
 
@@ -123,7 +138,8 @@ public class CarteScolairePdfService {
                         : null)
                 .anneeScolaireNom(annee != null ? annee.getNom() : null)
                 .validiteDebut(validiteDebut)
-                .validiteFin(validiteFin);
+                .validiteFin(validiteFin)
+                .initiales(initiales);;
 
         if (eleve != null) {
             builder.nom(eleve.getNom())

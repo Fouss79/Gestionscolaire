@@ -38,6 +38,7 @@ public class CarteScolaireDto {
     private String ecoleVille;
     private String ecoleTelephone;
     private String logoBase64;
+    private String initiales;
 
     public String getNomComplet() {
         return (nom != null ? nom : "") + " " + (prenom != null ? prenom : "");

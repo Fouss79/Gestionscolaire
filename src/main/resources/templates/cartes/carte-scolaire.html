@@ -120,7 +120,7 @@
 
 
         /* =====================================================
-           LOGO
+           LOGO ÉCOLE
         ===================================================== */
 
         .carte-entete .logo {
@@ -138,7 +138,7 @@
 
 
         /* =====================================================
-           LOGO FALLBACK
+           FALLBACK LOGO
         ===================================================== */
 
         .carte-entete .logo-fallback {
@@ -156,6 +156,7 @@
             font-weight: bold;
 
             text-align: center;
+
             line-height: 8mm;
         }
 
@@ -214,7 +215,7 @@
 
 
         /* =====================================================
-           PHOTO
+           PHOTO / AVATAR
         ===================================================== */
 
         .carte-photo,
@@ -230,27 +231,30 @@
             box-sizing: border-box;
 
             border: 0.25mm solid #DEDCD0;
-            border-radius: 1mm;
-        }
-
-
-        .carte-photo {
-            /* Pas de object-fit :
-               OpenHTMLToPDF le gère mal */
+            border-radius: 1.5mm;
         }
 
 
         /* =====================================================
-           PHOTO FALLBACK
+           PHOTO RÉELLE
+        ===================================================== */
+
+        .carte-photo {
+            display: block;
+        }
+
+
+        /* =====================================================
+           AVATAR SI PHOTO ABSENTE
         ===================================================== */
 
         .carte-photo-fallback {
 
-            background: #F8F7F2;
+            background: #DCEDEA;
 
-            color: #7A8190;
+            color: #2C8C82;
 
-            font-size: 11pt;
+            font-size: 13pt;
 
             font-weight: bold;
 
@@ -443,8 +447,9 @@
 
         <div class="carte-corps">
 
-
-            <!-- PHOTO -->
+            <!-- =================================================
+                 PHOTO SI DISPONIBLE
+            ================================================== -->
 
             <img th:if="${carte.photoBase64 != null}"
                  th:src="${carte.photoBase64}"
@@ -452,19 +457,20 @@
                  alt="Photo"/>
 
 
-            <!-- FALLBACK PHOTO -->
+            <!-- =================================================
+                 AVATAR SI PHOTO ABSENTE
+            ================================================== -->
 
             <div th:unless="${carte.photoBase64 != null}"
-                 class="carte-photo-fallback">
-
-                <span th:text="${carte.initiales}">
-                    BC
-                </span>
-
+                 class="carte-photo-fallback"
+                 th:text="${carte.initiales}">
+                BC
             </div>
 
 
-            <!-- INFORMATIONS -->
+            <!-- =================================================
+                 INFORMATIONS
+            ================================================== -->
 
             <div class="carte-infos">
 
@@ -481,7 +487,7 @@
                     </span>
 
                     <span th:text="${carte.classeNom}">
-                        3ème Annee
+                        3ème Année
                     </span>
 
                 </p>
