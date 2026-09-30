@@ -6,6 +6,7 @@ import com.saas.school.entity.Inscription;
 import com.saas.school.repository.ClasseRepository;
 import com.saas.school.repository.EleveRepository;
 import com.saas.school.repository.InscriptionRepository;
+import com.saas.school.service.CertificatScolaritePdfService;
 import com.saas.school.service.InscriptionService;
 import com.saas.school.service.ListeElevesClassePdfService;
 import com.saas.school.service.NiveauService;
@@ -28,6 +29,7 @@ public class InscriptionController {
     private final EleveRepository eleveRepository;
     private final ClasseRepository classeRepository;
     private final ListeElevesClassePdfService listeElevesClassePdfService;
+    private final CertificatScolaritePdfService certificatScolaritePdfService;
 
     //@PostMapping
     //public ResponseEntity<Inscription> inscrire(@RequestBody InscriptionRequest request) {
@@ -180,6 +182,82 @@ public class InscriptionController {
         return ResponseEntity.ok(
                 inscriptionService.getById(id)
         );
+    }
+    @GetMapping(
+            value = "/{id}/certificat-scolarite",
+            produces = MediaType.APPLICATION_PDF_VALUE
+    )
+    public ResponseEntity<byte[]> certificatScolarite(
+            @PathVariable Long id
+    ) {
+
+        try {
+
+            Inscription inscription =
+                    inscriptionRepository.findById(id)
+                            .orElseThrow(() ->
+                                    new RuntimeException(
+                                            "Inscription introuvable."
+                                    )
+                            );
+
+            byte[] pdf =
+                    certificatScolaritePdfService
+                            .genererCertificat(inscription);
+
+            HttpHeaders headers = new HttpHeaders();
+
+            headers.setContentType(
+                    MediaType.APPLICATION_PDF
+            );
+
+            String nomEleve =
+                    inscription.getEleve() != null
+                            ? (
+                            inscription.getEleve().getPrenom()
+                                    + "-"
+                                    + inscription.getEleve().getNom()
+                    )
+                            : "eleve";
+
+            nomEleve = nomEleve
+                    .replaceAll("[^a-zA-Z0-9À-ÿ_-]", "-");
+
+            headers.setContentDisposition(
+                    ContentDisposition
+                            .builder("attachment")
+                            .filename(
+                                    "certificat-scolarite-"
+                                            + nomEleve
+                                            + ".pdf"
+                            )
+                            .build()
+            );
+
+            headers.setContentLength(pdf.length);
+
+            return new ResponseEntity<>(
+                    pdf,
+                    headers,
+                    HttpStatus.OK
+            );
+
+        } catch (RuntimeException e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(null);
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
     }
     @PutMapping("/{id}")
     public ResponseEntity<InscriptionResponseDTO> modifier(

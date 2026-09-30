@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+
+    <meta charset="UTF-8"/>
+
+    <title>Certificat de scolarité</title>
+
+    <style>
+
+        @page {
+            size: A4 portrait;
+            margin: 18mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #101B33;
+            margin: 0;
+            font-size: 13px;
+        }
+
+        .document {
+            width: 100%;
+            min-height: 250mm;
+            position: relative;
+        }
+
+        /* =====================================================
+           EN-TÊTE
+        ===================================================== */
+
+        .header {
+            border-bottom: 2px solid #C89B3C;
+            padding-bottom: 14px;
+            margin-bottom: 45px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .logo-cell {
+            width: 90px;
+            vertical-align: middle;
+        }
+
+        .logo {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+        }
+
+        .school-cell {
+            vertical-align: middle;
+            text-align: center;
+        }
+
+        .school-name {
+            font-size: 19px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .school-info {
+            font-size: 10px;
+            line-height: 1.5;
+            color: #444;
+        }
+
+        .right-cell {
+            width: 90px;
+        }
+
+        /* =====================================================
+           TITRE
+        ===================================================== */
+
+        .title {
+            text-align: center;
+            margin-top: 15px;
+            margin-bottom: 40px;
+        }
+
+        .title-main {
+            display: inline-block;
+            border: 2px solid #101B33;
+            padding: 12px 35px;
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        /* =====================================================
+           CORPS
+        ===================================================== */
+
+        .intro {
+            font-size: 14px;
+            line-height: 1.9;
+            text-align: justify;
+            margin-bottom: 28px;
+        }
+
+        .student {
+            text-align: center;
+            margin: 25px 0 30px 0;
+        }
+
+        .student-name {
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .details {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0 30px 0;
+        }
+
+        .details td {
+            padding: 9px 8px;
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .label {
+            width: 35%;
+            font-weight: bold;
+            color: #101B33;
+        }
+
+        .value {
+            width: 65%;
+        }
+
+        .certificate-text {
+            font-size: 14px;
+            line-height: 2;
+            text-align: justify;
+            margin-top: 30px;
+        }
+
+        /* =====================================================
+           DATE / SIGNATURE
+        ===================================================== */
+
+        .footer {
+            margin-top: 75px;
+        }
+
+        .date {
+            text-align: right;
+            font-size: 12px;
+            margin-bottom: 35px;
+        }
+
+        .signature-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .signature-left,
+        .signature-right {
+            width: 50%;
+            text-align: center;
+            vertical-align: top;
+        }
+
+        .signature-title {
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 65px;
+        }
+
+        .signature-line {
+            border-top: 1px solid #333;
+            width: 150px;
+            margin: auto;
+            padding-top: 5px;
+            font-size: 10px;
+            color: #555;
+        }
+
+        /* =====================================================
+           BAS DE PAGE
+        ===================================================== */
+
+        .bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-top: 1px solid #dddddd;
+            padding-top: 7px;
+            text-align: center;
+            font-size: 9px;
+            color: #777;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="document">
+
+    <!-- =====================================================
+         EN-TÊTE ÉCOLE
+    ===================================================== -->
+
+    <div class="header">
+
+        <table class="header-table">
+
+            <tr>
+
+                <td class="logo-cell">
+
+                    <img
+                            th:if="${ecole.logo != null}"
+                            th:src="${ecole.logo}"
+                            class="logo"
+                            alt="Logo"
+                    />
+
+                </td>
+
+                <td class="school-cell">
+
+                    <div
+                            class="school-name"
+                            th:text="${ecole.nom}">
+                        NOM DE L'ÉTABLISSEMENT
+                    </div>
+
+                    <div class="school-info">
+
+                        <span
+                                th:if="${ecole.adresse != null}"
+                                th:text="${ecole.adresse}">
+                            Adresse
+                        </span>
+
+                        <br
+                                th:if="${ecole.ville != null}"
+                        />
+
+                        <span
+                                th:if="${ecole.ville != null}"
+                                th:text="${ecole.ville}">
+                            Ville
+                        </span>
+
+                        <span
+                                th:if="${ecole.telephone != null}">
+                            —
+                        </span>
+
+                        <span
+                                th:if="${ecole.telephone != null}"
+                                th:text="${ecole.telephone}">
+                            Téléphone
+                        </span>
+
+                    </div>
+
+                </td>
+
+                <td class="right-cell"></td>
+
+            </tr>
+
+        </table>
+
+    </div>
+
+
+    <!-- =====================================================
+         TITRE
+    ===================================================== -->
+
+    <div class="title">
+
+        <div class="title-main">
+            CERTIFICAT DE SCOLARITÉ
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         TEXTE
+    ===================================================== -->
+
+    <div class="intro">
+
+        Je soussigné(e), responsable de l'établissement
+        <strong th:text="${ecole.nom}">
+            Nom de l'établissement
+        </strong>,
+        certifie que l'élève ci-dessous est régulièrement
+        inscrit(e) dans notre établissement au titre de
+        l'année scolaire
+        <strong th:text="${annee.nom}">
+            2026-2027
+        </strong>.
+
+    </div>
+
+
+    <!-- =====================================================
+         ÉLÈVE
+    ===================================================== -->
+
+    <div class="student">
+
+        <div
+                class="student-name"
+                th:text="${eleve.prenom + ' ' + eleve.nom}">
+            PRÉNOM NOM
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         INFORMATIONS
+    ===================================================== -->
+
+    <table class="details">
+
+        <tr>
+
+            <td class="label">
+                Date de naissance
+            </td>
+
+            <td
+                    class="value"
+                    th:text="${dateNaissance}">
+                -
+            </td>
+
+        </tr>
+
+
+        <tr>
+
+            <td class="label">
+                Lieu de naissance
+            </td>
+
+            <td
+                    class="value"
+                    th:text="${eleve.lieuNaissance != null
+                              ? eleve.lieuNaissance
+                              : '-'}">
+                -
+            </td>
+
+        </tr>
+
+
+        <tr>
+
+            <td class="label">
+                Matricule
+            </td>
+
+            <td
+                    class="value"
+                    th:text="${eleve.matricule != null
+                              ? eleve.matricule
+                              : '-'}">
+                -
+            </td>
+
+        </tr>
+
+
+        <tr>
+
+            <td class="label">
+                Classe
+            </td>
+
+            <td
+                    class="value"
+                    th:text="${inscription.classe != null
+                              ? inscription.classe.nomComplet
+                              : '-'}">
+                -
+            </td>
+
+        </tr>
+
+
+        <tr>
+
+            <td class="label">
+                Année scolaire
+            </td>
+
+            <td
+                    class="value"
+                    th:text="${annee.nom}">
+                -
+            </td>
+
+        </tr>
+
+    </table>
+
+
+    <!-- =====================================================
+         CERTIFICATION
+    ===================================================== -->
+
+    <div class="certificate-text">
+
+        En foi de quoi, le présent certificat de scolarité
+        est délivré à l'intéressé(e), à sa demande,
+        pour servir et valoir ce que de droit.
+
+    </div>
+
+
+    <!-- =====================================================
+         SIGNATURE
+    ===================================================== -->
+
+    <div class="footer">
+
+        <div class="date">
+
+            Fait à
+            <strong
+                    th:text="${ecole.ville != null
+                              ? ecole.ville
+                              : '................................'}">
+                Ville
+            </strong>,
+
+            le
+            <strong th:text="${dateEdition}">
+                30/09/2026
+            </strong>
+
+        </div>
+
+
+        <table class="signature-table">
+
+            <tr>
+
+                <td class="signature-left">
+
+                    <div class="signature-title">
+                        L'Administration
+                    </div>
+
+                    <div class="signature-line">
+                        Signature et cachet
+                    </div>
+
+                </td>
+
+
+                <td class="signature-right">
+
+                    <div class="signature-title">
+                        Le Directeur / La Directrice
+                    </div>
+
+                    <div class="signature-line">
+                        Signature et cachet
+                    </div>
+
+                </td>
+
+            </tr>
+
+        </table>
+
+    </div>
+
+
+    <!-- =====================================================
+         BAS DE PAGE
+    ===================================================== -->
+
+    <div class="bottom">
+
+        Certificat de scolarité —
+        <span th:text="${ecole.nom}">
+            Établissement
+        </span>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>
