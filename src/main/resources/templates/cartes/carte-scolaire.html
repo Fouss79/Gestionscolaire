@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8"/>
+    <title>Cartes scolaires</title>
+
+    <style>
+
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            margin: 0;
+            color: #101B33;
+        }
+
+        /* =====================================================
+           PLANCHE
+        ===================================================== */
+
+        .feuille {
+            display: block;
+            width: 100%;
+        }
+
+        .feuille.saut-page {
+            page-break-before: always;
+        }
+
+
+        /* =====================================================
+           CARTE
+           Format ID-1 : 85.6mm x 54mm
+        ===================================================== */
+
+        .carte {
+            position: relative;
+
+            display: inline-block;
+            vertical-align: top;
+
+            box-sizing: border-box;
+
+            width: 85.6mm;
+            height: 54mm;
+
+            border: 0.3mm dashed #B9B4A3;
+            border-radius: 3mm;
+
+            overflow: hidden;
+
+            margin: 0 4mm 4mm 0;
+        }
+
+
+        /* =====================================================
+           EN-TÊTE
+        ===================================================== */
+
+        .carte-entete {
+            width: 100%;
+            height: 12mm;
+
+            box-sizing: border-box;
+
+            background: #101B33;
+            color: #ffffff;
+
+            padding: 1.5mm 3mm;
+
+            overflow: hidden;
+        }
+
+
+        /* =====================================================
+           TABLE DE L'EN-TÊTE
+        ===================================================== */
+
+        .entete-table {
+            width: 100%;
+            height: 9mm;
+
+            border-collapse: collapse;
+            border-spacing: 0;
+
+            table-layout: fixed;
+        }
+
+
+        /* =====================================================
+           CELLULE LOGO
+        ===================================================== */
+
+        .entete-logo-cell {
+            width: 12mm;
+
+            padding: 0;
+
+            vertical-align: middle;
+            text-align: left;
+        }
+
+
+        /* =====================================================
+           CELLULE TEXTE
+        ===================================================== */
+
+        .entete-texte-cell {
+            padding: 0 0 0 1mm;
+
+            vertical-align: middle;
+
+            text-align: left;
+        }
+
+
+        /* =====================================================
+           LOGO
+        ===================================================== */
+
+        .carte-entete .logo {
+            display: block;
+
+            width: 8mm;
+            height: 8mm;
+
+            background: #ffffff;
+
+            border: none;
+
+            border-radius: 1mm;
+        }
+
+
+        /* =====================================================
+           LOGO FALLBACK
+        ===================================================== */
+
+        .carte-entete .logo-fallback {
+            display: block;
+
+            width: 8mm;
+            height: 8mm;
+
+            background: #C89B3C;
+            color: #101B33;
+
+            border-radius: 1mm;
+
+            font-size: 6pt;
+            font-weight: bold;
+
+            text-align: center;
+            line-height: 8mm;
+        }
+
+
+        /* =====================================================
+           NOM DE L'ÉCOLE
+        ===================================================== */
+
+        .carte-entete .ecole-nom {
+            font-size: 7.5pt;
+
+            font-weight: bold;
+
+            line-height: 1.15;
+
+            margin: 0;
+            padding: 0;
+
+            white-space: nowrap;
+        }
+
+
+        /* =====================================================
+           TITRE
+        ===================================================== */
+
+        .carte-entete .carte-titre {
+            font-size: 5.5pt;
+
+            line-height: 1.2;
+
+            letter-spacing: 0.2mm;
+
+            color: #E4B655;
+
+            text-transform: uppercase;
+
+            margin: 0.7mm 0 0 0;
+            padding: 0;
+        }
+
+
+        /* =====================================================
+           CORPS
+        ===================================================== */
+
+        .carte-corps {
+            box-sizing: border-box;
+
+            padding: 2mm 3mm;
+
+            height: 31mm;
+
+            overflow: hidden;
+        }
+
+
+        /* =====================================================
+           PHOTO
+        ===================================================== */
+
+        .carte-photo,
+        .carte-photo-fallback {
+
+            width: 17mm;
+            height: 21mm;
+
+            float: left;
+
+            margin-right: 3mm;
+
+            box-sizing: border-box;
+
+            border: 0.25mm solid #DEDCD0;
+            border-radius: 1mm;
+        }
+
+
+        .carte-photo {
+            /* Pas de object-fit :
+               OpenHTMLToPDF le gère mal */
+        }
+
+
+        /* =====================================================
+           PHOTO FALLBACK
+        ===================================================== */
+
+        .carte-photo-fallback {
+
+            background: #F8F7F2;
+
+            color: #7A8190;
+
+            font-size: 11pt;
+
+            font-weight: bold;
+
+            text-align: center;
+
+            line-height: 21mm;
+        }
+
+
+        /* =====================================================
+           INFORMATIONS ÉLÈVE
+        ===================================================== */
+
+        .carte-infos {
+            margin-left: 20mm;
+        }
+
+
+        .carte-infos .nom {
+
+            font-size: 8pt;
+
+            font-weight: bold;
+
+            line-height: 1.2;
+
+            margin: 0 0 1.2mm 0;
+        }
+
+
+        .carte-infos .ligne {
+
+            font-size: 6pt;
+
+            line-height: 1.35;
+
+            margin: 0;
+        }
+
+
+        .carte-infos .label {
+            color: #7A8190;
+        }
+
+
+        /* =====================================================
+           PIED DE CARTE
+        ===================================================== */
+
+        .carte-pied {
+
+            position: absolute;
+
+            left: 0;
+            right: 0;
+            bottom: 0;
+
+            height: 8mm;
+
+            box-sizing: border-box;
+
+            border-top: 0.2mm solid #ECEAE2;
+
+            padding: 1.2mm 3mm;
+
+            background: #ffffff;
+
+            font-size: 5.1pt;
+
+            line-height: 1.4;
+        }
+
+
+        /* =====================================================
+           MATRICULE
+        ===================================================== */
+
+        .carte-pied .matricule {
+
+            font-size: 5.8pt;
+
+            font-weight: bold;
+
+            font-family: "Courier New", monospace;
+
+            color: #101B33;
+
+            display: inline-block;
+
+            margin-right: 2mm;
+        }
+
+
+        /* =====================================================
+           VALIDITÉ
+        ===================================================== */
+
+        .carte-pied .validite {
+
+            font-size: 5.1pt;
+
+            color: #7A8190;
+
+            display: inline-block;
+        }
+
+
+        .carte-pied .validite-date {
+
+            color: #101B33;
+
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+
+
+<body>
+
+<!-- =========================================================
+     PAGES
+========================================================= -->
+
+<div class="feuille"
+     th:each="page, iterPage : ${pages}"
+     th:classappend="${iterPage.index > 0} ? 'saut-page' : ''">
+
+
+    <!-- =====================================================
+         CARTE
+    ====================================================== -->
+
+    <div class="carte"
+         th:each="carte : ${page}">
+
+
+        <!-- =================================================
+             EN-TÊTE
+        ================================================== -->
+
+        <div class="carte-entete">
+
+            <table class="entete-table">
+
+                <tr>
+
+                    <!-- LOGO -->
+
+                    <td class="entete-logo-cell">
+
+                        <img th:if="${carte.logoBase64 != null}"
+                             th:src="${carte.logoBase64}"
+                             class="logo"
+                             alt="Logo"/>
+
+                        <div th:unless="${carte.logoBase64 != null}"
+                             class="logo-fallback">
+                            ECO
+                        </div>
+
+                    </td>
+
+
+                    <!-- TEXTES -->
+
+                    <td class="entete-texte-cell">
+
+                        <div class="ecole-nom"
+                             th:text="${carte.ecoleNom}">
+                            SONINKE
+                        </div>
+
+                        <div class="carte-titre">
+                            Carte scolaire
+                        </div>
+
+                    </td>
+
+                </tr>
+
+            </table>
+
+        </div>
+
+
+        <!-- =================================================
+             CORPS
+        ================================================== -->
+
+        <div class="carte-corps">
+
+
+            <!-- PHOTO -->
+
+            <img th:if="${carte.photoBase64 != null}"
+                 th:src="${carte.photoBase64}"
+                 class="carte-photo"
+                 alt="Photo"/>
+
+
+            <!-- FALLBACK PHOTO -->
+
+            <div th:unless="${carte.photoBase64 != null}"
+                 class="carte-photo-fallback">
+
+                <span th:text="${carte.initiales}">
+                    BC
+                </span>
+
+            </div>
+
+
+            <!-- INFORMATIONS -->
+
+            <div class="carte-infos">
+
+                <p class="nom"
+                   th:text="${carte.nomComplet}">
+                    CAMARA Bouba
+                </p>
+
+
+                <p class="ligne">
+
+                    <span class="label">
+                        Classe :
+                    </span>
+
+                    <span th:text="${carte.classeNom}">
+                        3ème Annee
+                    </span>
+
+                </p>
+
+
+                <p class="ligne"
+                   th:if="${carte.dateNaissanceFormatee != null}">
+
+                    <span class="label">
+                        Né(e) le :
+                    </span>
+
+                    <span th:text="${carte.dateNaissanceFormatee}">
+                        18/09/2026
+                    </span>
+
+                </p>
+
+
+                <p class="ligne"
+                   th:if="${carte.lieuNaissance != null and !carte.lieuNaissance.isEmpty()}">
+
+                    <span class="label">
+                        À :
+                    </span>
+
+                    <span th:text="${carte.lieuNaissance}">
+                        Bamako
+                    </span>
+
+                </p>
+
+
+                <p class="ligne"
+                   th:if="${carte.groupeSanguin != null and !carte.groupeSanguin.isEmpty()}">
+
+                    <span class="label">
+                        Groupe sanguin :
+                    </span>
+
+                    <span th:text="${carte.groupeSanguin}">
+                        O+
+                    </span>
+
+                </p>
+
+
+                <p class="ligne">
+
+                    <span class="label">
+                        Année :
+                    </span>
+
+                    <span th:text="${carte.anneeScolaireNom}">
+                        2027-2028
+                    </span>
+
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             PIED
+        ================================================== -->
+
+        <div class="carte-pied">
+
+            <span class="matricule"
+                  th:text="${carte.matricule}">
+                ELV0074
+            </span>
+
+
+            <span class="validite">
+
+                Valable du
+
+                <span class="validite-date"
+                      th:text="${carte.validiteDebut}">
+                    01/09/2027
+                </span>
+
+                au
+
+                <span class="validite-date"
+                      th:text="${carte.validiteFin}">
+                    30/09/2028
+                </span>
+
+            </span>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+</body>
+</html>
