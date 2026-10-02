@@ -1,8 +1,8 @@
-
 package com.saas.school.service;
 
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import com.saas.school.dto.BulletinDtos;
+import com.saas.school.repository.ClasseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +18,7 @@ public class BulletinPrimairePdfService {
 
     private final BulletinPrimaireService bulletinService;
     private final TemplateEngine templateEngine;
+    private final ClasseRepository classeRepository;
 
     /**
      * PDF de toute une classe :
@@ -38,7 +39,7 @@ public class BulletinPrimairePdfService {
             );
         }
 
-        return genererPdf(bulletins);
+        return genererPdf(bulletins, trouverNomEcole(classeId));
     }
 
     /**
@@ -66,16 +67,29 @@ public class BulletinPrimairePdfService {
                                 )
                         );
 
-        return genererPdf(List.of(bulletin));
+        return genererPdf(List.of(bulletin), trouverNomEcole(classeId));
+    }
+
+    /**
+     * Retrouve le nom de l'école à partir de la classe.
+     * Doit rester appelée dans une méthode transactionnelle
+     * (relation ecole potentiellement LAZY).
+     */
+    private String trouverNomEcole(Long classeId) {
+        return classeRepository.findById(classeId)
+                .map(c -> c.getEcole().getNom())
+                .orElse("");
     }
 
     /**
      * Rendu PDF commun aux deux méthodes.
      */
-    private byte[] genererPdf(List<BulletinDtos> bulletins) {
+    private byte[] genererPdf(List<BulletinDtos> bulletins,
+                              String nomEtablissement) {
 
         Context context = new Context();
         context.setVariable("bulletins", bulletins);
+        context.setVariable("nomEtablissement", nomEtablissement);
 
         String html = templateEngine.process(
                 "bulletin-primaire",

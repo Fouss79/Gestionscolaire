@@ -2,10 +2,8 @@ package com.saas.school.service;
 
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import com.saas.school.dto.CarteScolaireDto;
-import com.saas.school.entity.AnneeScolaire;
-import com.saas.school.entity.Ecole;
-import com.saas.school.entity.Eleve;
-import com.saas.school.entity.Inscription;
+import com.saas.school.entity.*;
+import com.saas.school.repository.UtilisateurRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
@@ -39,6 +37,7 @@ public class CarteScolairePdfService {
     private static final int CARTES_PAR_PAGE = 8;
     private static final DateTimeFormatter FORMAT_DATE =
             DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.FRENCH);
+    private final UtilisateurRepository utilisateurRepository;
 
     private final SpringTemplateEngine templateEngine;
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -106,6 +105,21 @@ public class CarteScolairePdfService {
         Eleve eleve = inscription.getEleve();
         Ecole ecole = inscription.getEcole();
         AnneeScolaire annee = inscription.getAnneeScolaire();
+        Utilisateur directeur = null;
+
+        if (ecole != null && ecole.getId() != null) {
+            directeur = utilisateurRepository
+                    .findFirstByEcoleIdAndRoleNom(
+                            ecole.getId(),
+                            "DIRECTEUR"
+                    )
+                    .orElse(null);
+        }
+
+        String nomDirecteur =
+                directeur != null && directeur.getNom() != null
+                        ? directeur.getNom()
+                        : null;
         String initiales = "EL";
 
         if (eleve != null) {
@@ -139,7 +153,8 @@ public class CarteScolairePdfService {
                 .anneeScolaireNom(annee != null ? annee.getNom() : null)
                 .validiteDebut(validiteDebut)
                 .validiteFin(validiteFin)
-                .initiales(initiales);;
+                .initiales(initiales)
+                .directeurNom(nomDirecteur);
 
         if (eleve != null) {
             builder.nom(eleve.getNom())
@@ -148,8 +163,9 @@ public class CarteScolairePdfService {
                     .dateNaissanceFormatee(dateNaissanceFormatee)
                     .lieuNaissance(eleve.getLieuNaissance())
                     .groupeSanguin(eleve.getGroupeSanguin())
+                    .telephoneParent(eleve.getTelephoneTuteur())
                     .photoBase64(telechargerEnBase64(eleve.getPhotoUrl()));
-        }
+           }
 
         if (ecole != null) {
             builder.ecoleNom(ecole.getNom())

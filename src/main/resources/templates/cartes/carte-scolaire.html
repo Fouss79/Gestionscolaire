@@ -13,14 +13,19 @@
             margin: 10mm;
         }
 
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: Helvetica, Arial, sans-serif;
             margin: 0;
             color: #101B33;
         }
 
+
         /* =====================================================
-           PLANCHE
+           PLANCHE A4
         ===================================================== */
 
         .feuille {
@@ -35,7 +40,7 @@
 
         /* =====================================================
            CARTE
-           Format ID-1 : 85.6mm x 54mm
+           Format ID-1 : 85.6 x 54 mm
         ===================================================== */
 
         .carte {
@@ -44,158 +49,157 @@
             display: inline-block;
             vertical-align: top;
 
-            box-sizing: border-box;
-
             width: 85.6mm;
             height: 54mm;
 
-            border: 0.3mm dashed #B9B4A3;
-            border-radius: 3mm;
-
-            overflow: hidden;
-
             margin: 0 4mm 4mm 0;
-        }
 
-
-        /* =====================================================
-           EN-TÊTE
-        ===================================================== */
-
-        .carte-entete {
-            width: 100%;
-            height: 12mm;
-
-            box-sizing: border-box;
-
-            background: #101B33;
-            color: #ffffff;
-
-            padding: 1.5mm 3mm;
+            border: 0.25mm solid #C8C8C8;
+            border-radius: 2.5mm;
 
             overflow: hidden;
+
+            background: #FFFFFF;
         }
 
 
         /* =====================================================
-           TABLE DE L'EN-TÊTE
+           BANDE SUPÉRIEURE
         ===================================================== */
 
-        .entete-table {
-            width: 100%;
-            height: 9mm;
+        .carte-header {
+            height: 17mm;
 
-            border-collapse: collapse;
-            border-spacing: 0;
+            background: #FFFFFF;
 
-            table-layout: fixed;
+            border-bottom: 0.35mm solid #101B33;
+
+            padding: 1.2mm 2.5mm 1mm 2.5mm;
         }
 
 
         /* =====================================================
-           CELLULE LOGO
+           EN-TÊTE NATIONAL
         ===================================================== */
 
-        .entete-logo-cell {
-            width: 12mm;
-
-            padding: 0;
-
-            vertical-align: middle;
-            text-align: left;
-        }
-
-
-        /* =====================================================
-           CELLULE TEXTE
-        ===================================================== */
-
-        .entete-texte-cell {
-            padding: 0 0 0 1mm;
-
-            vertical-align: middle;
-
-            text-align: left;
-        }
-
-
-        /* =====================================================
-           LOGO ÉCOLE
-        ===================================================== */
-
-        .carte-entete .logo {
-            display: block;
-
-            width: 8mm;
-            height: 8mm;
-
-            background: #ffffff;
-
-            border: none;
-
-            border-radius: 1mm;
-        }
-
-
-        /* =====================================================
-           FALLBACK LOGO
-        ===================================================== */
-
-        .carte-entete .logo-fallback {
-            display: block;
-
-            width: 8mm;
-            height: 8mm;
-
-            background: #C89B3C;
-            color: #101B33;
-
-            border-radius: 1mm;
-
-            font-size: 6pt;
-            font-weight: bold;
-
+        .entete-national {
             text-align: center;
 
-            line-height: 8mm;
+            line-height: 1.05;
+
+            color: #101B33;
+        }
+
+        .republique {
+            font-size: 6.5pt;
+
+            font-weight: bold;
+
+            text-transform: uppercase;
+
+            margin: 0;
+        }
+
+        .devise {
+            font-size: 4.7pt;
+
+            font-style: italic;
+
+            margin-top: 0.5mm;
+        }
+
+        .ministere {
+            font-size: 4.8pt;
+
+            font-weight: bold;
+
+            margin-top: 0.6mm;
         }
 
 
         /* =====================================================
-           NOM DE L'ÉCOLE
+           ECOLE
         ===================================================== */
 
-        .carte-entete .ecole-nom {
-            font-size: 7.5pt;
+        .ecole-bloc {
+            margin-top: 1mm;
+
+            text-align: center;
+        }
+
+        .ecole-nom {
+            font-size: 7pt;
 
             font-weight: bold;
 
-            line-height: 1.15;
+            color: #101B33;
 
-            margin: 0;
-            padding: 0;
+            text-transform: uppercase;
+
+            line-height: 1.05;
 
             white-space: nowrap;
         }
 
+        .ecole-cycles {
+            font-size: 4.4pt;
+
+            color: #2C8C82;
+
+            font-weight: bold;
+
+            margin-top: 0.5mm;
+        }
+
+        .ecole-telephone {
+            font-size: 4.2pt;
+
+            color: #555555;
+
+            margin-top: 0.35mm;
+        }
+
 
         /* =====================================================
-           TITRE
+           LOGO
         ===================================================== */
 
-        .carte-entete .carte-titre {
-            font-size: 5.5pt;
+        .logo {
+            position: absolute;
 
-            line-height: 1.2;
+            top: 2mm;
+            left: 2.5mm;
 
-            letter-spacing: 0.2mm;
+            width: 8mm;
+            height: 8mm;
 
-            color: #E4B655;
+            object-fit: contain;
 
-            text-transform: uppercase;
+            background: #FFFFFF;
+        }
 
-            margin: 0.7mm 0 0 0;
-            padding: 0;
+        .logo-fallback {
+            position: absolute;
+
+            top: 2mm;
+            left: 2.5mm;
+
+            width: 8mm;
+            height: 8mm;
+
+            border-radius: 50%;
+
+            background: #C89B3C;
+
+            color: #101B33;
+
+            text-align: center;
+
+            line-height: 8mm;
+
+            font-size: 5pt;
+
+            font-weight: bold;
         }
 
 
@@ -204,63 +208,55 @@
         ===================================================== */
 
         .carte-corps {
-            box-sizing: border-box;
+            height: 27mm;
 
-            padding: 2mm 3mm;
+            padding: 1.7mm 2.5mm;
 
-            height: 31mm;
-
-            overflow: hidden;
+            position: relative;
         }
 
 
         /* =====================================================
-           PHOTO / AVATAR
+           PHOTO
         ===================================================== */
+
+        .photo-container {
+            float: left;
+
+            width: 18mm;
+            height: 22mm;
+
+            margin-right: 2.5mm;
+        }
 
         .carte-photo,
         .carte-photo-fallback {
+            width: 18mm;
+            height: 22mm;
 
-            width: 17mm;
-            height: 21mm;
+            border: 0.25mm solid #BDBDBD;
 
-            float: left;
+            border-radius: 1mm;
 
-            margin-right: 3mm;
-
-            box-sizing: border-box;
-
-            border: 0.25mm solid #DEDCD0;
-            border-radius: 1.5mm;
-        }
-
-
-        /* =====================================================
-           PHOTO RÉELLE
-        ===================================================== */
-
-        .carte-photo {
             display: block;
         }
 
-
-        /* =====================================================
-           AVATAR SI PHOTO ABSENTE
-        ===================================================== */
+        .carte-photo {
+            object-fit: cover;
+        }
 
         .carte-photo-fallback {
-
             background: #DCEDEA;
 
             color: #2C8C82;
 
-            font-size: 13pt;
-
-            font-weight: bold;
-
             text-align: center;
 
-            line-height: 21mm;
+            line-height: 22mm;
+
+            font-size: 12pt;
+
+            font-weight: bold;
         }
 
 
@@ -268,63 +264,143 @@
            INFORMATIONS ÉLÈVE
         ===================================================== */
 
-        .carte-infos {
-            margin-left: 20mm;
+        .eleve-infos {
+            margin-left: 20.5mm;
+
+            padding-top: 0.2mm;
         }
 
+        .info-ligne {
+            font-size: 5.4pt;
 
-        .carte-infos .nom {
-
-            font-size: 8pt;
-
-            font-weight: bold;
-
-            line-height: 1.2;
-
-            margin: 0 0 1.2mm 0;
-        }
-
-
-        .carte-infos .ligne {
-
-            font-size: 6pt;
-
-            line-height: 1.35;
+            line-height: 1.55;
 
             margin: 0;
+
+            white-space: nowrap;
         }
 
+        .info-label {
+            font-weight: bold;
 
-        .carte-infos .label {
-            color: #7A8190;
+            color: #555555;
+        }
+
+        .info-value {
+            color: #101B33;
         }
 
 
         /* =====================================================
-           PIED DE CARTE
+           NOM / PRÉNOM
         ===================================================== */
 
-        .carte-pied {
+        .prenom {
+            font-size: 5.2pt;
 
+            color: #555555;
+
+            margin-bottom: 0.2mm;
+        }
+
+        .nom {
+            font-size: 8pt;
+
+            font-weight: bold;
+
+            color: #101B33;
+
+            text-transform: uppercase;
+
+            margin-bottom: 1mm;
+
+            line-height: 1.1;
+        }
+
+
+        /* =====================================================
+           CLASSE
+        ===================================================== */
+
+        .classe {
+            display: inline-block;
+
+            background: #101B33;
+
+            color: #FFFFFF;
+
+            padding: 0.6mm 1.5mm;
+
+            border-radius: 1mm;
+
+            font-size: 5pt;
+
+            font-weight: bold;
+
+            margin-top: 0.4mm;
+        }
+
+
+        /* =====================================================
+           DIRECTEUR
+        ===================================================== */
+
+        .directeur {
+            position: absolute;
+
+            right: 2.5mm;
+            bottom: 1.2mm;
+
+            text-align: right;
+
+            font-size: 4.5pt;
+
+            color: #555555;
+        }
+
+        .directeur-label {
+            display: block;
+
+            font-weight: bold;
+
+            color: #101B33;
+
+            margin-bottom: 0.2mm;
+        }
+
+        .directeur-nom {
+            display: block;
+
+            font-size: 5pt;
+
+            font-weight: bold;
+
+            color: #101B33;
+
+            max-width: 30mm;
+
+            white-space: nowrap;
+        }
+
+
+        /* =====================================================
+           BANDE INFÉRIEURE
+        ===================================================== */
+
+        .carte-footer {
             position: absolute;
 
             left: 0;
             right: 0;
             bottom: 0;
 
-            height: 8mm;
+            height: 9.5mm;
 
-            box-sizing: border-box;
+            background: #F5F6F8;
 
-            border-top: 0.2mm solid #ECEAE2;
+            border-top: 0.2mm solid #D9D9D9;
 
-            padding: 1.2mm 3mm;
-
-            background: #ffffff;
-
-            font-size: 5.1pt;
-
-            line-height: 1.4;
+            padding: 1.2mm 2.5mm;
         }
 
 
@@ -332,19 +408,35 @@
            MATRICULE
         ===================================================== */
 
-        .carte-pied .matricule {
-
-            font-size: 5.8pt;
-
-            font-weight: bold;
+        .matricule {
+            float: left;
 
             font-family: "Courier New", monospace;
 
+            font-size: 5.2pt;
+
+            font-weight: bold;
+
             color: #101B33;
+        }
 
-            display: inline-block;
 
-            margin-right: 2mm;
+        /* =====================================================
+           ANNÉE
+        ===================================================== */
+
+        .annee {
+            float: right;
+
+            font-size: 4.8pt;
+
+            color: #555555;
+
+            text-align: right;
+        }
+
+        .annee strong {
+            color: #101B33;
         }
 
 
@@ -352,21 +444,18 @@
            VALIDITÉ
         ===================================================== */
 
-        .carte-pied .validite {
+        .validite {
+            clear: both;
 
-            font-size: 5.1pt;
+            padding-top: 0.5mm;
 
-            color: #7A8190;
+            font-size: 4.2pt;
 
-            display: inline-block;
+            color: #777777;
         }
 
-
-        .carte-pied .validite-date {
-
+        .validite strong {
             color: #101B33;
-
-            font-weight: bold;
         }
 
     </style>
@@ -374,6 +463,7 @@
 
 
 <body>
+
 
 <!-- =========================================================
      PAGES
@@ -393,50 +483,65 @@
 
 
         <!-- =================================================
+             LOGO
+        ================================================== -->
+
+        <img th:if="${carte.logoBase64 != null}"
+             th:src="${carte.logoBase64}"
+             class="logo"
+             alt="Logo"/>
+
+        <div th:unless="${carte.logoBase64 != null}"
+             class="logo-fallback">
+            ECO
+        </div>
+
+
+        <!-- =================================================
              EN-TÊTE
         ================================================== -->
 
-        <div class="carte-entete">
+        <div class="carte-header">
 
-            <table class="entete-table">
+            <div class="entete-national">
 
-                <tr>
+                <div class="republique">
+                    RÉPUBLIQUE DU MALI
+                </div>
 
-                    <!-- LOGO -->
+                <div class="devise">
+                    Un Peuple - Un But - Une Foi
+                </div>
 
-                    <td class="entete-logo-cell">
+                <div class="ministere">
+                    Ministère de l'Éducation nationale
+                </div>
 
-                        <img th:if="${carte.logoBase64 != null}"
-                             th:src="${carte.logoBase64}"
-                             class="logo"
-                             alt="Logo"/>
-
-                        <div th:unless="${carte.logoBase64 != null}"
-                             class="logo-fallback">
-                            ECO
-                        </div>
-
-                    </td>
+            </div>
 
 
-                    <!-- TEXTES -->
+            <!-- =================================================
+                 ÉCOLE
+            ================================================== -->
 
-                    <td class="entete-texte-cell">
+            <div class="ecole-bloc">
 
-                        <div class="ecole-nom"
-                             th:text="${carte.ecoleNom}">
-                            SONINKE
-                        </div>
+                <div class="ecole-nom"
+                     th:text="${carte.ecoleNom}">
+                    INSTITUT SCOLAIRE LES ROSSIGNOLS
+                </div>
 
-                        <div class="carte-titre">
-                            Carte scolaire
-                        </div>
+                <div class="ecole-cycles">
+                    Maternelle - Primaire - Collège - Lycée
+                </div>
 
-                    </td>
+                <div class="ecole-telephone"
+                     th:if="${carte.ecoleTelephone != null}"
+                     th:text="${carte.ecoleTelephone}">
+                    Tél : 20 00 00 00
+                </div>
 
-                </tr>
-
-            </table>
+            </div>
 
         </div>
 
@@ -447,105 +552,167 @@
 
         <div class="carte-corps">
 
-            <!-- =================================================
-                 PHOTO SI DISPONIBLE
-            ================================================== -->
-
-            <img th:if="${carte.photoBase64 != null}"
-                 th:src="${carte.photoBase64}"
-                 class="carte-photo"
-                 alt="Photo"/>
-
 
             <!-- =================================================
-                 AVATAR SI PHOTO ABSENTE
+                 PHOTO
             ================================================== -->
 
-            <div th:unless="${carte.photoBase64 != null}"
-                 class="carte-photo-fallback"
-                 th:text="${carte.initiales}">
-                BC
+            <div class="photo-container">
+
+                <img th:if="${carte.photoBase64 != null}"
+                     th:src="${carte.photoBase64}"
+                     class="carte-photo"
+                     alt="Photo élève"/>
+
+                <div th:unless="${carte.photoBase64 != null}"
+                     class="carte-photo-fallback"
+                     th:text="${carte.initiales}">
+                    BC
+                </div>
+
             </div>
 
 
             <!-- =================================================
-                 INFORMATIONS
+                 INFORMATIONS ÉLÈVE
             ================================================== -->
 
-            <div class="carte-infos">
+            <div class="eleve-infos">
 
-                <p class="nom"
-                   th:text="${carte.nomComplet}">
-                    CAMARA Bouba
+
+                <!-- PRÉNOM -->
+
+                <p class="prenom">
+
+                    <span class="info-label">
+                        Prénoms :
+                    </span>
+
+                    <span class="info-value"
+                          th:text="${carte.prenom}">
+                        Bouba
+                    </span>
+
                 </p>
 
 
-                <p class="ligne">
+                <!-- NOM -->
 
-                    <span class="label">
+                <p class="nom"
+                   th:text="${carte.nom}">
+                    CAMARA
+                </p>
+
+
+                <!-- CLASSE -->
+
+                <p class="info-ligne">
+
+                    <span class="info-label">
                         Classe :
                     </span>
 
-                    <span th:text="${carte.classeNom}">
+                    <span class="info-value"
+                          th:text="${carte.classeNom}">
                         3ème Année
                     </span>
 
                 </p>
 
 
-                <p class="ligne"
+                <!-- DATE DE NAISSANCE -->
+
+                <p class="info-ligne"
                    th:if="${carte.dateNaissanceFormatee != null}">
 
-                    <span class="label">
-                        Né(e) le :
+                    <span class="info-label">
+                        Date de naissance :
                     </span>
 
-                    <span th:text="${carte.dateNaissanceFormatee}">
-                        18/09/2026
+                    <span class="info-value"
+                          th:text="${carte.dateNaissanceFormatee}">
+                        18/09/2015
                     </span>
 
                 </p>
 
 
-                <p class="ligne"
+                <!-- LIEU DE NAISSANCE -->
+
+                <p class="info-ligne"
                    th:if="${carte.lieuNaissance != null and !carte.lieuNaissance.isEmpty()}">
 
-                    <span class="label">
-                        À :
+                    <span class="info-label">
+                        Lieu :
                     </span>
 
-                    <span th:text="${carte.lieuNaissance}">
+                    <span class="info-value"
+                          th:text="${carte.lieuNaissance}">
                         Bamako
                     </span>
 
                 </p>
 
 
-                <p class="ligne"
+                <!-- GROUPE SANGUIN -->
+
+                <p class="info-ligne"
                    th:if="${carte.groupeSanguin != null and !carte.groupeSanguin.isEmpty()}">
 
-                    <span class="label">
-                        Groupe sanguin :
-                    </span>
+    <span class="info-label">
+        Groupe sanguin :
+    </span>
 
-                    <span th:text="${carte.groupeSanguin}">
-                        O+
-                    </span>
+                    <span class="info-value"
+                          th:text="${carte.groupeSanguin}">
+        O+
+    </span>
+
+                </p>
+
+
+                <!-- TÉLÉPHONE PARENT -->
+
+                <p class="info-ligne"
+                   th:if="${carte.telephoneParent != null and !carte.telephoneParent.isEmpty()}">
+
+    <span class="info-label">
+        Tél. parent :
+    </span>
+
+                    <span class="info-value"
+                          th:text="${carte.telephoneParent}">
+        70 00 00 00
+    </span>
 
                 </p>
 
 
-                <p class="ligne">
+                <!-- CLASSE EN BADGE -->
 
-                    <span class="label">
-                        Année :
-                    </span>
+                <div class="classe"
+                     th:text="${carte.classeNom}">
+                    3ème Année
+                </div>
 
-                    <span th:text="${carte.anneeScolaireNom}">
-                        2027-2028
-                    </span>
+            </div>
 
-                </p>
+
+            <!-- =================================================
+                 DIRECTEUR
+            ================================================== -->
+
+            <div class="directeur"
+                 th:if="${carte.directeurNom != null}">
+
+                <span class="directeur-label">
+                    Le Directeur
+                </span>
+
+                <span class="directeur-nom"
+                      th:text="${carte.directeurNom}">
+                    NOM DU DIRECTEUR
+                </span>
 
             </div>
 
@@ -556,7 +723,10 @@
              PIED
         ================================================== -->
 
-        <div class="carte-pied">
+        <div class="carte-footer">
+
+
+            <!-- MATRICULE -->
 
             <span class="matricule"
                   th:text="${carte.matricule}">
@@ -564,23 +734,36 @@
             </span>
 
 
-            <span class="validite">
+            <!-- ANNÉE -->
+
+            <span class="annee">
+
+                Année scolaire :
+
+                <strong th:text="${carte.anneeScolaireNom}">
+                    2026-2027
+                </strong>
+
+            </span>
+
+
+            <!-- VALIDITÉ -->
+
+            <div class="validite">
 
                 Valable du
 
-                <span class="validite-date"
-                      th:text="${carte.validiteDebut}">
-                    01/09/2027
-                </span>
+                <strong th:text="${carte.validiteDebut}">
+                    01/09/2026
+                </strong>
 
                 au
 
-                <span class="validite-date"
-                      th:text="${carte.validiteFin}">
-                    30/09/2028
-                </span>
+                <strong th:text="${carte.validiteFin}">
+                    30/09/2027
+                </strong>
 
-            </span>
+            </div>
 
         </div>
 

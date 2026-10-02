@@ -13,5 +13,7 @@ public interface UtilisateurRepository extends JpaRepository<Utilisateur, Long> 
     Optional<Utilisateur> findByEmail(String email);
 
     List<Utilisateur> findByEcoleId(Long ecoleId);
-
-    }
+    Optional<Utilisateur> findFirstByEcoleIdAndRoleNom(
+            Long ecoleId,
+            String roleNom
+    );}

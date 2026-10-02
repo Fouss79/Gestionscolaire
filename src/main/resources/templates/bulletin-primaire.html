@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -31,6 +30,15 @@
 
         .bulletin:last-child {
             page-break-after: auto;
+        }
+
+        .school-name {
+            text-align: center;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
         }
 
         .header {
@@ -134,13 +142,34 @@
 
         .bottom-signatures {
             width: 100%;
-            margin-top: 12px;
-            font-weight: bold;
-            font-size: 10px;
+            margin-top: 8px;
+            border-collapse: collapse;
+            table-layout: fixed;
+            page-break-inside: avoid;
         }
 
         .bottom-signatures td {
             width: 50%;
+            vertical-align: top;
+            padding: 0 4px;
+        }
+
+        .sign-title {
+            font-size: 10px;
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 0;
+        }
+
+        .sign-subtitle {
+            font-size: 7.5px;
+            font-style: italic;
+            margin: 1px 0 0 0;
+        }
+
+        /* Espace libre de signature (réduit d'un tiers : 78px -> 52px) */
+        .sign-space {
+            height: 52px;
         }
     </style>
 </head>
@@ -148,6 +177,8 @@
 <body>
 
 <div class="bulletin" th:each="b : ${bulletins}">
+
+    <div class="school-name" th:text="${nomEtablissement}">NOM DE L'ÉTABLISSEMENT</div>
 
     <div class="header"
          th:text="${'COMPOSITION DU MOIS DE ' + b.mois}">
@@ -239,11 +270,10 @@
                 &#160;&#160; Sur
 
                 <span th:text="${b.effectif != null ? b.effectif : 0}">
-    30
-</span>
+                    30
+                </span>
 
                 &#160; élèves classés
-
             </td>
         </tr>
 
@@ -282,15 +312,18 @@
     <table class="bottom-signatures">
         <tr>
             <td style="text-align: left;">
-                <u>Le Directeur</u>
+                <p class="sign-title">Le Directeur</p>
+                <p class="sign-subtitle">Cachet et signature</p>
+                <div class="sign-space"></div>
             </td>
 
             <td style="text-align: right;">
-                <u>Les parents</u>
+                <p class="sign-title">Les Parents</p>
+                <p class="sign-subtitle">Lu et pris connaissance</p>
+                <div class="sign-space"></div>
             </td>
         </tr>
     </table>
-
 </div>
 
 </body>
