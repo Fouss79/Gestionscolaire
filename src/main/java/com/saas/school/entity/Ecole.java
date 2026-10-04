@@ -24,6 +24,7 @@ public class Ecole {
     private String email;
 
     // identité visuelle
+    @Column(length = 1000)
     private String logo;
 
     // gestion SaaS

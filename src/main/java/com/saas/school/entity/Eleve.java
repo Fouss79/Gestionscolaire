@@ -46,9 +46,10 @@ public class Eleve {
     @Column(length = 500)
     private String allergiesMaladies; // infos médicales utiles
 
-    @Column(length = 255)
-    private String photoUrl; // photo d'identité de l'élève
 
+    // photo d'identité de l'élève
+    @Column(length = 1000)
+    private String photoUrl;
     // ---------- Coordonnées ----------
     private String adresse;
 

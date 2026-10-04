@@ -17,63 +17,116 @@ public class EcoleController {
 
     private final EcoleService ecoleService;
 
+    // =========================
+    // CREER UNE ECOLE
+    // =========================
     @PostMapping
-    public Ecole creer(@RequestBody Ecole ecole) {
-        return ecoleService.creerEcole(ecole);
+    public ResponseEntity<Ecole> creer(
+            @RequestBody Ecole ecole
+    ) {
+        return ResponseEntity.ok(
+                ecoleService.creerEcole(ecole)
+        );
     }
 
+    // =========================
+    // RECUPERER UNE ECOLE
+    // =========================
     @GetMapping("/{id}")
-    public Ecole getById(@PathVariable Long id) {
-        return ecoleService.getById(id);
+    public ResponseEntity<Ecole> getById(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                ecoleService.getById(id)
+        );
     }
 
-
+    // =========================
+    // ACTIVER / DESACTIVER
+    // =========================
     @PutMapping("/toggle/{id}")
-    public Ecole toggle(@PathVariable Long id) {
-        return ecoleService.toggleActive(id);
+    public ResponseEntity<Ecole> toggle(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                ecoleService.toggleActive(id)
+        );
     }
 
+    // =========================
+    // TOUTES LES ECOLES
+    // =========================
     @GetMapping
-    public List<Ecole> getAll() {
-        return ecoleService.getAllEcoles();
+    public ResponseEntity<List<Ecole>> getAll() {
+        return ResponseEntity.ok(
+                ecoleService.getAllEcoles()
+        );
     }
 
+    // =========================
+    // VERIFIER LES TARIFS
+    // =========================
     @GetMapping("/ecole/{ecoleId}/tarifs-configures")
-    public boolean tarifsConfigures(@PathVariable Long ecoleId) {
-        return ecoleService.tousLesTarifsSontConfigures(ecoleId);
+    public ResponseEntity<Boolean> tarifsConfigures(
+            @PathVariable Long ecoleId
+    ) {
+        return ResponseEntity.ok(
+                ecoleService.tousLesTarifsSontConfigures(ecoleId)
+        );
     }
-    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+
+    // =========================
+    // MODIFIER UNE ECOLE
+    // =========================
+    @PutMapping(
+            value = "/{id}",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
     public ResponseEntity<Ecole> modifierEcole(
+
             @PathVariable Long id,
 
-            @RequestParam(required = false) String nom,
-            @RequestParam(required = false) String codeEcole,
-            @RequestParam(required = false) String adresse,
-            @RequestParam(required = false) String ville,
-            @RequestParam(required = false) String pays,
-            @RequestParam(required = false) String telephone,
-            @RequestParam(required = false) String email,
+            @RequestParam(required = false)
+            String nom,
 
-            @RequestPart(value = "logo", required = false)
+            @RequestParam(required = false)
+            String codeEcole,
+
+            @RequestParam(required = false)
+            String adresse,
+
+            @RequestParam(required = false)
+            String ville,
+
+            @RequestParam(required = false)
+            String pays,
+
+            @RequestParam(required = false)
+            String telephone,
+
+            @RequestParam(required = false)
+            String email,
+
+            @RequestPart(
+                    value = "logo",
+                    required = false
+            )
             MultipartFile logo
     ) {
 
-        Ecole ecole = ecoleService.modifierEcole(
-                id,
-                nom,
-                codeEcole,
-                adresse,
-                ville,
-                pays,
-                telephone,
-                email,
-                logo
-        );
+        Ecole ecole =
+                ecoleService.modifierEcole(
+                        id,
+                        nom,
+                        codeEcole,
+                        adresse,
+                        ville,
+                        pays,
+                        telephone,
+                        email,
+                        logo
+                );
 
         return ResponseEntity.ok(ecole);
     }
-
-
 }
-
-

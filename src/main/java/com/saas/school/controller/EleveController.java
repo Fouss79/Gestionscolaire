@@ -6,8 +6,10 @@ import com.saas.school.entity.Eleve;
 import com.saas.school.entity.HasPermission;
 import com.saas.school.service.EleveService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -23,7 +25,18 @@ public class EleveController {
     public ResponseEntity<Eleve> create(@RequestBody EleveRequest request) {
         return ResponseEntity.ok(eleveService.creerEleve(request));
     }
-
+    @PostMapping(
+            value = "/{id}/photo",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ResponseEntity<Eleve> uploadPhoto(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return ResponseEntity.ok(
+                eleveService.uploadPhoto(id, file)
+        );
+    }
     // 📥 élèves d'une classe
 
 

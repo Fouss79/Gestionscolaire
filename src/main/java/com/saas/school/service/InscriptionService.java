@@ -273,7 +273,11 @@ public class InscriptionService {
 
         InscriptionResponseDTO dto = new InscriptionResponseDTO();
 
+        // ID de l'inscription
         dto.setId(i.getId());
+
+        // ID de l'élève
+        dto.setEleveId(e.getId());
 
         dto.setNom(e.getNom());
         dto.setPrenom(e.getPrenom());
@@ -285,6 +289,9 @@ public class InscriptionService {
         dto.setGroupeSanguin(e.getGroupeSanguin());
         dto.setAllergiesMaladies(e.getAllergiesMaladies());
 
+        // Photo Supabase
+        dto.setPhotoUrl(e.getPhotoUrl());
+
         dto.setAdresse(e.getAdresse());
         dto.setTelephone(e.getTelephone());
         dto.setEmail(e.getEmail());
@@ -294,6 +301,7 @@ public class InscriptionService {
         dto.setLienParente(e.getLienParente());
         dto.setTelephoneTuteur(e.getTelephoneTuteur());
         dto.setEmailTuteur(e.getEmailTuteur());
+
         dto.setClasseId(i.getClasse().getId());
         dto.setClasseNom(i.getClasse().getNomComplet());
 
@@ -304,6 +312,7 @@ public class InscriptionService {
         dto.setStatut(i.getStatut().name());
 
         MontantsAgreges montants = agregerMontants(i.getId());
+
         dto.setMontantTotal(montants.total());
         dto.setMontantPaye(montants.paye());
         dto.setResteAPayer(montants.reste());

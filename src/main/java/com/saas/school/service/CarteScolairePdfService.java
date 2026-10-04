@@ -205,30 +205,66 @@ public class CarteScolairePdfService {
 
         try {
 
-            String urlComplete = url;
+            String urlComplete = url.trim();
 
-            // =====================================================
-            // URL locale stockée sous forme /uploads/...
-            // =====================================================
-            if (url.startsWith("/")) {
-                urlComplete = "http://localhost:8080" + url;
+            /*
+             * ============================================================
+             * ANCIENNES IMAGES LOCALES
+             * ============================================================
+             *
+             * Exemple :
+             * /uploads/logo.png
+             */
+            if (urlComplete.startsWith("/")) {
+
+                urlComplete =
+                        "http://localhost:8080" + urlComplete;
             }
 
-            System.out.println("Téléchargement image : " + urlComplete);
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(urlComplete))
-                    .GET()
-                    .build();
-
-            HttpResponse<byte[]> response = httpClient.send(
-                    request,
-                    HttpResponse.BodyHandlers.ofByteArray()
+            System.out.println(
+                    "===================================="
             );
 
-            System.out.println("Statut image : " + response.statusCode());
+            System.out.println(
+                    "Téléchargement image PDF : "
+                            + urlComplete
+            );
+
+            /*
+             * ============================================================
+             * REQUÊTE HTTP
+             * ============================================================
+             */
+
+            HttpRequest request =
+                    HttpRequest.newBuilder()
+                            .uri(URI.create(urlComplete))
+                            .header(
+                                    "User-Agent",
+                                    "DaniSchool-PDF"
+                            )
+                            .GET()
+                            .build();
+
+            HttpResponse<byte[]> response =
+                    httpClient.send(
+                            request,
+                            HttpResponse.BodyHandlers.ofByteArray()
+                    );
+
+            System.out.println(
+                    "Statut image : "
+                            + response.statusCode()
+            );
+
+            /*
+             * ============================================================
+             * VÉRIFICATION
+             * ============================================================
+             */
 
             if (response.statusCode() != 200) {
+
                 System.err.println(
                         "Impossible de télécharger l'image : "
                                 + urlComplete
@@ -239,19 +275,59 @@ public class CarteScolairePdfService {
                 return null;
             }
 
-            String contentType = response.headers()
-                    .firstValue("Content-Type")
-                    .orElse("image/png");
+            /*
+             * ============================================================
+             * TYPE MIME
+             * ============================================================
+             */
 
-            String base64 = Base64.getEncoder()
-                    .encodeToString(response.body());
+            String contentType =
+                    response.headers()
+                            .firstValue("Content-Type")
+                            .orElse(null);
 
-            return "data:" + contentType + ";base64," + base64;
+            /*
+             * Certains serveurs peuvent ne pas retourner
+             * correctement le Content-Type.
+             */
+            if (contentType == null
+                    || contentType.isBlank()
+                    || !contentType.startsWith("image/")) {
+
+                contentType = "image/jpeg";
+            }
+
+            /*
+             * ============================================================
+             * BASE64
+             * ============================================================
+             */
+
+            String base64 =
+                    Base64.getEncoder()
+                            .encodeToString(response.body());
+
+            String dataUri =
+                    "data:"
+                            + contentType
+                            + ";base64,"
+                            + base64;
+
+            System.out.println(
+                    "Image convertie en Base64 : OK"
+            );
+
+            System.out.println(
+                    "===================================="
+            );
+
+            return dataUri;
 
         } catch (Exception e) {
 
             System.err.println(
-                    "Erreur téléchargement image : " + url
+                    "Erreur téléchargement image : "
+                            + url
             );
 
             e.printStackTrace();

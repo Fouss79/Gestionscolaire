@@ -60,4 +60,7 @@ public class InscriptionResponseDTO {
     private Double resteAPayer;
 
     private Long ecoleId;
+    private String photoUrl;
+    private Long eleveId;
+
 }

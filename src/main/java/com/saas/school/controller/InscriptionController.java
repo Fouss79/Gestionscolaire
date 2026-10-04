@@ -36,8 +36,18 @@ public class InscriptionController {
       //  return ResponseEntity.ok(inscriptionService.inscrireEleve(request));
     //}
     @PostMapping
-    public ResponseEntity<Inscription> inscrire(@RequestBody InscriptionDTO request) {
-        return ResponseEntity.ok(inscriptionService.inscrireUnEleve(request));
+    public ResponseEntity<InscriptionCreationResponseDTO> inscrire(
+            @RequestBody InscriptionDTO request
+    ) {
+        Inscription inscription =
+                inscriptionService.inscrireUnEleve(request);
+
+        return ResponseEntity.ok(
+                new InscriptionCreationResponseDTO(
+                        inscription.getId(),
+                        inscription.getEleve().getId()
+                )
+        );
     }
     @PutMapping("/{id}/valider")
     public ResponseEntity<InscriptionResponseDTO> valider(@PathVariable Long id) {

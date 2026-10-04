@@ -1,6 +1,5 @@
 package com.saas.school.service;
 
-
 import com.saas.school.entity.AnneeScolaire;
 import com.saas.school.entity.Ecole;
 import com.saas.school.entity.Niveau;
@@ -8,16 +7,10 @@ import com.saas.school.entity.TypeFrais;
 import com.saas.school.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,59 +22,125 @@ public class EcoleService {
     private final TarifRepository tarifRepository;
     private final AnneeScolaireRepository anneeScolaireRepository;
 
+    /*
+     * Service Supabase utilisé pour stocker
+     * les logos et les images.
+     */
+    private final SupabaseStorageService supabaseStorageService;
+
+
+    // ============================================================
+    // CRÉATION ÉCOLE
+    // ============================================================
+
     public Ecole creerEcole(Ecole ecole) {
+
         ecole.setCreatedAt(LocalDateTime.now());
         ecole.setActive(true);
 
         return ecoleRepository.save(ecole);
     }
 
+
+    // ============================================================
+    // RÉCUPÉRER UNE ÉCOLE
+    // ============================================================
+
     public Ecole getById(Long id) {
+
         return ecoleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Ecole introuvable"));
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Ecole introuvable"
+                        )
+                );
     }
-    // 🔴 activer / désactiver école
+
+
+    // ============================================================
+    // ACTIVER / DÉSACTIVER
+    // ============================================================
+
     public Ecole toggleActive(Long id) {
-        Ecole ecole = ecoleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("École introuvable"));
+
+        Ecole ecole =
+                ecoleRepository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "École introuvable"
+                                )
+                        );
 
         ecole.setActive(!ecole.isActive());
+
         return ecoleRepository.save(ecole);
     }
-    // 📋 liste écoles
+
+
+    // ============================================================
+    // LISTE DES ÉCOLES
+    // ============================================================
+
     public List<Ecole> getAllEcoles() {
+
         return ecoleRepository.findAll();
     }
 
+
+    // ============================================================
+    // VÉRIFICATION DES TARIFS
+    // ============================================================
+
     public boolean tousLesTarifsSontConfigures(Long ecoleId) {
 
-        List<Niveau> niveaux = niveauRepository.findByEcoleId(ecoleId);
-        List<TypeFrais> typesFrais = typeFraisRepository.findByEcoleId(ecoleId);
+        List<Niveau> niveaux =
+                niveauRepository.findByEcoleId(ecoleId);
+
+        List<TypeFrais> typesFrais =
+                typeFraisRepository.findByEcoleId(ecoleId);
 
         if (niveaux.isEmpty()) {
-            return true; // pas encore de niveau créé → rien à signaler pour l'instant
+
+            return true;
         }
 
-        AnneeScolaire anneeActive = anneeScolaireRepository
-                .findByEcoleIdAndActiveTrue(ecoleId)
-                .orElse(null);
+        AnneeScolaire anneeActive =
+                anneeScolaireRepository
+                        .findByEcoleIdAndActiveTrue(ecoleId)
+                        .orElse(null);
 
-        if (anneeActive == null) return false;
+        if (anneeActive == null) {
+
+            return false;
+        }
 
         for (Niveau niveau : niveaux) {
-            for (TypeFrais type : typesFrais) {
-                boolean existe = tarifRepository
-                        .findByNiveauIdAndAnneeScolaireIdAndTypeFrais_Code(
-                                niveau.getId(), anneeActive.getId(), type.getCode()
-                        )
-                        .isPresent();
 
-                if (!existe) return false;
+            for (TypeFrais type : typesFrais) {
+
+                boolean existe =
+                        tarifRepository
+                                .findByNiveauIdAndAnneeScolaireIdAndTypeFrais_Code(
+                                        niveau.getId(),
+                                        anneeActive.getId(),
+                                        type.getCode()
+                                )
+                                .isPresent();
+
+                if (!existe) {
+
+                    return false;
+                }
             }
         }
 
         return true;
     }
+
+
+    // ============================================================
+    // MODIFICATION ÉCOLE
+    // ============================================================
 
     public Ecole modifierEcole(
             Long id,
@@ -95,12 +154,18 @@ public class EcoleService {
             MultipartFile logo
     ) {
 
-        Ecole ecole = ecoleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("École introuvable"));
+        Ecole ecole =
+                ecoleRepository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "École introuvable"
+                                )
+                        );
 
-        // ==========================================
+
+        // ========================================================
         // INFORMATIONS GÉNÉRALES
-        // ==========================================
+        // ========================================================
 
         if (nom != null) {
             ecole.setNom(nom);
@@ -130,55 +195,53 @@ public class EcoleService {
             ecole.setEmail(email);
         }
 
-        // ==========================================
-        // LOGO
-        // ==========================================
+
+        // ========================================================
+        // LOGO → SUPABASE STORAGE
+        // ========================================================
 
         if (logo != null && !logo.isEmpty()) {
 
             try {
 
-                Path dossier = Paths.get("uploads/ecoles");
+                /*
+                 * Le logo sera organisé comme ceci :
+                 *
+                 * dani-images/
+                 * └── ecoles/
+                 *     └── 52/
+                 *         └── uuid.png
+                 */
 
-                if (!Files.exists(dossier)) {
-                    Files.createDirectories(dossier);
-                }
+                String dossier =
+                        "ecoles/" + id;
 
-                String originalName = logo.getOriginalFilename();
+                String logoUrl =
+                        supabaseStorageService.uploadImage(
+                                logo,
+                                dossier
+                        );
 
-                String extension = "";
+                /*
+                 * On stocke l'URL publique Supabase
+                 * dans la colonne logo.
+                 */
+                ecole.setLogo(logoUrl);
 
-                if (originalName != null && originalName.contains(".")) {
-                    extension = originalName.substring(
-                            originalName.lastIndexOf(".")
-                    ).toLowerCase();
-                }
-
-                // Nom unique du fichier
-                String nomFichier =
-                        "logo-" + id + "-" + UUID.randomUUID() + extension;
-
-                Path chemin = dossier.resolve(nomFichier);
-
-                // Enregistrement du fichier
-                Files.copy(
-                        logo.getInputStream(),
-                        chemin
-                );
-
-                // On stocke uniquement le chemin en DB
-                ecole.setLogo(
-                        "/uploads/ecoles/" + nomFichier
-                );
-
-            } catch (IOException e) {
+            } catch (Exception e) {
 
                 throw new RuntimeException(
-                        "Erreur lors de l'enregistrement du logo",
+                        "Impossible d'enregistrer le logo : "
+                                + e.getMessage(),
                         e
                 );
             }
         }
+
+
+        // ========================================================
+        // SAUVEGARDE
+        // ========================================================
 
         return ecoleRepository.save(ecole);
     }

@@ -14,6 +14,8 @@ import com.saas.school.repository.UtilisateurRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.saas.school.entity.SousGroupe;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,6 +28,7 @@ public class EleveService {
     private final EcoleRepository ecoleRepository;
     private final InscriptionRepository inscriptionRepository;
     private final UtilisateurRepository utilisateurRepository;
+    private final SupabaseStorageService supabaseStorageService;
 
     // 🔥 Créer élève
     public Eleve creerEleve(EleveRequest request) {
@@ -82,6 +85,45 @@ public class EleveService {
         }
 
         return eleveRepository.save(eleve);
+    }
+    public Eleve uploadPhoto(Long eleveId, MultipartFile file) {
+
+        Eleve eleve = eleveRepository.findById(eleveId)
+                .orElseThrow(() ->
+                        new RuntimeException("Élève introuvable"));
+
+        if (eleve.getEcole() == null) {
+            throw new RuntimeException(
+                    "L'élève n'est associé à aucune école."
+            );
+        }
+
+        try {
+
+            String dossier =
+                    "eleves/ecole-" +
+                            eleve.getEcole().getId() +
+                            "/" +
+                            eleve.getId();
+
+            String photoUrl =
+                    supabaseStorageService.uploadImage(
+                            file,
+                            dossier
+                    );
+
+            eleve.setPhotoUrl(photoUrl);
+
+            return eleveRepository.save(eleve);
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Impossible d'enregistrer la photo : "
+                            + e.getMessage(),
+                    e
+            );
+        }
     }
 
 
