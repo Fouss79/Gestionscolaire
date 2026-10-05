@@ -24,4 +24,6 @@ public class Utilisateur {
     @JoinColumn(name = "ecole_id")
     private Ecole ecole;
     private String motDePasseTemporaire;
+    @Column(length = 1000)
+    private String photo; // nom du fichier, ex: "12-uuid.jpg"
 }
