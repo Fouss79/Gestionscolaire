@@ -302,9 +302,17 @@ public class InscriptionService {
         dto.setTelephoneTuteur(e.getTelephoneTuteur());
         dto.setEmailTuteur(e.getEmailTuteur());
 
-        dto.setClasseId(i.getClasse().getId());
-        dto.setClasseNom(i.getClasse().getNomComplet());
+        Classe classe = i.getClasse();
 
+        dto.setClasseId(classe.getId());
+        dto.setClasseNom(classe.getNomComplet());
+
+// Cycle de la classe (via le niveau)
+        if (classe.getNiveau() != null && classe.getNiveau().getCycle() != null) {
+            Cycle cycle = classe.getNiveau().getCycle();
+            dto.setCycleId(cycle.getId());
+            dto.setCycleNom(cycle.getNom());
+        }
         dto.setAnneeId(i.getAnneeScolaire().getId());
         dto.setAnnee(i.getAnneeScolaire().getNom());
 

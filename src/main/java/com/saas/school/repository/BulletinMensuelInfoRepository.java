@@ -12,4 +12,6 @@ public interface BulletinMensuelInfoRepository extends JpaRepository<BulletinMen
     Optional<BulletinMensuelInfo> findByInscriptionIdAndMois(Long inscriptionId, String mois);
 
     List<BulletinMensuelInfo> findByInscriptionIdInAndMois(Collection<Long> inscriptionIds, String mois);
+
+    List<BulletinMensuelInfo> findByInscriptionIdOrderByIdAsc(Long inscriptionId);
 }
