@@ -60,7 +60,7 @@ public class InscriptionService {
                 .orElseThrow(() -> new RuntimeException("Classe introuvable"));
 
         // 🔥 USER
-        Utilisateur utilisateur = creerCompteUtilisateurEleve(request.getNom(), request.getPrenom(), ecole);
+        //Utilisateur utilisateur = creerCompteUtilisateurEleve(request.getNom(), request.getPrenom(), ecole);
 
         // 🔥 ELEVE
         EleveRequest eleveReq = new EleveRequest();
@@ -89,7 +89,7 @@ public class InscriptionService {
 
         eleveReq.setEcoleId(request.getEcoleId());
         eleveReq.setClasseId(request.getClasseId());
-        eleveReq.setUtilisateurId(utilisateur.getId());
+       // eleveReq.setUtilisateurId(utilisateur.getId());
 
         Eleve eleve = eleveService.creerEleve(eleveReq);
 
