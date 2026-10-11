@@ -32,39 +32,18 @@ public class BulletinController {
             @RequestParam Long anneeId,
             @RequestParam String periode
     ) {
-
         try {
-
-            // ================= VALIDATION =================
-            if (inscriptionId == null || classeId == null || anneeId == null) {
-                throw new RuntimeException("Paramètres invalides");
-            }
             Inscription inscription = inscriptionRepository.findById(inscriptionId)
                     .orElseThrow(() -> new RuntimeException("Inscription introuvable"));
 
-            // ================= DATA =================
             Eleve eleve = eleveRepository.findById(inscription.getEleve().getId())
                     .orElseThrow(() -> new RuntimeException("Élève introuvable"));
 
-            // FIX: on ne part plus uniquement des notes déjà saisies
-            // (findByClasseIdAndAnneeScolaireIdAndEleveIdAndPeriode), ce qui
-            // faisait disparaître du bulletin toute matière programmée pour
-            // la classe mais sans note enregistrée. On part maintenant du
-            // programme complet de la classe (CoefficientMatiere), filtré
-            // par compatibilité sous-groupe, et on complète avec les notes
-            // existantes quand elles existent.
-            List<Note> notes = bulletinService.construireNotesPourBulletin(
-                    inscription, classeId, anneeId, periode
+            // Rang, moyenne du 1er, en-tête école : tout est géré dans le service
+            byte[] pdf = bulletinService.genererBulletinPourEnvoi(
+                    inscriptionId, classeId, anneeId, periode
             );
 
-            if (notes.isEmpty()) {
-                throw new RuntimeException("Aucune matière programmée pour cette classe");
-            }
-
-            // ================= GENERATION PDF =================
-            byte[] pdf = bulletinService.generateBulletin(notes, eleve, periode);
-
-            // ================= HEADERS PRO =================
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
             headers.setContentDisposition(
@@ -78,9 +57,7 @@ public class BulletinController {
 
         } catch (Exception e) {
             e.printStackTrace();
-
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
     @GetMapping(

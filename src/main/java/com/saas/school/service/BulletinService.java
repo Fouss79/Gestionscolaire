@@ -162,6 +162,42 @@ public class BulletinService {
                 .anyMatch(sg -> sg != null && sg.getId() != null && sg.getId().equals(sousGroupeId));
     }
 
+
+    private List<Double> calculerMoyennesClasse(Long classeId, Long anneeScolaireId, String periode) {
+        List<Inscription> inscriptionsClasse =
+                inscriptionRepository.findElevesValidesPourReleve(classeId, anneeScolaireId);
+
+        List<Double> moyennes = new ArrayList<>();
+        for (Inscription i : inscriptionsClasse) {
+            if (i.getEleve() == null) continue;
+            List<Note> notesI = construireNotesPourBulletin(i, classeId, anneeScolaireId, periode);
+            moyennes.add(calculerMoyenneGenerale(notesI));
+        }
+        return moyennes;
+    }
+
+    public byte[] genererBulletinPourEnvoi(Long inscriptionId, Long classeId,
+                                           Long anneeScolaireId, String periode) {
+
+        Inscription inscription = inscriptionRepository.findById(inscriptionId)
+                .orElseThrow(() -> new RuntimeException("Inscription introuvable"));
+
+        if (inscription.getEleve() == null) {
+            throw new RuntimeException("Aucun élève associé à cette inscription");
+        }
+
+        List<Note> notes = construireNotesPourBulletin(inscription, classeId, anneeScolaireId, periode);
+
+        List<Double> moyennesDeLaClasse = calculerMoyennesClasse(classeId, anneeScolaireId, periode);
+
+        // Filet de sécurité : si l'inscription n'est pas dans la liste "valide",
+        // on ajoute au moins la moyenne de cet élève pour ne pas afficher "-".
+        if (moyennesDeLaClasse.isEmpty()) {
+            moyennesDeLaClasse.add(calculerMoyenneGenerale(notes));
+        }
+
+        return generateBulletin(notes, inscription.getEleve(), periode, inscription, moyennesDeLaClasse);
+    }
     // =====================================================================
     // GÉNÉRATION PDF — bulletin unique
     // =====================================================================
@@ -311,43 +347,6 @@ public class BulletinService {
     // 1er"), mais ne génère qu'un seul bulletin au lieu de toute la classe.
     // =====================================================================
 
-    public byte[] genererBulletinPourEnvoi(
-            Long inscriptionId,
-            Long classeId,
-            Long anneeScolaireId,
-            String periode
-    ) {
-
-        Inscription inscription = inscriptionRepository.findById(inscriptionId)
-                .orElseThrow(() -> new RuntimeException("Inscription introuvable"));
-
-        if (inscription.getEleve() == null) {
-            throw new RuntimeException("Aucun élève associé à cette inscription");
-        }
-
-        List<Inscription> inscriptionsClasse =
-                inscriptionRepository.findElevesValidesPourReleve(classeId, anneeScolaireId);
-
-        List<Double> moyennesDeLaClasse = new ArrayList<>();
-
-        for (Inscription i : inscriptionsClasse) {
-            if (i.getEleve() == null) continue;
-
-            List<Note> notesI = construireNotesPourBulletin(i, classeId, anneeScolaireId, periode);
-            moyennesDeLaClasse.add(calculerMoyenneGenerale(notesI));
-        }
-
-        List<Note> notes = construireNotesPourBulletin(
-                inscription, classeId, anneeScolaireId, periode);
-
-        return generateBulletin(
-                notes,
-                inscription.getEleve(),
-                periode,
-                inscription,
-                moyennesDeLaClasse
-        );
-    }
 
     // =====================================================================
     // GÉNÉRATION PDF — bulletins de toute une classe (un par page)
