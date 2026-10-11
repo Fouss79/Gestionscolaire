@@ -38,10 +38,6 @@ public class BulletinMailService {
                         new RuntimeException("Inscription introuvable")
                 );
 
-        // ⚠️ À VÉRIFIER : on suppose que l'email du tuteur est un champ
-        // direct de l'entité Inscription (comme sur InscriptionResponseDTO).
-        // Si en réalité il vient d'une relation (ex: inscription.getTuteur()),
-        // adapte cette ligne en conséquence.
         String emailTuteur = inscription.getEleve().getEmailTuteur();
 
         if (emailTuteur == null || emailTuteur.isBlank()) {
@@ -50,24 +46,13 @@ public class BulletinMailService {
             );
         }
 
-        // Même logique que la génération PDF individuelle : matières
-        // affectées à la classe + notes déjà saisies pour la période.
-        List<Note> notes = bulletinService.construireNotesPourBulletin(
-                inscription,
+        // Même PDF que le téléchargement : notes de la classe, rang,
+        // moyenne du 1er et en-tête de l'école.
+        byte[] pdf = bulletinService.genererBulletinPourEnvoi(
+                inscriptionId,
                 classeId,
                 anneeScolaireId,
                 periode
-        );
-
-        // Pas de classement calculé ici (nécessiterait les moyennes de
-        // toute la classe, méthode privée dans BulletinService) : le
-        // bulletin envoyé par email affichera "Rang : -".
-        byte[] pdf = bulletinService.generateBulletin(
-                notes,
-                inscription.getEleve(),
-                periode,
-                inscription,
-                null
         );
 
         String nomEleve =
@@ -89,7 +74,6 @@ public class BulletinMailService {
                 "bulletin-" + inscription.getEleve().getNom() + ".pdf"
         );
     }
-
     // =========================================================
     // 📧 ENVOI GROUPÉ POUR TOUTE UNE CLASSE
     // =========================================================
