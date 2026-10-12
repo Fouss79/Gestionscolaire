@@ -3,11 +3,10 @@ package com.saas.school.service;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import com.saas.school.dto.CarteScolaireDto;
 import com.saas.school.entity.*;
-import com.saas.school.repository.InscriptionRepository;
 import com.saas.school.repository.UtilisateurRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
@@ -19,14 +18,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.format.TextStyle;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
- * Génère les cartes scolaires (recto), en planche A4 imprimable et
- * découpable (2 colonnes x 4 lignes = 8 cartes par page), sur le même
- * principe que ResultatFinAnneePdfService : Thymeleaf pour le HTML,
- * openhtmltopdf pour la conversion en PDF.
+ * Génère les cartes scolaires (recto) en planche A4 découpable
+ * (2 colonnes x 4 lignes = 8 cartes par page).
  */
 @Service
 @RequiredArgsConstructor
@@ -36,39 +37,30 @@ public class CarteScolairePdfService {
     private static final int CARTES_PAR_PAGE = 8;
     private static final DateTimeFormatter FORMAT_DATE =
             DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.FRENCH);
-    private final UtilisateurRepository utilisateurRepository;
-    private final InscriptionRepository inscriptionRepository;
 
+    private final UtilisateurRepository utilisateurRepository;
     private final SpringTemplateEngine templateEngine;
+
     private final HttpClient httpClient = HttpClient.newHttpClient();
+
+    /** URL de base pour les images stockées en chemin relatif (/uploads/...). */
+    @Value("${app.base-url:http://localhost:8080}")
+    private String baseUrl;
 
     // ================================================================
     // GÉNÉRATION PDF
     // ================================================================
 
+    /** Une seule carte. */
     public byte[] genererPdfEleve(CarteScolaireDto dto) {
         return genererPdf(List.of(dto));
     }
 
-    @Transactional(readOnly = true)
-    public byte[] genererPdfClasse(Long classeId, Long anneeScolaireId) {
-
-        List<Inscription> inscriptions =
-                inscriptionRepository.findActivesByClasseAndAnnee(classeId, anneeScolaireId);
-
-        if (inscriptions.isEmpty()) {
-            throw new IllegalStateException("Aucun élève inscrit dans cette classe.");
-        }
-
-        // Cache par génération : le logo n'est téléchargé qu'une seule fois
-        Map<String, String> cacheImages = new HashMap<>();
-
-        List<CarteScolaireDto> dtos = inscriptions.stream()
-                .map(i -> construireDto(i, cacheImages))
-                .toList();
-
+    /** Toutes les cartes d'une classe (liste de DTO déjà construits). */
+    public byte[] genererPdfClasse(List<CarteScolaireDto> dtos) {
         return genererPdf(dtos);
     }
+
     private byte[] genererPdf(List<CarteScolaireDto> cartes) {
 
         List<List<CarteScolaireDto>> pages = decouperEnPages(cartes, CARTES_PAR_PAGE);
@@ -88,6 +80,8 @@ public class CarteScolairePdfService {
             return os.toByteArray();
         } catch (IOException e) {
             throw new RuntimeException("Erreur lors de la génération des cartes scolaires.", e);
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors de la génération des cartes scolaires.", e);
         }
     }
 
@@ -106,25 +100,17 @@ public class CarteScolairePdfService {
     }
 
     // ================================================================
-    // CONSTRUCTION DU DTO À PARTIR D'UNE INSCRIPTION
+    // CONSTRUCTION DU DTO
     // ================================================================
 
-    /**
-     * Construit le DTO d'une carte à partir d'une inscription active.
-     * inscription.getClasse(), inscription.getEleve(),
-     * inscription.getAnneeScolaire() et inscription.getEcole() sont
-     * supposés déjà chargés (JOIN FETCH ou lazy dans une transaction).
-     */
-    /**
-     * Version simple : une seule carte (cache local jetable).
-     */
+    /** Version simple : une seule carte (cache jetable). */
     public CarteScolaireDto construireDto(Inscription inscription) {
         return construireDto(inscription, new HashMap<>());
     }
 
     /**
-     * Version avec cache partagé : le logo de l'école et le nom du directeur
-     * ne sont récupérés qu'une seule fois pour toute la classe.
+     * Version avec cache partagé : le logo de l'école et le nom du
+     * directeur ne sont récupérés qu'une seule fois pour toute la classe.
      */
     public CarteScolaireDto construireDto(Inscription inscription, Map<String, String> cache) {
 
@@ -145,7 +131,7 @@ public class CarteScolairePdfService {
             }
         }
 
-        // ---------- Builder de base ----------
+        // ---------- Base ----------
         CarteScolaireDto.CarteScolaireDtoBuilder builder = CarteScolaireDto.builder()
                 .inscriptionId(inscription.getId())
                 .classeNom(inscription.getClasse() != null
@@ -177,14 +163,12 @@ public class CarteScolairePdfService {
                     .ecoleVille(ecole.getVille())
                     .ecoleTelephone(ecole.getTelephone());
 
-            // Logo : un seul téléchargement par génération
             if (ecole.getLogo() != null && !ecole.getLogo().isBlank()) {
                 builder.logoBase64(
                         cache.computeIfAbsent("img:" + ecole.getLogo(),
                                 k -> telechargerEnBase64(ecole.getLogo())));
             }
 
-            // Directeur : une seule requête par école
             if (ecole.getId() != null) {
                 builder.directeurNom(
                         cache.computeIfAbsent("dir:" + ecole.getId(),
@@ -197,20 +181,19 @@ public class CarteScolairePdfService {
 
         return builder.build();
     }
+
     private String formatterDate(LocalDate date) {
-        if (date == null) {
-            return "?";
-        }
-        return date.format(FORMAT_DATE);
+        return date == null ? "?" : date.format(FORMAT_DATE);
     }
 
+    // ================================================================
+    // IMAGES -> BASE64
+    // ================================================================
+
     /**
-     * Télécharge une image (photo élève ou logo école) et la convertit
-     * en data URI base64, pour un rendu PDF fiable et hors-ligne
-     * (openhtmltopdf ne va pas systématiquement re-télécharger une
-     * image distante au moment du rendu). Retourne null si l'URL est
-     * vide ou si le téléchargement échoue (le template affiche alors
-     * un repli : initiales ou icône générique).
+     * Télécharge une image (photo élève ou logo) et la convertit en
+     * data URI base64. Retourne null si l'URL est vide ou en cas d'échec
+     * (le template affiche alors un repli).
      */
     private String telechargerEnBase64(String url) {
 
@@ -219,134 +202,41 @@ public class CarteScolairePdfService {
         }
 
         try {
-
             String urlComplete = url.trim();
 
-            /*
-             * ============================================================
-             * ANCIENNES IMAGES LOCALES
-             * ============================================================
-             *
-             * Exemple :
-             * /uploads/logo.png
-             */
+            // Anciennes images locales : /uploads/logo.png
             if (urlComplete.startsWith("/")) {
-
-                urlComplete =
-                        "http://localhost:8080" + urlComplete;
+                urlComplete = baseUrl + urlComplete;
             }
 
-            System.out.println(
-                    "===================================="
-            );
-
-            System.out.println(
-                    "Téléchargement image PDF : "
-                            + urlComplete
-            );
-
-            /*
-             * ============================================================
-             * REQUÊTE HTTP
-             * ============================================================
-             */
-
-            HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(URI.create(urlComplete))
-                            .header(
-                                    "User-Agent",
-                                    "DaniSchool-PDF"
-                            )
-                            .GET()
-                            .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(urlComplete))
+                    .header("User-Agent", "DaniSchool-PDF")
+                    .GET()
+                    .build();
 
             HttpResponse<byte[]> response =
-                    httpClient.send(
-                            request,
-                            HttpResponse.BodyHandlers.ofByteArray()
-                    );
-
-            System.out.println(
-                    "Statut image : "
-                            + response.statusCode()
-            );
-
-            /*
-             * ============================================================
-             * VÉRIFICATION
-             * ============================================================
-             */
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
 
             if (response.statusCode() != 200) {
-
-                System.err.println(
-                        "Impossible de télécharger l'image : "
-                                + urlComplete
-                                + " | HTTP "
-                                + response.statusCode()
-                );
-
+                System.err.println("Image inaccessible : " + urlComplete
+                        + " | HTTP " + response.statusCode());
                 return null;
             }
 
-            /*
-             * ============================================================
-             * TYPE MIME
-             * ============================================================
-             */
+            String contentType = response.headers()
+                    .firstValue("Content-Type")
+                    .orElse(null);
 
-            String contentType =
-                    response.headers()
-                            .firstValue("Content-Type")
-                            .orElse(null);
-
-            /*
-             * Certains serveurs peuvent ne pas retourner
-             * correctement le Content-Type.
-             */
-            if (contentType == null
-                    || contentType.isBlank()
-                    || !contentType.startsWith("image/")) {
-
+            if (contentType == null || !contentType.startsWith("image/")) {
                 contentType = "image/jpeg";
             }
 
-            /*
-             * ============================================================
-             * BASE64
-             * ============================================================
-             */
-
-            String base64 =
-                    Base64.getEncoder()
-                            .encodeToString(response.body());
-
-            String dataUri =
-                    "data:"
-                            + contentType
-                            + ";base64,"
-                            + base64;
-
-            System.out.println(
-                    "Image convertie en Base64 : OK"
-            );
-
-            System.out.println(
-                    "===================================="
-            );
-
-            return dataUri;
+            return "data:" + contentType + ";base64,"
+                    + Base64.getEncoder().encodeToString(response.body());
 
         } catch (Exception e) {
-
-            System.err.println(
-                    "Erreur téléchargement image : "
-                            + url
-            );
-
-            e.printStackTrace();
-
+            System.err.println("Erreur téléchargement image : " + url + " | " + e.getMessage());
             return null;
         }
     }
