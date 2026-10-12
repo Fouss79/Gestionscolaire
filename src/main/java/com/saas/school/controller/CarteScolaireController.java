@@ -65,38 +65,7 @@ public class CarteScolaireController {
     // CARTES DE TOUTE UNE CLASSE
     // =====================================================
 
-    @GetMapping("/classe/{classeId}/pdf")
-    @Transactional(readOnly = true)
-    public ResponseEntity<byte[]> genererCartesClasse(
-            @PathVariable Long classeId,
-            @RequestParam Long anneeScolaireId
-    ) {
 
-        List<Inscription> inscriptions =
-                inscriptionRepository.findElevesValidesPourReleve(
-                        classeId,
-                        anneeScolaireId
-                );
-
-        if (inscriptions.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Aucun élève validé dans cette classe pour cette année scolaire."
-            );
-        }
-
-        List<CarteScolaireDto> dtos = inscriptions
-                .stream()
-                .map(pdfService::construireDto)
-                .toList();
-
-        byte[] pdf =
-                pdfService.genererPdfClasse(dtos);
-
-        return reponsePdf(
-                pdf,
-                "cartes-scolaires-classe-" + classeId + ".pdf"
-        );
-    }
 
     // =====================================================
     // RÉPONSE PDF

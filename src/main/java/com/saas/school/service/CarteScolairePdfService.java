@@ -3,9 +3,11 @@ package com.saas.school.service;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import com.saas.school.dto.CarteScolaireDto;
 import com.saas.school.entity.*;
+import com.saas.school.repository.InscriptionRepository;
 import com.saas.school.repository.UtilisateurRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
@@ -18,10 +20,7 @@ import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 /**
  * Génère les cartes scolaires (recto), en planche A4 imprimable et
@@ -38,6 +37,7 @@ public class CarteScolairePdfService {
     private static final DateTimeFormatter FORMAT_DATE =
             DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.FRENCH);
     private final UtilisateurRepository utilisateurRepository;
+    private final InscriptionRepository inscriptionRepository;
 
     private final SpringTemplateEngine templateEngine;
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -50,10 +50,25 @@ public class CarteScolairePdfService {
         return genererPdf(List.of(dto));
     }
 
-    public byte[] genererPdfClasse(List<CarteScolaireDto> dtos) {
+    @Transactional(readOnly = true)
+    public byte[] genererPdfClasse(Long classeId, Long anneeScolaireId) {
+
+        List<Inscription> inscriptions =
+                inscriptionRepository.findActivesByClasseAndAnnee(classeId, anneeScolaireId);
+
+        if (inscriptions.isEmpty()) {
+            throw new IllegalStateException("Aucun élève inscrit dans cette classe.");
+        }
+
+        // Cache par génération : le logo n'est téléchargé qu'une seule fois
+        Map<String, String> cacheImages = new HashMap<>();
+
+        List<CarteScolaireDto> dtos = inscriptions.stream()
+                .map(i -> construireDto(i, cacheImages))
+                .toList();
+
         return genererPdf(dtos);
     }
-
     private byte[] genererPdf(List<CarteScolaireDto> cartes) {
 
         List<List<CarteScolaireDto>> pages = decouperEnPages(cartes, CARTES_PAR_PAGE);
@@ -100,88 +115,88 @@ public class CarteScolairePdfService {
      * inscription.getAnneeScolaire() et inscription.getEcole() sont
      * supposés déjà chargés (JOIN FETCH ou lazy dans une transaction).
      */
+    /**
+     * Version simple : une seule carte (cache local jetable).
+     */
     public CarteScolaireDto construireDto(Inscription inscription) {
+        return construireDto(inscription, new HashMap<>());
+    }
+
+    /**
+     * Version avec cache partagé : le logo de l'école et le nom du directeur
+     * ne sont récupérés qu'une seule fois pour toute la classe.
+     */
+    public CarteScolaireDto construireDto(Inscription inscription, Map<String, String> cache) {
 
         Eleve eleve = inscription.getEleve();
         Ecole ecole = inscription.getEcole();
         AnneeScolaire annee = inscription.getAnneeScolaire();
-        Utilisateur directeur = null;
 
-        if (ecole != null && ecole.getId() != null) {
-            directeur = utilisateurRepository
-                    .findFirstByEcoleIdAndRoleNom(
-                            ecole.getId(),
-                            "DIRECTEUR"
-                    )
-                    .orElse(null);
-        }
-
-        String nomDirecteur =
-                directeur != null && directeur.getNom() != null
-                        ? directeur.getNom()
-                        : null;
+        // ---------- Initiales ----------
         String initiales = "EL";
-
         if (eleve != null) {
-            String prenomInitiale =
-                    eleve.getPrenom() != null && !eleve.getPrenom().isBlank()
-                            ? eleve.getPrenom().trim().substring(0, 1)
-                            : "";
-
-            String nomInitiale =
-                    eleve.getNom() != null && !eleve.getNom().isBlank()
-                            ? eleve.getNom().trim().substring(0, 1)
-                            : "";
-
-            initiales = (prenomInitiale + nomInitiale).toUpperCase(Locale.FRENCH);
+            String p = eleve.getPrenom() != null && !eleve.getPrenom().isBlank()
+                    ? eleve.getPrenom().trim().substring(0, 1) : "";
+            String n = eleve.getNom() != null && !eleve.getNom().isBlank()
+                    ? eleve.getNom().trim().substring(0, 1) : "";
+            String calc = (p + n).toUpperCase(Locale.FRENCH);
+            if (!calc.isBlank()) {
+                initiales = calc;
+            }
         }
 
-        String dateNaissanceFormatee = null;
-
-        if (eleve != null && eleve.getDateNaissance() != null) {
-            dateNaissanceFormatee = eleve.getDateNaissance().format(FORMAT_DATE);
-        }
-
-        String validiteDebut = formatterDate(annee != null ? annee.getDateDebut() : null);
-        String validiteFin = formatterDate(annee != null ? annee.getDateFin() : null);
-
+        // ---------- Builder de base ----------
         CarteScolaireDto.CarteScolaireDtoBuilder builder = CarteScolaireDto.builder()
                 .inscriptionId(inscription.getId())
                 .classeNom(inscription.getClasse() != null
                         ? inscription.getClasse().getNomComplet()
                         : null)
                 .anneeScolaireNom(annee != null ? annee.getNom() : null)
-                .validiteDebut(validiteDebut)
-                .validiteFin(validiteFin)
-                .initiales(initiales)
-                .directeurNom(nomDirecteur);
+                .validiteDebut(formatterDate(annee != null ? annee.getDateDebut() : null))
+                .validiteFin(formatterDate(annee != null ? annee.getDateFin() : null))
+                .initiales(initiales);
 
+        // ---------- Élève ----------
         if (eleve != null) {
             builder.nom(eleve.getNom())
                     .prenom(eleve.getPrenom())
                     .matricule(eleve.getMatricule())
-                    .dateNaissanceFormatee(dateNaissanceFormatee)
+                    .dateNaissanceFormatee(eleve.getDateNaissance() != null
+                            ? eleve.getDateNaissance().format(FORMAT_DATE)
+                            : null)
                     .lieuNaissance(eleve.getLieuNaissance())
                     .groupeSanguin(eleve.getGroupeSanguin())
                     .telephoneParent(eleve.getTelephoneTuteur())
                     .photoBase64(telechargerEnBase64(eleve.getPhotoUrl()));
-           }
+        }
 
+        // ---------- École (avec cache) ----------
         if (ecole != null) {
             builder.ecoleNom(ecole.getNom())
                     .ecoleAdresse(ecole.getAdresse())
                     .ecoleVille(ecole.getVille())
-                    .ecoleTelephone(ecole.getTelephone())
-                    .logoBase64(telechargerEnBase64(ecole.getLogo()));
+                    .ecoleTelephone(ecole.getTelephone());
+
+            // Logo : un seul téléchargement par génération
+            if (ecole.getLogo() != null && !ecole.getLogo().isBlank()) {
+                builder.logoBase64(
+                        cache.computeIfAbsent("img:" + ecole.getLogo(),
+                                k -> telechargerEnBase64(ecole.getLogo())));
+            }
+
+            // Directeur : une seule requête par école
+            if (ecole.getId() != null) {
+                builder.directeurNom(
+                        cache.computeIfAbsent("dir:" + ecole.getId(),
+                                k -> utilisateurRepository
+                                        .findFirstByEcoleIdAndRoleNom(ecole.getId(), "DIRECTEUR")
+                                        .map(Utilisateur::getNom)
+                                        .orElse(null)));
+            }
         }
-        System.out.println("====================================");
-        System.out.println("ECOLE : " + (ecole != null ? ecole.getNom() : null));
-        System.out.println("LOGO URL : " + (ecole != null ? ecole.getLogo() : null));
-        System.out.println("====================================");
 
         return builder.build();
     }
-
     private String formatterDate(LocalDate date) {
         if (date == null) {
             return "?";

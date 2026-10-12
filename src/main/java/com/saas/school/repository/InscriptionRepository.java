@@ -104,4 +104,17 @@ public interface InscriptionRepository extends JpaRepository<Inscription, Long> 
             @Param("ecoleId") Long ecoleId,
             @Param("anneeId") Long anneeId,
             @Param("statut") StatutInscription statut
-    );}
+    );
+    @Query("""
+    SELECT i FROM Inscription i
+    JOIN FETCH i.eleve e
+    JOIN FETCH i.classe c
+    JOIN FETCH i.anneeScolaire a
+    JOIN FETCH i.ecole
+    WHERE c.id = :classeId
+      AND a.id = :anneeId
+      AND i.statut = 'ACTIVE'
+    ORDER BY e.nom, e.prenom
+""")
+    List<Inscription> findActivesByClasseAndAnnee(@Param("classeId") Long classeId,
+                                                  @Param("anneeId") Long anneeId);}
