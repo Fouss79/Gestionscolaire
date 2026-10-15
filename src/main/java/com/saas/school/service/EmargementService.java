@@ -84,7 +84,9 @@ public class EmargementService {
                         enseignantId, debut, fin, anneeId);
 
         int totalSeances = emargements.size();
-        int totalHeures = emargements.stream().mapToInt(Emargement::getDuree).sum();
+
+        // La durée de chaque émargement est en MINUTES
+        int totalMinutes = emargements.stream().mapToInt(Emargement::getDuree).sum();
 
         // Créneaux prévus pour cet enseignant, dans cette école/année uniquement
         List<EmploiDuTemps> creneaux = emploiRepo
@@ -113,7 +115,7 @@ public class EmargementService {
                 .periodeFin(fin)
                 .totalSeances(totalSeances)
                 .totalSeancesPrevues(totalSeancesPrevues)
-                .totalHeuresEmargees(totalHeures)
+                .totalHeuresEmargees(minutesEnHeures(totalMinutes))
                 .tauxPresence(Math.round(taux * 100.0) / 100.0)
                 .build();
     }
@@ -152,7 +154,7 @@ public class EmargementService {
             }
 
             int totalSeances = emargements.size();
-            int totalHeures = emargements.stream().mapToInt(Emargement::getDuree).sum();
+            int totalMinutes = emargements.stream().mapToInt(Emargement::getDuree).sum();
 
             double taux = totalSeancesPrevues == 0
                     ? 0.0
@@ -168,7 +170,7 @@ public class EmargementService {
                     .periodeFin(fin)
                     .totalSeances(totalSeances)
                     .totalSeancesPrevues(totalSeancesPrevues)
-                    .totalHeuresEmargees(totalHeures)
+                    .totalHeuresEmargees(minutesEnHeures(totalMinutes))
                     .tauxPresence(Math.round(taux * 100.0) / 100.0)
                     .build());
         }
@@ -192,6 +194,7 @@ public class EmargementService {
             throw new RuntimeException("Déjà émargé");
         }
 
+        // Durée en minutes
         int duree = edt.getHeureFin() - edt.getHeureDebut();
 
         Emargement em = new Emargement();
@@ -205,6 +208,12 @@ public class EmargementService {
     }
 
     // ================= HELPERS =================
+
+    /** Convertit des minutes en heures, arrondi à 2 décimales (150 min -> 2.5 h). */
+    private double minutesEnHeures(int minutes) {
+        return Math.round((minutes / 60.0) * 100.0) / 100.0;
+    }
+
     private int compterOccurrencesJour(String jourStr, LocalDate debut, LocalDate fin) {
         DayOfWeek jourCible = switch (jourStr.toUpperCase()) {
             case "LUNDI" -> DayOfWeek.MONDAY;
