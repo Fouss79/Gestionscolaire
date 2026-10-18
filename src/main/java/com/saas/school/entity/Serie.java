@@ -12,6 +12,9 @@ public class Serie {
     private Long id;
 
     private String nom; // A, D, C, Technique...
+    @ManyToOne
+    @JoinColumn(name = "niveau_id")
+    private Niveau niveau;
 
     @ManyToOne
     @JoinColumn(name = "ecole_id")

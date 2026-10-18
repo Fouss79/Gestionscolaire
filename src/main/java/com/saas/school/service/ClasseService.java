@@ -26,6 +26,24 @@ public class ClasseService {
     private final SalleRepository salleRepository;
     private final AnneeScolaireRepository anneeScolaireRepository;
 
+    // =========================
+    // RÈGLE MÉTIER : SÉRIE
+    // =========================
+
+    /**
+     * La série n'est obligatoire que pour le lycée.
+     * Pour les autres cycles (1ère année, etc.), elle est facultative.
+     */
+    private boolean serieObligatoire(Niveau niveau) {
+        return niveau.getCycle() != null
+                && niveau.getCycle().getNom() != null
+                && "LYCEE".equalsIgnoreCase(niveau.getCycle().getNom().trim());
+    }
+
+    // =========================
+    // CRÉATION
+    // =========================
+
     public Classe creerClasse(ClasseRequest request) {
 
         Niveau niveau = niveauRepository.findById(request.getNiveauId())
@@ -38,10 +56,13 @@ public class ClasseService {
             throw new RuntimeException("🚫 Abonnement expiré");
         }
 
+        // Série : facultative, sauf au lycée
         Serie serie = null;
         if (request.getSerieId() != null) {
             serie = serieRepository.findById(request.getSerieId())
                     .orElseThrow(() -> new RuntimeException("Série introuvable"));
+        } else if (serieObligatoire(niveau)) {
+            throw new RuntimeException("La série est obligatoire pour une classe de lycée");
         }
 
         Groupe groupe = null;
@@ -78,7 +99,11 @@ public class ClasseService {
         return classeRepository.save(classe);
     }
 
-    // 🔥 Une seule méthode modifier, salle incluse (toujours), plus de doublon
+    // =========================
+    // MODIFICATION
+    // =========================
+
+    // Une seule méthode modifier, salle incluse
     public Classe modifier(Long id, Long niveauId, Long serieId, Long groupeId, Long salleId) {
 
         Classe classe = classeRepository.findById(id)
@@ -88,9 +113,16 @@ public class ClasseService {
                 .orElseThrow(() -> new RuntimeException("Niveau introuvable"));
         classe.setNiveau(niveau);
 
-        Serie serie = serieRepository.findById(serieId)
-                .orElseThrow(() -> new RuntimeException("Série introuvable"));
-        classe.setSerie(serie);
+        // Série : facultative, sauf au lycée
+        if (serieId != null) {
+            Serie serie = serieRepository.findById(serieId)
+                    .orElseThrow(() -> new RuntimeException("Série introuvable"));
+            classe.setSerie(serie);
+        } else if (serieObligatoire(niveau)) {
+            throw new RuntimeException("La série est obligatoire pour une classe de lycée");
+        } else {
+            classe.setSerie(null);
+        }
 
         if (groupeId != null) {
             Groupe groupe = groupeRepository.findById(groupeId)
@@ -122,7 +154,7 @@ public class ClasseService {
         return classeRepository.findByEcoleId(ecoleId);
     }
 
-    // 🔥 SEULE méthode de stats conservée — basée sur les vraies inscriptions, pas de double comptage
+    // Stats basées sur les vraies inscriptions, pas de double comptage
     public List<ClasseResponseDTO> getByEcoleAvecStats(Long ecoleId) {
         return classeRepository.findByEcoleId(ecoleId)
                 .stream()
@@ -149,7 +181,7 @@ public class ClasseService {
         dto.setNbElevesInscrits(inscriptions.size());
         dto.setNbElevesValides((int) nbValides);
 
-        // Sous-groupes de cette classe — filtrés sur l'année active pour cohérence
+        // Sous-groupes de cette classe — filtrés sur l'année active
         List<SousGroupeResumeDTO> sousGroupesDto = sousGroupeRepository
                 .findByClasseId(classe.getId())
                 .stream()
@@ -171,13 +203,11 @@ public class ClasseService {
     }
 
     // =========================
-    // 📊 STATISTIQUES DE TOUTES LES CLASSES D'UNE ÉCOLE (NOUVELLE MÉTHODE)
+    // STATISTIQUES DE TOUTES LES CLASSES D'UNE ÉCOLE
     // =========================
-    // Dans ClasseService.java
 
-    // Dans ClasseService.java - getClassesStats
     public List<ClasseStatsDTO> getClassesStats(Long ecoleId) {
-        // ✅ Toujours filtrer par école
+        // Toujours filtrer par école
         AnneeScolaire anneeActive = anneeScolaireRepository
                 .findByEcoleIdAndActiveTrue(ecoleId)
                 .orElseThrow(() -> new RuntimeException("Aucune année scolaire active pour cette école"));
@@ -188,6 +218,7 @@ public class ClasseService {
                 .map(classe -> buildClasseStatsDTO(classe, anneeActive))
                 .collect(Collectors.toList());
     }
+
     private ClasseStatsDTO buildClasseStatsDTO(Classe classe, AnneeScolaire anneeActive) {
         ClasseStatsDTO dto = new ClasseStatsDTO();
         dto.setId(classe.getId());
@@ -204,7 +235,7 @@ public class ClasseService {
         dto.setSerieNom(classe.getSerie() != null ? classe.getSerie().getNom() : null);
         dto.setGroupeNom(classe.getGroupe() != null ? classe.getGroupe().getNom() : null);
 
-        // ✅ Récupérer les inscriptions pour l'année active
+        // Inscriptions pour l'année active
         List<Inscription> inscriptions = inscriptionRepository
                 .findByClasseIdAndAnneeScolaireId(classe.getId(), anneeActive.getId());
 
@@ -215,12 +246,12 @@ public class ClasseService {
         dto.setNbElevesInscrits(inscriptions.size());
         dto.setNbElevesValides((int) nbValides);
 
-        // Récupérer les IDs des élèves
+        // IDs des élèves de l'année active
         Set<Long> idsElevesAnneeActive = inscriptions.stream()
                 .map(i -> i.getEleve().getId())
                 .collect(Collectors.toSet());
 
-        // ✅ Récupérer uniquement les sous-groupes de l'année active
+        // Uniquement les sous-groupes de l'année active
         List<SousGroupe> sousGroupes = sousGroupeRepository
                 .findByClasseIdAndAnneeScolaireId(classe.getId(), anneeActive.getId());
 
@@ -252,68 +283,7 @@ public class ClasseService {
 
         return dto;
     }
-    // =========================
-    // 🔨 CONSTRUCTION DU DTO STATS
-    // =========================
-    private ClasseStatsDTO buildClasseStatsDTO(Classe classe) {
-        ClasseStatsDTO dto = new ClasseStatsDTO();
-        dto.setId(classe.getId());
-        dto.setNomComplet(classe.getNomComplet());
-        dto.setNiveauNom(classe.getNiveau() != null ? classe.getNiveau().getNom() : null);
-        dto.setSerieNom(classe.getSerie() != null ? classe.getSerie().getNom() : null);
-        dto.setGroupeNom(classe.getGroupe() != null ? classe.getGroupe().getNom() : null);
 
-        // Récupérer les inscriptions actives pour cette classe
-        List<Inscription> inscriptions = inscriptionRepository
-                .findByClasseIdAndAnneeScolaire_ActiveTrue(classe.getId());
-
-        // Compter les élèves validés
-        long nbValides = inscriptions.stream()
-                .filter(i -> i.getStatut() == StatutInscription.VALIDE)
-                .count();
-
-        dto.setNbElevesInscrits(inscriptions.size());
-        dto.setNbElevesValides((int) nbValides);
-
-        // Récupérer les IDs des élèves de la classe pour l'année active
-        Set<Long> idsElevesAnneeActive = inscriptions.stream()
-                .map(i -> i.getEleve().getId())
-                .collect(Collectors.toSet());
-
-        // Récupérer les sous-groupes de la classe
-        List<SousGroupe> sousGroupes = sousGroupeRepository.findByClasseId(classe.getId());
-
-        // Filtrer les sous-groupes par année active
-        List<SousGroupeStatsDTO> sousGroupesStats = sousGroupes.stream()
-                .filter(sg -> sg.getAnneeScolaire() == null || sg.getAnneeScolaire().isActive())
-                .map(sg -> {
-                    SousGroupeStatsDTO sgDTO = new SousGroupeStatsDTO();
-                    sgDTO.setId(sg.getId());
-                    sgDTO.setNom(sg.getNom());
-                    sgDTO.setEffectifMax(sg.getEffectifMax());
-
-                    // Compter les élèves du sous-groupe qui sont dans l'année active
-                    long effectifActuel = eleveRepository.findBySousGroupesId(sg.getId())
-                            .stream()
-                            .filter(e -> idsElevesAnneeActive.contains(e.getId()))
-                            .count();
-
-                    sgDTO.setEffectifActuel((int) effectifActuel);
-                    sgDTO.setEffectifTotal((int) effectifActuel);
-
-                    if (sg.getAnneeScolaire() != null) {
-                        sgDTO.setAnneeScolaireId(sg.getAnneeScolaire().getId());
-                        sgDTO.setAnneeScolaireLibelle(sg.getAnneeScolaire().getNom());
-                    }
-
-                    return sgDTO;
-                })
-                .collect(Collectors.toList());
-
-        dto.setSousGroupes(sousGroupesStats);
-
-        return dto;
-    }
     public List<Classe> getClassesByEcoleAndNiveau(Long ecoleId, Long niveauId) {
         return classeRepository.findByEcoleIdAndNiveauId(ecoleId, niveauId);
     }

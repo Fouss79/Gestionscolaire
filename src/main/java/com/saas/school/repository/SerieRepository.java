@@ -14,4 +14,7 @@ public interface SerieRepository extends JpaRepository<Serie, Long> {
 
     List<Serie> findByEcoleId(Long ecoleId);
     boolean existsByNomAndEcoleId(String nom, Long ecoleId);
+    boolean existsByNomAndNiveauId(String nom, Long niveauId);
+
+    List<Serie> findByNiveauId(Long niveauId);
 }

@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +29,12 @@ public class AuthService {
     private final TypeFraisRepository typeFraisRepository;
     private final JwtService jwtService;
     private final CycleRepository cycleRepository;
+
+    // ⚠️ NOUVEAUX repositories (à adapter à tes noms réels)
+    private final NiveauRepository niveauRepository;
+    private final SerieRepository serieRepository;
+    private final GroupeRepository groupeRepository;
+    private final SalleRepository salleRepository;
 
     @Transactional
     public void register(RegisterRequest request) {
@@ -55,7 +62,7 @@ public class AuthService {
         String nom = debut.getYear() + "-" + fin.getYear();
 
         // ============================================================
-        // 1. CRÉER ÉCOLE
+        // 1. CRÉER ÉCOLE + DONNÉES PAR DÉFAUT
         // ============================================================
 
         Ecole ecole = new Ecole();
@@ -70,7 +77,13 @@ public class AuthService {
         ecole.setActive(true);
 
         ecoleRepository.save(ecole);
-        creerCyclesParDefaut(ecole);
+
+        // Les niveaux ont besoin des cycles : on récupère la map nom -> Cycle
+        Map<String, Cycle> cycles = creerCyclesParDefaut(ecole);
+        Map<String, Niveau> niveaux = creerNiveauxParDefaut(ecole, cycles);
+        creerSeriesParDefaut(ecole, niveaux);
+        creerGroupesParDefaut(ecole);
+        creerSallesParDefaut(ecole);
 
         // ============================================================
         // 2. ASSIGNER PLAN BASIC
@@ -208,15 +221,6 @@ public class AuthService {
             response.put("ecole", ecoleMap);
         }
 
-        System.out.println(
-                "PERMISSIONS FROM DB = " +
-                        user.getRole()
-                                .getPermissions()
-                                .stream()
-                                .map(Permission::getCode)
-                                .toList()
-        );
-
         return response;
     }
 
@@ -318,37 +322,205 @@ public class AuthService {
         role.setPermissions(perms);
 
         roleRepository.save(role);
-
     }
-// ============================================================
-// CYCLES PAR DÉFAUT
-// ============================================================
 
-    private void creerCyclesParDefaut(Ecole ecole) {
+    // ============================================================
+    // CYCLES PAR DÉFAUT (retourne la map nom -> Cycle)
+    // ============================================================
 
-        List<String> cycles = List.of(
+    private Map<String, Cycle> creerCyclesParDefaut(Ecole ecole) {
+
+        List<String> noms = List.of(
                 "PREMIER CYCLE",
                 "SECOND CYCLE",
-                "LYCEE"
+                "LYCEE",
+                "PROFESSIONNEL"
         );
 
-        for (String nomCycle : cycles) {
+        Map<String, Cycle> resultat = new LinkedHashMap<>();
 
-            boolean existe = cycleRepository
+        for (String nomCycle : noms) {
+
+            Cycle cycle = cycleRepository
                     .findByNomAndEcole(nomCycle, ecole)
-                    .isPresent();
+                    .orElseGet(() -> {
+                        Cycle c = new Cycle();
+                        c.setNom(nomCycle);
+                        c.setEcole(ecole);
+                        return cycleRepository.save(c);
+                    });
 
-            if (!existe) {
+            resultat.put(nomCycle, cycle);
+        }
 
-                Cycle cycle = new Cycle();
+        return resultat;
+    }
 
-                cycle.setNom(nomCycle);
-                cycle.setEcole(ecole);
+    // ============================================================
+    // NIVEAUX PAR DÉFAUT (retourne la map "CYCLE|NIVEAU" -> Niveau)
+    // ============================================================
 
-                cycleRepository.save(cycle);
+    private Map<String, Niveau> creerNiveauxParDefaut(Ecole ecole, Map<String, Cycle> cycles) {
+
+        // cycle -> niveaux (modifie cette liste selon ton système scolaire)
+        Map<String, List<String>> niveauxParCycle = new LinkedHashMap<>();
+
+        niveauxParCycle.put("PREMIER CYCLE", List.of(
+                "1ère", "2ème", "3ème",
+                "4ème", "5ème", "6ème"
+        ));
+
+        niveauxParCycle.put("SECOND CYCLE", List.of(
+                "7ème", "8ème", "9ème"
+        ));
+
+        niveauxParCycle.put("LYCEE", List.of(
+                "10ème", "11ème", "12ème"
+        ));
+
+        // Mêmes noms que le premier cycle : c'est le couple (cycle, niveau) qui identifie la classe
+        niveauxParCycle.put("PROFESSIONNEL", List.of(
+                "1ERE ANNEE", "2EME ANNEE", "3EME ANNEE"
+        ));
+
+        List<Niveau> existants = niveauRepository.findByEcoleId(ecole.getId());
+        Map<String, Niveau> resultat = new LinkedHashMap<>();
+
+        for (Map.Entry<String, List<String>> entry : niveauxParCycle.entrySet()) {
+
+            String nomCycle = entry.getKey();
+            Cycle cycle = cycles.get(nomCycle);
+
+            for (String nomNiveau : entry.getValue()) {
+
+                // Le nom d'un niveau n'est unique que DANS SON CYCLE
+                Niveau niveau = existants.stream()
+                        .filter(n -> n.getCycle() != null
+                                && n.getCycle().getId().equals(cycle.getId())
+                                && n.getNom() != null
+                                && n.getNom().equalsIgnoreCase(nomNiveau))
+                        .findFirst()
+                        .orElseGet(() -> {
+                            Niveau nv = new Niveau();
+                            nv.setNom(nomNiveau);
+                            nv.setCycle(cycle);
+                            nv.setEcole(ecole);
+                            return niveauRepository.save(nv);
+                        });
+
+                resultat.put(nomCycle + "|" + nomNiveau, niveau);
+            }
+        }
+
+        return resultat;
+    }
+
+    // ============================================================
+    // SÉRIES PAR DÉFAUT (rattachées à un niveau)
+    // ============================================================
+
+    /** Séries proposées par défaut pour un niveau (modifie selon ton programme). */
+    private List<String> seriesPourNiveau(String nomCycle, String nomNiveau) {
+
+        if ("LYCEE".equals(nomCycle)) {
+            if ("10ème".equals(nomNiveau)) {
+                return List.of("CG");
+            }
+            else if("11ème".equals(nomNiveau)){
+                return List.of( "SCIENCES",
+                        "LETTRES");
+            }
+            return List.of(
+                    "TSE",    // Sciences exactes
+                    "TSEXP",  // Sciences expérimentales
+                    "TSECO",  // Sciences économiques
+                    "TSS",    // Sciences sociales
+                    "TLL"
+
+
+            );
+        } else if ("PROFESSIONNEL".equals(nomCycle)) {
+            return List.of(
+                    "DB",
+                    "EM",
+                    "ELECT"
+
+
+
+            );
+        }
+
+        // Tous les autres niveaux : une série neutre, car la série est obligatoire
+        return List.of("ANNEE");
+    }
+
+    private void creerSeriesParDefaut(Ecole ecole, Map<String, Niveau> niveaux) {
+
+        for (Map.Entry<String, Niveau> entry : niveaux.entrySet()) {
+
+            String[] cle = entry.getKey().split("\\|");
+            Niveau niveau = entry.getValue();
+
+            for (String nomSerie : seriesPourNiveau(cle[0], cle[1])) {
+
+                boolean existe = serieRepository
+                        .existsByNomAndNiveauId(nomSerie, niveau.getId());
+
+                if (!existe) {
+                    Serie serie = new Serie();
+                    serie.setNom(nomSerie);
+                    serie.setNiveau(niveau);
+                    serie.setEcole(ecole);
+                    serieRepository.save(serie);
+                }
             }
         }
     }
 
+    // ============================================================
+    // GROUPES PAR DÉFAUT
+    // ============================================================
 
+    private void creerGroupesParDefaut(Ecole ecole) {
+
+        List<String> groupes = List.of("GROUPE A", "GROUPE B", "GROUPE C");
+
+        for (String nomGroupe : groupes) {
+
+            boolean existe = groupeRepository
+                    .existsByNomAndEcoleId(nomGroupe, ecole.getId());
+
+            if (!existe) {
+                Groupe groupe = new Groupe();
+                groupe.setNom(nomGroupe);
+                groupe.setEcole(ecole);
+                groupeRepository.save(groupe);
+            }
+        }
+    }
+
+    // ============================================================
+    // SALLES PAR DÉFAUT
+    // ============================================================
+
+    private void creerSallesParDefaut(Ecole ecole) {
+
+        List<String> salles = List.of(
+                "SALLE 1", "SALLE 2", "SALLE 3", "SALLE 4", "SALLE 5"
+        );
+
+        for (String nomSalle : salles) {
+
+            boolean existe = salleRepository
+                    .existsByNomAndEcoleId(nomSalle, ecole.getId());
+
+            if (!existe) {
+                Salle salle = new Salle();
+                salle.setNom(nomSalle);
+                salle.setEcole(ecole);
+                salle.setActive(true);
+                salleRepository.save(salle);
+            }
+        }
+    }
 }
