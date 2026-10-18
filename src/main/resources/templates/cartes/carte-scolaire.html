@@ -23,10 +23,7 @@
             color: #101B33;
         }
 
-
-        /* =====================================================
-           PLANCHE A4
-        ===================================================== */
+        /* ===================== PLANCHE A4 ===================== */
 
         .feuille {
             display: block;
@@ -37,195 +34,169 @@
             page-break-before: always;
         }
 
-
-        /* =====================================================
-           CARTE
-           Format ID-1 : 85.6 x 54 mm
-        ===================================================== */
+        /* ===================== CARTE (ID-1 : 85.6 x 54 mm) ===================== */
 
         .carte {
             position: relative;
-
             display: inline-block;
             vertical-align: top;
-
             width: 85.6mm;
             height: 54mm;
-
             margin: 0 4mm 4mm 0;
-
             border: 0.25mm solid #C8C8C8;
             border-radius: 2.5mm;
-
             overflow: hidden;
-
             background: #FFFFFF;
         }
 
-
         /* =====================================================
-           BANDE SUPÉRIEURE
+           DRAPEAU DU MALI - ANGLE SUPÉRIEUR DROIT
+           Triangles imbriqués (technique des bordures, compatible
+           avec tous les moteurs PDF : pas de transform ni de SVG)
+           Vert #14B53A - Jaune #FCD116 - Rouge #CE1126
         ===================================================== */
+
+        .angle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-left-style: solid;
+            border-left-color: transparent;
+            border-top-style: solid;
+        }
+
+        /* Rouge : le plus grand (extérieur) */
+        .angle-rouge {
+            border-left-width: 15mm;
+            border-top-width: 15mm;
+            border-top-color: #CE1126;
+            z-index: 5;
+        }
+
+        /* Jaune : au milieu */
+        .angle-jaune {
+            border-left-width: 10mm;
+            border-top-width: 10mm;
+            border-top-color: #FCD116;
+            z-index: 6;
+        }
+
+        /* Vert : le plus petit (pointe de l'angle) */
+        .angle-vert {
+            border-left-width: 5mm;
+            border-top-width: 5mm;
+            border-top-color: #14B53A;
+            z-index: 7;
+        }
+
+        /* ===================== BANDE SUPÉRIEURE ===================== */
 
         .carte-header {
             height: 17mm;
-
             background: #FFFFFF;
-
             border-bottom: 0.35mm solid #101B33;
-
-            padding: 1.2mm 2.5mm 1mm 2.5mm;
+            padding: 1.2mm 11mm 1mm 11mm; /* marges élargies : logo à gauche, drapeau à droite */
         }
 
-
-        /* =====================================================
-           EN-TÊTE NATIONAL
-        ===================================================== */
+        /* ===================== EN-TÊTE NATIONAL ===================== */
 
         .entete-national {
             text-align: center;
-
             line-height: 1.05;
-
             color: #101B33;
         }
 
         .republique {
             font-size: 6.5pt;
-
             font-weight: bold;
-
             text-transform: uppercase;
-
             margin: 0;
         }
 
         .devise {
             font-size: 4.7pt;
-
             font-style: italic;
-
             margin-top: 0.5mm;
         }
 
         .ministere {
             font-size: 4.8pt;
-
             font-weight: bold;
-
             margin-top: 0.6mm;
         }
 
-
-        /* =====================================================
-           ECOLE
-        ===================================================== */
+        /* ===================== ÉCOLE ===================== */
 
         .ecole-bloc {
             margin-top: 1mm;
-
             text-align: center;
         }
 
         .ecole-nom {
             font-size: 7pt;
-
             font-weight: bold;
-
             color: #101B33;
-
             text-transform: uppercase;
-
             line-height: 1.05;
-
             white-space: nowrap;
         }
 
         .ecole-cycles {
             font-size: 4.4pt;
-
             color: #2C8C82;
-
             font-weight: bold;
-
             margin-top: 0.5mm;
         }
 
         .ecole-telephone {
             font-size: 4.2pt;
-
             color: #555555;
-
             margin-top: 0.35mm;
         }
 
-
-        /* =====================================================
-           LOGO
-        ===================================================== */
+        /* ===================== LOGO ===================== */
 
         .logo {
             position: absolute;
-
             top: 2mm;
             left: 2.5mm;
-
             width: 8mm;
             height: 8mm;
-
             object-fit: contain;
-
             background: #FFFFFF;
         }
 
         .logo-fallback {
             position: absolute;
-
             top: 2mm;
             left: 2.5mm;
-
             width: 8mm;
             height: 8mm;
-
             border-radius: 50%;
-
             background: #C89B3C;
-
             color: #101B33;
-
             text-align: center;
-
             line-height: 8mm;
-
             font-size: 5pt;
-
             font-weight: bold;
         }
 
-
-        /* =====================================================
-           CORPS
-        ===================================================== */
+        /* ===================== CORPS ===================== */
 
         .carte-corps {
             height: 27mm;
-
             padding: 1.7mm 2.5mm;
-
             position: relative;
         }
 
-
-        /* =====================================================
-           PHOTO
-        ===================================================== */
+        /* ===================== PHOTO ===================== */
 
         .photo-container {
             float: left;
-
             width: 18mm;
             height: 22mm;
-
             margin-right: 2.5mm;
         }
 
@@ -233,11 +204,8 @@
         .carte-photo-fallback {
             width: 18mm;
             height: 22mm;
-
             border: 0.25mm solid #BDBDBD;
-
             border-radius: 1mm;
-
             display: block;
         }
 
@@ -247,42 +215,29 @@
 
         .carte-photo-fallback {
             background: #DCEDEA;
-
             color: #2C8C82;
-
             text-align: center;
-
             line-height: 22mm;
-
             font-size: 12pt;
-
             font-weight: bold;
         }
 
-
-        /* =====================================================
-           INFORMATIONS ÉLÈVE
-        ===================================================== */
+        /* ===================== INFORMATIONS ÉLÈVE ===================== */
 
         .eleve-infos {
             margin-left: 20.5mm;
-
             padding-top: 0.2mm;
         }
 
         .info-ligne {
             font-size: 5.4pt;
-
             line-height: 1.55;
-
             margin: 0;
-
             white-space: nowrap;
         }
 
         .info-label {
             font-weight: bold;
-
             color: #555555;
         }
 
@@ -290,148 +245,88 @@
             color: #101B33;
         }
 
-
-        /* =====================================================
-           NOM / PRÉNOM
-        ===================================================== */
+        /* ===================== NOM / PRÉNOM ===================== */
 
         .prenom {
             font-size: 5.2pt;
-
             color: #555555;
-
             margin-bottom: 0.2mm;
         }
 
         .nom {
             font-size: 8pt;
-
             font-weight: bold;
-
             color: #101B33;
-
             text-transform: uppercase;
-
             margin-bottom: 1mm;
-
             line-height: 1.1;
         }
 
-
-        /* =====================================================
-           CLASSE
-        ===================================================== */
+        /* ===================== CLASSE ===================== */
 
         .classe {
             display: inline-block;
-
             background: #101B33;
-
             color: #FFFFFF;
-
             padding: 0.6mm 1.5mm;
-
             border-radius: 1mm;
-
             font-size: 5pt;
-
             font-weight: bold;
-
             margin-top: 0.4mm;
         }
 
-
-        /* =====================================================
-           DIRECTEUR
-        ===================================================== */
+        /* ===================== DIRECTEUR ===================== */
 
         .directeur {
             position: absolute;
-
             right: 2.5mm;
             bottom: 1.2mm;
-
             text-align: right;
-
             font-size: 4.5pt;
-
             color: #555555;
         }
 
         .directeur-label {
             display: block;
-
             font-weight: bold;
-
             color: #101B33;
-
             margin-bottom: 0.2mm;
         }
 
         .directeur-nom {
             display: block;
-
             font-size: 5pt;
-
             font-weight: bold;
-
             color: #101B33;
-
             max-width: 30mm;
-
             white-space: nowrap;
         }
 
-
-        /* =====================================================
-           BANDE INFÉRIEURE
-        ===================================================== */
+        /* ===================== BANDE INFÉRIEURE ===================== */
 
         .carte-footer {
             position: absolute;
-
             left: 0;
             right: 0;
             bottom: 0;
-
             height: 9.5mm;
-
             background: #F5F6F8;
-
             border-top: 0.2mm solid #D9D9D9;
-
             padding: 1.2mm 2.5mm;
         }
 
-
-        /* =====================================================
-           MATRICULE
-        ===================================================== */
-
         .matricule {
             float: left;
-
             font-family: "Courier New", monospace;
-
             font-size: 5.2pt;
-
             font-weight: bold;
-
             color: #101B33;
         }
 
-
-        /* =====================================================
-           ANNÉE
-        ===================================================== */
-
         .annee {
             float: right;
-
             font-size: 4.8pt;
-
             color: #555555;
-
             text-align: right;
         }
 
@@ -439,18 +334,10 @@
             color: #101B33;
         }
 
-
-        /* =====================================================
-           VALIDITÉ
-        ===================================================== */
-
         .validite {
             clear: both;
-
             padding-top: 0.5mm;
-
             font-size: 4.2pt;
-
             color: #777777;
         }
 
@@ -464,28 +351,23 @@
 
 <body>
 
-
-<!-- =========================================================
-     PAGES
-========================================================= -->
+<!-- ========================= PAGES ========================= -->
 
 <div class="feuille"
      th:each="page, iterPage : ${pages}"
      th:classappend="${iterPage.index > 0} ? 'saut-page' : ''">
 
-
-    <!-- =====================================================
-         CARTE
-    ====================================================== -->
+    <!-- ========================= CARTE ========================= -->
 
     <div class="carte"
          th:each="carte : ${page}">
 
+        <!-- DRAPEAU DU MALI (angle supérieur droit) -->
+        <div class="angle angle-rouge"></div>
+        <div class="angle angle-jaune"></div>
+        <div class="angle angle-vert"></div>
 
-        <!-- =================================================
-             LOGO
-        ================================================== -->
-
+        <!-- LOGO -->
         <img th:if="${carte.logoBase64 != null}"
              th:src="${carte.logoBase64}"
              class="logo"
@@ -496,33 +378,14 @@
             ECO
         </div>
 
-
-        <!-- =================================================
-             EN-TÊTE
-        ================================================== -->
-
+        <!-- EN-TÊTE -->
         <div class="carte-header">
 
             <div class="entete-national">
-
-                <div class="republique">
-                    RÉPUBLIQUE DU MALI
-                </div>
-
-                <div class="devise">
-                    Un Peuple - Un But - Une Foi
-                </div>
-
-                <div class="ministere">
-                    Ministère de l'Éducation nationale
-                </div>
-
+                <div class="republique">RÉPUBLIQUE DU MALI</div>
+                <div class="devise">Un Peuple - Un But - Une Foi</div>
+                <div class="ministere">Ministère de l'Éducation nationale</div>
             </div>
-
-
-            <!-- =================================================
-                 ÉCOLE
-            ================================================== -->
 
             <div class="ecole-bloc">
 
@@ -545,18 +408,10 @@
 
         </div>
 
-
-        <!-- =================================================
-             CORPS
-        ================================================== -->
-
+        <!-- CORPS -->
         <div class="carte-corps">
 
-
-            <!-- =================================================
-                 PHOTO
-            ================================================== -->
-
+            <!-- PHOTO -->
             <div class="photo-container">
 
                 <img th:if="${carte.photoBase64 != null}"
@@ -572,201 +427,76 @@
 
             </div>
 
-
-            <!-- =================================================
-                 INFORMATIONS ÉLÈVE
-            ================================================== -->
-
+            <!-- INFORMATIONS ÉLÈVE -->
             <div class="eleve-infos">
 
-
-                <!-- PRÉNOM -->
-
                 <p class="prenom">
-
-                    <span class="info-label">
-                        Prénoms :
-                    </span>
-
-                    <span class="info-value"
-                          th:text="${carte.prenom}">
-                        Bouba
-                    </span>
-
+                    <span class="info-label">Prénoms :</span>
+                    <span class="info-value" th:text="${carte.prenom}">Bouba</span>
                 </p>
 
-
-                <!-- NOM -->
-
-                <p class="nom"
-                   th:text="${carte.nom}">
-                    CAMARA
-                </p>
-
-
-                <!-- CLASSE -->
+                <p class="nom" th:text="${carte.nom}">CAMARA</p>
 
                 <p class="info-ligne">
-
-                    <span class="info-label">
-                        Classe :
-                    </span>
-
-                    <span class="info-value"
-                          th:text="${carte.classeNom}">
-                        3ème Année
-                    </span>
-
+                    <span class="info-label">Classe :</span>
+                    <span class="info-value" th:text="${carte.classeNom}">3ème Année</span>
                 </p>
-
-
-                <!-- DATE DE NAISSANCE -->
 
                 <p class="info-ligne"
                    th:if="${carte.dateNaissanceFormatee != null}">
-
-                    <span class="info-label">
-                        Date de naissance :
-                    </span>
-
-                    <span class="info-value"
-                          th:text="${carte.dateNaissanceFormatee}">
-                        18/09/2015
-                    </span>
-
+                    <span class="info-label">Date de naissance :</span>
+                    <span class="info-value" th:text="${carte.dateNaissanceFormatee}">18/09/2015</span>
                 </p>
-
-
-                <!-- LIEU DE NAISSANCE -->
 
                 <p class="info-ligne"
                    th:if="${carte.lieuNaissance != null and !carte.lieuNaissance.isEmpty()}">
-
-                    <span class="info-label">
-                        Lieu :
-                    </span>
-
-                    <span class="info-value"
-                          th:text="${carte.lieuNaissance}">
-                        Bamako
-                    </span>
-
+                    <span class="info-label">Lieu :</span>
+                    <span class="info-value" th:text="${carte.lieuNaissance}">Bamako</span>
                 </p>
-
-
-                <!-- GROUPE SANGUIN -->
 
                 <p class="info-ligne"
                    th:if="${carte.groupeSanguin != null and !carte.groupeSanguin.isEmpty()}">
-
-    <span class="info-label">
-        Groupe sanguin :
-    </span>
-
-                    <span class="info-value"
-                          th:text="${carte.groupeSanguin}">
-        O+
-    </span>
-
+                    <span class="info-label">Groupe sanguin :</span>
+                    <span class="info-value" th:text="${carte.groupeSanguin}">O+</span>
                 </p>
-
-
-                <!-- TÉLÉPHONE PARENT -->
 
                 <p class="info-ligne"
                    th:if="${carte.telephoneParent != null and !carte.telephoneParent.isEmpty()}">
-
-    <span class="info-label">
-        Tél. parent :
-    </span>
-
-                    <span class="info-value"
-                          th:text="${carte.telephoneParent}">
-        70 00 00 00
-    </span>
-
+                    <span class="info-label">Tél. parent :</span>
+                    <span class="info-value" th:text="${carte.telephoneParent}">70 00 00 00</span>
                 </p>
 
-
-                <!-- CLASSE EN BADGE -->
-
-                <div class="classe"
-                     th:text="${carte.classeNom}">
-                    3ème Année
-                </div>
+                <div class="classe" th:text="${carte.classeNom}">3ème Année</div>
 
             </div>
 
-
-            <!-- =================================================
-                 DIRECTEUR
-            ================================================== -->
-
+            <!-- DIRECTEUR -->
             <div class="directeur"
                  th:if="${carte.directeurNom != null}">
-
-                <span class="directeur-label">
-                    Le Directeur
-                </span>
-
-                <span class="directeur-nom"
-                      th:text="${carte.directeurNom}">
-                    NOM DU DIRECTEUR
-                </span>
-
+                <span class="directeur-label">Le Directeur</span>
+                <span class="directeur-nom" th:text="${carte.directeurNom}">NOM DU DIRECTEUR</span>
             </div>
 
         </div>
 
-
-        <!-- =================================================
-             PIED
-        ================================================== -->
-
+        <!-- PIED -->
         <div class="carte-footer">
 
-
-            <!-- MATRICULE -->
-
-            <span class="matricule"
-                  th:text="${carte.matricule}">
-                ELV0074
-            </span>
-
-
-            <!-- ANNÉE -->
+            <span class="matricule" th:text="${carte.matricule}">ELV0074</span>
 
             <span class="annee">
-
                 Année scolaire :
-
-                <strong th:text="${carte.anneeScolaireNom}">
-                    2026-2027
-                </strong>
-
+                <strong th:text="${carte.anneeScolaireNom}">2026-2027</strong>
             </span>
 
-
-            <!-- VALIDITÉ -->
-
             <div class="validite">
-
                 Valable du
-
-                <strong th:text="${carte.validiteDebut}">
-                    01/09/2026
-                </strong>
-
+                <strong th:text="${carte.validiteDebut}">01/09/2026</strong>
                 au
-
-                <strong th:text="${carte.validiteFin}">
-                    30/09/2027
-                </strong>
-
+                <strong th:text="${carte.validiteFin}">30/09/2027</strong>
             </div>
 
         </div>
-
 
     </div>
 
