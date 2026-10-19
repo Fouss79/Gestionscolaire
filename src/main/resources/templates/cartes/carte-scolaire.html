@@ -67,11 +67,11 @@
             border-top-style: solid;
         }
 
-        /* Rouge : le plus grand (extérieur) */
-        .angle-rouge {
+        /* Vert : le plus grand (extérieur, à gauche) */
+        .angle-vert {
             border-left-width: 15mm;
             border-top-width: 15mm;
-            border-top-color: #CE1126;
+            border-top-color: #14B53A;
             z-index: 5;
         }
 
@@ -83,11 +83,11 @@
             z-index: 6;
         }
 
-        /* Vert : le plus petit (pointe de l'angle) */
-        .angle-vert {
+        /* Rouge : le plus petit (pointe de l'angle, à droite) */
+        .angle-rouge {
             border-left-width: 5mm;
             border-top-width: 5mm;
-            border-top-color: #14B53A;
+            border-top-color: #CE1126;
             z-index: 7;
         }
 
@@ -363,9 +363,9 @@
          th:each="carte : ${page}">
 
         <!-- DRAPEAU DU MALI (angle supérieur droit) -->
-        <div class="angle angle-rouge"></div>
-        <div class="angle angle-jaune"></div>
         <div class="angle angle-vert"></div>
+        <div class="angle angle-jaune"></div>
+        <div class="angle angle-rouge"></div>
 
         <!-- LOGO -->
         <img th:if="${carte.logoBase64 != null}"
